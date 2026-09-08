@@ -20,9 +20,11 @@ dependencies = [
     "pymysql>=1.2.0",
     "python-docx>=1.2.0",
     "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.20",
     "scikit-learn>=1.9.0",
     "sqlalchemy>=2.0.52",
     "torch>=2.14.0",
+    "torchvision>=0.29.0",
     "tqdm>=4.70.0",
     "transformers>=5.16.1",
     "ultralytics>=8.4.143",
@@ -31,6 +33,33 @@ dependencies = [
 
 [project.scripts]
 wanted = "wanted:main"
+
+# ---------------------------------------------------------------------------
+# torch를 CPU 전용 빌드로 받는다
+# ---------------------------------------------------------------------------
+#
+# 왜 필요한가
+#   기본 PyPI의 torch는 CUDA 런타임을 함께 끌고 온다. 이 프로젝트의 lock 기준으로
+#   torch 본체 555MB + nvidia-* 패키지 16개 약 4.7GB다. 우리는 배포 서버에서
+#   GPU를 쓰지 않는데(추론만 한다), 이 용량 때문에 무료 배포가 실패한다.
+#   "서비스 링크가 10/5까지 살아 있어야 한다"는 조건이 여기서 걸린다.
+#
+#   학습(ml/)은 각자 로컬 GPU나 Colab에서 하고, 배포되는 것은 추론뿐이다.
+#   로컬에서 GPU로 학습해야 하는 사람은 이 설정을 지우지 말고
+#   `uv sync --no-sources`로 각자 환경에서만 원래 빌드를 받으면 된다.
+#
+# torchvision을 dependencies에 직접 넣은 이유
+#   원래 ultralytics가 끌고 오는 간접 의존이지만, [tool.uv.sources]는 직접
+#   의존성에만 적용된다. 명시하지 않으면 torchvision만 CUDA 빌드로 남는다.
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
 
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]

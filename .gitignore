@@ -51,6 +51,9 @@ htmlcov/
 *.h5
 *.pt
 *.onnx
+# HuggingFace 계열 가중치 — NER 모델을 로컬에 받으면 이 형식으로 저장된다
+*.bin
+*.safetensors
 /data/raw/
 /data/processed/
 /models/*.pkl
@@ -106,5 +109,15 @@ Desktop.ini
 /render_output/
 *.pdf
 !docs/**/*.pdf
+# 심사위원용 데모 샘플(계약서 PDF)은 반드시 커밋되어야 한다.
+# 이 예외가 없으면 발표 당일 "샘플 4개 중 3개만 동작"하는 사고가 난다.
+!sample_data/**/*.pdf
 playwright-report/
 test-results/
+
+# ---------- 8. 스캐너가 만드는 임시 산출물 ----------
+# 업로드 원본은 저장하지 않는 것이 제품 원칙이지만, 개발 중 임시 폴더가
+# 커밋되는 사고가 흔하다. 실수로도 올라가지 않게 막아둔다.
+uploads/
+outputs/
+scratch/
