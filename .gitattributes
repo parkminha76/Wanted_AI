@@ -1,0 +1,38 @@
+# 줄바꿈 통일
+#
+# 팀 전원이 Windows라 각자 git 설정(core.autocrlf)이 다르면, 아무것도 고치지
+# 않았는데 파일 전체가 바뀐 것으로 보이는 diff가 생긴다. 저장소 안에서는 항상
+# LF로 보관하고, 각자 작업 폴더에서는 git이 알아서 맞춰준다.
+#
+# 넣은 시점에 저장소의 모든 파일이 이미 LF였으므로 기존 파일에는 변화가 없다.
+
+* text=auto eol=lf
+
+# ---------- 바이너리 — 절대 줄바꿈을 건드리면 안 되는 것 ----------
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.xlsx  binary
+*.xls   binary
+*.docx  binary
+*.doc   binary
+*.pptx  binary
+*.zip   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+# 모델 가중치 (기본적으로 .gitignore 대상이지만, 혹시 들어와도 깨지지 않게)
+*.pt          binary
+*.pth         binary
+*.bin         binary
+*.safetensors binary
+*.onnx        binary
+
+# ---------- diff를 사람이 읽을 필요가 없는 것 ----------
+uv.lock linguist-generated=true -diff
