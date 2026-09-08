@@ -1,7 +1,5 @@
 # backend/training — 사기 대응 훈련 모드
 
-**담당: C**
-
 Attacker AI와의 대화가 돌아가는 백엔드.
 
 ## 하위 폴더

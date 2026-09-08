@@ -1,7 +1,5 @@
 # ml/data_generation — 합성 데이터 생성
 
-**담당: A (C 지원)**
-
 전체 파이프라인: **Faker + Custom Generator + 템플릿 합성 + 좌표기반 자동 라벨링 + Augmentation**
 
 ## 채워야 할 파일

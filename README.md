@@ -11,22 +11,22 @@
 
 ```
 infoguard/
-├── frontend/        # D 담당 — 전체 UI
+├── frontend/        
 ├── backend/
-│   ├── scanner/     # B 담당 — 정보유출 스캐너 엔진
-│   ├── training/    # C 담당 — 사기 대응 훈련 모드
-│   └── shared/      # ★B+C 공동 — 탐지엔진 입출력 계약 (제일 먼저 정할 것)
-├── ml/              # A 담당 — 모델 학습 (C가 인젝션 데이터 생성 지원)
-├── prompts/         # Attacker AI / Defender AI 프롬프트 템플릿
-├── sample_data/     # 심사위원용 "샘플로 체험하기" 데모 파일
-├── docs/            # 제안서·방향 결정 문서
-└── infra/           # 배포 설정
+│   ├── scanner/     
+│   ├── training/    
+│   └── shared/      
+├── ml/              
+├── prompts/        
+├── sample_data/     
+├── docs/            
+└── infra/          
 ```
 
 ## 제일 먼저 할 일 (day0 체크리스트 기준)
 
 1. `backend/shared/`의 탐지 엔진 입출력 형식을 팀 전원이 합의하고 확정 — 이게 안 정해지면
-   B가 엔진을 다 만들 때까지 C가 훈련 모드 실시간 스캔 연동을 못 붙인다.
+   엔진을 다 만들 때까지 훈련 모드 실시간 스캔 연동을 못 붙인다.
 2. LLM 콘텐츠 필터 테스트 — Attacker AI 역할극 프롬프트가 실제로 거부당하는지 확인.
    여기서 막히면 `backend/training/attacker_ai/`, `prompts/attacker/` 설계를 다시 짜야 한다.
 3. `ml/data_generation/`부터 손대기 — 다른 모든 것(스캐너 탐지, 훈련 데모 파일)이
@@ -34,5 +34,5 @@ infoguard/
 
 ## 일정 (9/6 → 9/20)
 
-`docs/`의 제안서 08 섹션 참고. 핵심만: 9/13에 미완성이어도 일단 통합 배포(D 책임),
+`docs/`의 제안서 08 섹션 참고. 핵심만: 9/13에 미완성이어도 일단 통합 배포,
 9/17~18 참가 신청 마감, 서비스 링크는 10/5까지 살아있어야 함(경량 모델로 갈 것).
