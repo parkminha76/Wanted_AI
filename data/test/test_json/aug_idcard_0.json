@@ -1,0 +1,111 @@
+{
+  "ground_truth": {
+    "name": "성민준(元宋沈)",
+    "resident_number": "450628-2463438",
+    "address": "충청남도 공주시 석촌호수9거리 70-76",
+    "issue_date": "2019.05.25.",
+    "issuing_authority": "서울특별시 춘천시장"
+  },
+  "detected": [
+    {
+      "label": "name",
+      "confidence": 0.951,
+      "bbox": [
+        190.8,
+        308.8,
+        626.1,
+        413.0
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.942,
+      "bbox": [
+        154.5,
+        426.2,
+        785.8,
+        531.4
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.895,
+      "bbox": [
+        172.4,
+        443.6,
+        795.6,
+        554.0
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.889,
+      "bbox": [
+        715.1,
+        753.6,
+        1046.0,
+        841.5
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.887,
+      "bbox": [
+        189.5,
+        336.0,
+        632.9,
+        437.0
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.852,
+      "bbox": [
+        168.3,
+        591.7,
+        938.2,
+        698.0
+      ]
+    },
+    {
+      "label": "face",
+      "confidence": 0.842,
+      "bbox": [
+        989.7,
+        0.0,
+        1568.3,
+        519.6
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.769,
+      "bbox": [
+        168.9,
+        549.9,
+        944.4,
+        692.0
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.556,
+      "bbox": [
+        165.7,
+        569.5,
+        959.2,
+        653.8
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.52,
+      "bbox": [
+        170.3,
+        467.6,
+        855.5,
+        569.5
+      ]
+    }
+  ]
+}

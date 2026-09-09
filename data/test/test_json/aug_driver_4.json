@@ -1,0 +1,89 @@
+{
+  "ground_truth": {
+    "name": "백지현",
+    "resident_number": "160905-2192196",
+    "license_number": "17-25-412147-21",
+    "address": "경기도 천안시 서북구 언주거리 480\n",
+    "issue_date": "2025.09.15.",
+    "expiry_date": "2035.09.15.",
+    "vehicle_class": "2종소형",
+    "aptitude_label": "적성검사",
+    "aptitude_test_date": "2025.09.15.",
+    "period_label": "기    간 :  ~",
+    "condition_label": "조    건 :",
+    "secondary_code": "E970C",
+    "issuing_authority": "대구지방경찰청장"
+  },
+  "detected": [
+    {
+      "label": "face",
+      "confidence": 0.874,
+      "bbox": [
+        0.4,
+        44.3,
+        163.9,
+        244.4
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.847,
+      "bbox": [
+        179.0,
+        73.1,
+        217.0,
+        87.7
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.675,
+      "bbox": [
+        173.5,
+        114.6,
+        290.3,
+        131.2
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.661,
+      "bbox": [
+        175.8,
+        106.6,
+        289.8,
+        123.3
+      ]
+    },
+    {
+      "label": "license_number",
+      "confidence": 0.468,
+      "bbox": [
+        185.7,
+        49.6,
+        353.7,
+        74.6
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.455,
+      "bbox": [
+        172.9,
+        123.4,
+        294.0,
+        141.1
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.302,
+      "bbox": [
+        173.8,
+        127.4,
+        306.9,
+        141.3
+      ]
+    }
+  ]
+}

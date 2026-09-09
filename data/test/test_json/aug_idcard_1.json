@@ -1,0 +1,91 @@
+{
+  "ground_truth": {
+    "name": "김지후(州宋曺)",
+    "resident_number": "300720-2649338",
+    "address": "부산광역시 성북구 오금3로 779",
+    "issue_date": "2022.08.14.",
+    "issuing_authority": "대전광역시 춘천시장"
+  },
+  "detected": [
+    {
+      "label": "resident_number",
+      "confidence": 0.988,
+      "bbox": [
+        165.3,
+        389.3,
+        788.0,
+        458.7
+      ]
+    },
+    {
+      "label": "face",
+      "confidence": 0.986,
+      "bbox": [
+        1007.7,
+        132.4,
+        1507.6,
+        681.9
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.978,
+      "bbox": [
+        606.6,
+        782.3,
+        916.3,
+        832.9
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.957,
+      "bbox": [
+        229.9,
+        258.5,
+        674.7,
+        329.9
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.938,
+      "bbox": [
+        142.9,
+        513.9,
+        780.4,
+        561.7
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.786,
+      "bbox": [
+        140.7,
+        505.6,
+        796.6,
+        552.8
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.74,
+      "bbox": [
+        131.9,
+        523.3,
+        780.3,
+        569.1
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.602,
+      "bbox": [
+        159.8,
+        403.8,
+        790.7,
+        471.5
+      ]
+    }
+  ]
+}
