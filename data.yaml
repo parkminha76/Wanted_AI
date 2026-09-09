@@ -1,0 +1,17 @@
+path: .
+train: data/processed/images/train
+val: data/processed/images/val
+nc: 12
+names:
+- face
+- name
+- resident_number
+- license_number
+- address
+- issue_date
+- expiry_date
+- signature
+- passport_number
+- date_of_birth
+- sex
+- mrz

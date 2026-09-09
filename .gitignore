@@ -61,6 +61,7 @@ htmlcov/
 *.csv
 !sample_data/**/*.csv
 !/prompts/**/*.csv
+sample_data/*_sample.png
 
 # ---------- 3. Node / 프론트엔드 ----------
 node_modules/
