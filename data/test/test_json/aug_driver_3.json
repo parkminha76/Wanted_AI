@@ -1,0 +1,89 @@
+{
+  "ground_truth": {
+    "name": "김정웅",
+    "resident_number": "830906-2788277",
+    "license_number": "15-19-880838-51",
+    "address": "울산광역시 서구 언주거리 110-98\n(성호김남리)",
+    "issue_date": "2019.01.19.",
+    "expiry_date": "2029.01.19.",
+    "vehicle_class": "1종특수",
+    "aptitude_label": "적성검사",
+    "aptitude_test_date": "2019.01.19.",
+    "period_label": "기    간 :  ~",
+    "condition_label": "조    건 :",
+    "secondary_code": "E122C",
+    "issuing_authority": "대구지방경찰청장"
+  },
+  "detected": [
+    {
+      "label": "license_number",
+      "confidence": 0.988,
+      "bbox": [
+        168.2,
+        45.2,
+        337.4,
+        61.8
+      ]
+    },
+    {
+      "label": "face",
+      "confidence": 0.985,
+      "bbox": [
+        14.6,
+        78.3,
+        159.9,
+        257.9
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.983,
+      "bbox": [
+        170.3,
+        118.4,
+        317.4,
+        145.6
+      ]
+    },
+    {
+      "label": "expiry_date",
+      "confidence": 0.981,
+      "bbox": [
+        233.1,
+        192.7,
+        289.9,
+        203.1
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.98,
+      "bbox": [
+        169.5,
+        97.6,
+        278.6,
+        111.0
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.976,
+      "bbox": [
+        168.7,
+        81.3,
+        202.8,
+        94.8
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.972,
+      "bbox": [
+        175.8,
+        256.2,
+        250.1,
+        270.7
+      ]
+    }
+  ]
+}
