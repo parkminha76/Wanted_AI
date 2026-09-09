@@ -23,7 +23,8 @@ from typing import Literal, Optional
 # 이 규격의 버전. 필드를 추가하면 뒷자리, 기존 필드의 의미를 바꾸면 앞자리를 올린다.
 # 응답 JSON에 실려 나가므로, 화면이 이상하게 나올 때 "누가 옛날 규격을 쓰고 있나"를
 # 바로 확인할 수 있다.
-SCHEMA_VERSION = "1.1"
+# 1.1 -> 1.2: RiskType에 "emp_no"(사번) 추가, LABEL_TO_TYPE 역매핑 추가 (A, 09-09)
+SCHEMA_VERSION = "1.2"
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,11 @@ RiskType = Literal[
     "biz_reg",          # 사업자등록번호
     "corp_reg",         # 법인등록번호
     "ip",               # IP 주소
+
+    # 사내 식별자 — 사업자등록번호·전화번호와 자릿수가 겹쳐 오탐이 잦다.
+    # (오탐 제거 분류기가 "사번 vs 일반 숫자열" 쌍을 다루기 위해 09-09 추가)
+    "emp_no",           # 사번
+    "birth_date",       # 생년월일 — 이미지 CNN 탐지 전용, person/address와 동급 위험도
 
     # --- NER로 잡는 것 — 형식이 없는 값 ---
     "person",           # 이름
@@ -98,6 +104,8 @@ TYPE_LABELS: dict[str, str] = {
     "biz_reg": "사업자등록번호",
     "corp_reg": "법인등록번호",
     "ip": "IP 주소",
+    "emp_no": "사번",
+    "birth_date": "생년월일",
     "person": "이름",
     "address": "주소",
     "org": "조직명",
@@ -112,6 +120,15 @@ TYPE_LABELS: dict[str, str] = {
 def mask_placeholder(risk_type: str) -> str:
     """마스킹 사본에 넣을 치환 문자열. mask.py가 이것만 쓴다."""
     return f"[{TYPE_LABELS.get(risk_type, '민감정보')}]"
+
+
+# 한글 라벨 -> RiskType 역매핑. TYPE_LABELS에서 자동 파생되므로 따로 관리할 필요 없다.
+#
+# 여기 있는 이유: 학습 데이터 라벨링(오탐 제거/인젝션 분류기용)을 한글 필드명으로
+# 받는 경우가 있는데("계좌번호" 등), 그 값을 RiskType enum("account")으로 바꿔줄
+# 곳이 마땅히 없었다. TYPE_LABELS를 뒤집기만 하면 되므로 여기 둔다. TYPE_LABELS에
+# 새 타입을 추가하면 이 표에도 자동으로 반영된다 (직접 수정할 필요 없음).
+LABEL_TO_TYPE: dict[str, str] = {label: risk_type for risk_type, label in TYPE_LABELS.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +187,11 @@ RISK_WEIGHTS: dict[str, int] = {
     "biz_reg": 5,
     "corp_reg": 5,
     "ip": 5,
+
+    # 사번 — person/phone과 동급으로 취급한다. 단독 유출 시 피해가 제한적이지만
+    # 조직명·이름과 결합되면 위험도가 올라가는 성격이 비슷하다.
+    "emp_no": 10,
+    "birth_date": 10,   # 단독 유출은 제한적, 이름/주소 등과 결합시 위험 - person급으로 취급
 
     # 이미지(신분증) — 신분증 사진 자체가 고유식별정보 덩어리다.
     "id_photo": 40,

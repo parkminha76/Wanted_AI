@@ -7,7 +7,7 @@ from ml.data_generation.id_templates import driver_license_new
 from ml.data_generation.generators import gen_driver_license_values
 from ml.data_generation.compose import compose_card, save_sample
 
-N = 300
+N = 700
 VAL_RATIO = 0.1
 
 # ← 추가: m1~m5, w1~w3 얼굴 이미지 목록 (확장자 모를 수 있어서 png/jpg 둘 다 찾음)
