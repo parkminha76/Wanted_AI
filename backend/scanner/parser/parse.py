@@ -55,6 +55,21 @@ class TextSpan:
     hidden_attr: bool = False   # docx의 vanish, xlsx의 숨긴 행/열·시트 등
     bbox: tuple | None = None   # 마스킹 좌표 (PDF만 채워진다)
 
+    # 글자별 가로 좌표. 글자 수 + 1개다 — 각 글자의 왼쪽 경계에 마지막 글자의
+    # 오른쪽 경계를 하나 더 붙인 것. i번째 글자가 차지하는 x 구간은
+    # char_x[i] ~ char_x[i+1]이다. PDF 가로쓰기에서만 채워진다.
+    #
+    # 여기 있는 이유: 마스킹은 "몇 번째 글자"가 아니라 "페이지 위 좌표"로 지운다.
+    # span 사각형 하나만 남기면 그 안의 특정 구간 좌표를 글자 수로 비례 배분해
+    # 짐작할 수밖에 없는데, 한글(약 10.3pt)과 ASCII(약 6.7pt)는 폭이 1.5배 차이라
+    # 섞인 줄에서 글자 한두 개분씩 밀린다. 덜 덮이면 개인정보가 그대로 남고,
+    # 넓히면 옆 글자까지 지워진다. get_texttrace()가 글자마다 주는 좌표를 그냥
+    # 들고 있으면 짐작할 필요가 없어진다.
+    #
+    # 세로 좌표를 안 싣는 이유: 같은 span 안의 글자는 y 구간을 공유한다.
+    # bbox[1], bbox[3]을 그대로 쓰면 되므로 숫자를 4분의 1로 줄인다.
+    char_x: list[float] | None = None
+
     # --- 아래 둘은 README 계약에 없는 추가 필드다 ---
 
     # bg_color가 진짜 그 자리의 채움색인지, 알아내지 못해서 흰색으로 둔 것인지.
@@ -344,6 +359,7 @@ class _PdfItem:
     render_mode: int
     spacewidth: float
     seqno: int
+    char_x: list[float] | None
 
 
 def _safe_chr(code) -> str:
@@ -351,6 +367,29 @@ def _safe_chr(code) -> str:
         return chr(code)
     except (ValueError, TypeError):
         return "�"
+
+
+def _char_x_edges(chars, direction) -> list[float] | None:
+    """글자별 가로 경계 목록. 가로쓰기가 아니거나 좌표가 이상하면 None.
+
+    None이면 locate.py가 span 사각형 전체로 물러선다 — 값보다 넓게 지우는 쪽이라
+    개인정보가 남지는 않지만 옆 글자가 같이 지워질 수 있다.
+    """
+    if tuple(direction or (1.0, 0.0)) != (1.0, 0.0):    # 세로쓰기·회전된 텍스트
+        return None
+    edges: list[float] = []
+    for char in chars:
+        bbox = char[3]
+        if not bbox or len(bbox) < 4:
+            return None
+        edges.append(float(bbox[0]))
+    if not edges:
+        return None
+    edges.append(float(chars[-1][3][2]))
+    # 왼쪽에서 오른쪽으로 정렬돼 있어야 구간을 잘라 쓸 수 있다.
+    if any(b < a for a, b in zip(edges, edges[1:])):
+        return None
+    return edges
 
 
 def _pdf_page_items(page) -> list[_PdfItem]:
@@ -374,6 +413,7 @@ def _pdf_page_items(page) -> list[_PdfItem]:
                 render_mode=int(span.get("type", 0)),
                 spacewidth=float(span.get("spacewidth") or 0.0),
                 seqno=int(span.get("seqno", -1)),
+                char_x=_char_x_edges(chars, span.get("dir")),
             )
         )
     return items
@@ -469,6 +509,7 @@ def _load_pdf(path: str) -> ParsedDoc:
                         render_mode=item.render_mode,
                         opacity=item.opacity,
                         bbox=item.bbox,
+                        char_x=item.char_x,
                     )
                     previous = item
 
