@@ -12,6 +12,14 @@ ner.py / hidden.py가 새로 구현할 때 지켜야 할 반환 형식(rules.py�
     [{"field": <schema.RiskType 문자열>, "value": str, "start": int, "end": int,
       "confidence": float}, ...]
 
+mask.py는 함수가 둘 필요하다:
+    build(raw_text, findings) -> str        # 텍스트용. scan_text가 부른다.
+    build_file(path, doc, findings) -> str  # 파일 사본용. scan_file이 부른다.
+build_file은 doc(ParsedDoc, parse.load()가 준 것)의 spans를 받아서 findings의
+offset(start/end)을 bbox로 되짚어야 한다 — masked_text는 텍스트 치환이라
+오프셋만 있으면 되지만, PDF 리댁션은 페이지 좌표(bbox)가 있어야 실제로 값을
+지울 수 있다. doc 없이는 build_file을 호출할 수 없다(parser가 준비돼야 한다).
+
 단계별 계획: "rules.py만 연결한 최소 버전을 먼저 완성해서 C(훈련 모드)에 넘긴다"는
 원칙에 따라, models.py(오탐 제거 + 인젝션) 연결은 지금 단계에서는 꺼둔다
 (_ENABLE_CLASSIFIER_STAGE). 로직은 이미 구현돼 있으니 다음 단계에서 플래그만
@@ -20,6 +28,7 @@ ner.py / hidden.py가 새로 구현할 때 지켜야 할 반환 형식(rules.py�
 
 from __future__ import annotations
 
+import os
 import re
 
 from backend.scanner.detectors import models, rules
@@ -76,6 +85,19 @@ _CLASSIFIER_CONTEXT_RADIUS = 50
 # models.py(오탐 제거 + 인젝션) 연결은 다음 단계로 미룬다. 지금은 rules.py만 연결한
 # 최소 버전을 C에 넘기는 게 목표라 꺼둔다. True로 바꾸면 바로 붙는다.
 _ENABLE_CLASSIFIER_STAGE = False
+
+# 확장자 -> schema.ScanResult.file_type. 화면(D)이 "PDF 사본 받기"인지 "텍스트 사본
+# 받기"인지 구분하는 데 쓰고, mask.build_file도 이 값으로 리댁션 방식을 고른다.
+_FILE_TYPE_BY_EXTENSION: dict[str, str] = {
+    ".pdf": "pdf",
+    ".docx": "docx",
+    ".xlsx": "xlsx",
+    ".txt": "txt",
+    ".md": "md",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+}
 
 
 def _raw_to_finding(raw: dict, source: str) -> Finding:
@@ -140,10 +162,17 @@ def _apply_classifier_filters(
             kept.append(f)
             continue
         context = raw_text[max(0, f.start - _CLASSIFIER_CONTEXT_RADIUS) : f.start]
-        is_real, classifier_confidence = models.filter_false_positive(f.text, context, f.type)
-        f.confidence = round(f.confidence * classifier_confidence, 3)
-        f.evidence = {**f.evidence, "prob_positive": classifier_confidence}
-        (kept if is_real else filtered_out).append(f)
+        is_real, verdict_confidence = models.filter_false_positive(f.text, context, f.type)
+        # 분류기가 주는 확신도는 "판정에 대한 확신"이지 "개인정보일 확률"이 아니다.
+        # 통과시킬 때만 곱한다 — 걸러낸 항목에도 곱하면 "0.9 확신으로 개인정보가
+        # 아니다"가 "0.54 확신으로 개인정보다"로 뒤집혀 화면에 나간다.
+        if is_real:
+            f.confidence = round(f.confidence * verdict_confidence, 3)
+            f.evidence = {**f.evidence, "prob_positive": verdict_confidence}
+            kept.append(f)
+        else:
+            f.evidence = {**f.evidence, "prob_positive": round(1.0 - verdict_confidence, 3)}
+            filtered_out.append(f)
     return kept, filtered_out
 
 
@@ -160,9 +189,13 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     return sorted(kept, key=lambda f: f.start)
 
 
-def _reassign_ids(findings: list[Finding]) -> None:
-    for i, f in enumerate(findings):
+def _reassign_ids(findings: list[Finding], offset: int = 0) -> None:
+    for i, f in enumerate(findings, start=offset):
         f.id = schema.make_finding_id(i)
+
+
+def _guess_file_type(path: str) -> str:
+    return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "txt")
 
 
 def scan_text(text: str, meta: dict | None = None) -> ScanResult:
@@ -190,6 +223,10 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     # 6. 겹치는 구간 정리
     findings = _dedupe(findings)
     _reassign_ids(findings)
+    # 걸러낸 항목에도 id를 준다. 화면 03의 "오탐으로 제외한 항목" 카드가 이 목록을
+    # 그리는데, id가 다 빈 문자열이면 프론트가 항목을 구분하지 못한다. 번호는
+    # findings 뒤에 이어 붙여 한 ScanResult 안에서 유일하게 만든다.
+    _reassign_ids(filtered_out, offset=len(findings))
 
     result = ScanResult(
         filename=meta.get("filename", ""),
@@ -206,21 +243,46 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
 
 
 def scan_file(path: str) -> ScanResult:
-    """파일 1개를 파싱해서 검사한다.
+    """파일 1개를 파싱해서 검사하고, 마스킹된 파일 사본까지 만든다.
 
     parser 모듈(backend/scanner/parser/parse.py)이 아직 없어서, 지금은 UTF-8 텍스트를
     직접 읽어 scan_text로 넘기는 임시 다리 역할만 한다. PDF/DOCX/이미지 분기는
     parse.load가 준비되면 이 함수의 분기만 바꿔 끼우면 된다.
     """
-    if parse is not None and hasattr(parse, "load"):
-        doc = parse.load(path)
-        result = scan_text(doc.raw_text, meta={"filename": path, "spans": getattr(doc, "spans", [])})
-    else:
-        with open(path, encoding="utf-8") as fh:
-            raw_text = fh.read()
-        result = scan_text(raw_text, meta={"filename": path})
+    doc = None
+    try:
+        if parse is not None and hasattr(parse, "load"):
+            doc = parse.load(path)
+            result = scan_text(
+                doc.raw_text, meta={"filename": path, "spans": getattr(doc, "spans", [])}
+            )
+        else:
+            with open(path, encoding="utf-8") as fh:
+                raw_text = fh.read()
+            result = scan_text(raw_text, meta={"filename": path})
+    except Exception as exc:  # noqa: BLE001
+        # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계다. 파일 하나가
+        # 깨졌다고 예외를 위로 던지면 scan_files가 통째로 죽어서, 같이 올린
+        # 멀쩡한 파일들의 결과까지 날아간다("파일 10개를 위험도순으로" 화면이
+        # 파일 하나 때문에 통째로 실패한다). schema.ScanResult.error가 바로
+        # 이 경우를 위해 있는 필드다.
+        #
+        # 메시지에 파일 내용을 넣지 않는다 — 예외 문자열에 원문 조각이 섞여
+        # 화면까지 나가면 개인정보가 새는 셈이다.
+        result = ScanResult(filename=path, error=f"파일을 읽지 못했습니다 ({type(exc).__name__})")
+        result.file_type = _guess_file_type(path)
+        return result.finalize()
 
     result.filename = path
+    result.file_type = _guess_file_type(path)
+
+    # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
+    # 제품의 주 동작은 "마스킹된 파일 다운로드"이고, PDF에서 값을 실제로 지우려면
+    # 오프셋이 아니라 페이지 좌표(bbox)가 필요하다. 그 좌표는 doc.spans에만 있어서
+    # ParsedDoc을 통째로 넘긴다. parser와 mask가 둘 다 준비돼야 동작한다.
+    if doc is not None and mask is not None and hasattr(mask, "build_file"):
+        result.masked_path = mask.build_file(path, doc, result.findings)
+
     return result
 
 

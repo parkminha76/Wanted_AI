@@ -1,17 +1,29 @@
-from state_machine import TrainingStateMachine
+from src.training.state_machine import get_next_state
 
 
-training = TrainingStateMachine()
+state = "S1_APPROACH"
 
-while not training.is_finished():
+print("현재 상태:", state)
 
-    state = training.get_current_state()
+state = get_next_state(
+    state,
+    "네, 무슨 일이시죠?"
+)
 
-    print("\n현재 상태:", training.current_state)
-    print("Attacker:", state["example"])
+print("다음 상태:", state)
 
-    input("사용자 답변: ")
 
-    training.move_next()
+state = get_next_state(
+    state,
+    "그건 왜 필요하신가요? 좀 이상한데요."
+)
 
-print("\n=== 훈련 종료 ===")
+print("다음 상태:", state)
+
+
+state = get_next_state(
+    state,
+    "싫습니다."
+)
+
+print("다음 상태:", state)
