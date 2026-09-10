@@ -135,6 +135,40 @@ def _valid_model(v) -> bool:
     return isinstance(v, str) and v in _KNOWN_MODELS
 
 
+def _valid_opacity(v) -> bool:
+    return isinstance(v, (int, float)) and 0.0 <= v <= 1.0  # 0.0 = 완전 투명
+
+
+def _valid_intent_score(v) -> bool:
+    return isinstance(v, (int, float)) and 0.0 <= v <= 1.0
+
+
+# hidden_reason은 "어떤 방식으로 숨겨졌나"(수법 분류, 통계용)이고,
+# intent_score는 "그게 얼마나 의도적으로 보이나"(0.0~1.0, 위험도 반영용)다.
+# 이 둘을 하나로 합치지 않는 이유: 같은 "흰 글씨" 수법이어도 진짜 숨기려고
+# 한 것과 편집 중 우연히 남은 서식 잔재는 위험도가 다르다. hidden_reason만
+# 있으면 "무슨 수법인지"는 알아도 "그게 위험한 건지"는 못 나타낸다.
+#
+# intent_score를 DB에 저장하는 이유는 XAI 근거 표시와 통계용이고, 실제
+# 위험점수 계산에 반영하려면 B가 Finding을 만들 때 이 값이 높을수록
+# Finding.confidence도 높게 잡아줘야 한다 — compute_risk_score()가
+# weight x confidence x log(count) 구조라 confidence를 통해서만 점수에
+# 반영되고, evidence 내부 값을 직접 읽어서 계산하지는 않는다.
+_HIDDEN_REASONS = {
+    "white_font_color",     # 글자색이 배경색과 동일
+    "zero_font_size",       # 폰트 크기 0 또는 극소
+    "zero_opacity",         # 투명도 0
+    "zero_width_char",      # 제로폭 문자(zero-width space 등) 삽입
+    "hidden_row_column",    # 숨긴 행/열 (스프레드시트)
+    "off_page_position",    # 페이지 밖으로 배치
+    "other",                # 위에 없는 숨김 방식 — 존재는 기록, 세부 분류는 나중에
+}
+
+
+def _valid_hidden_reason(v) -> bool:
+    return isinstance(v, str) and v in _HIDDEN_REASONS
+
+
 # 키 -> 값 검증 함수. 여기 없는 키는 전부 버려진다 (화이트리스트).
 _EVIDENCE_VALIDATORS = {
     "font_size": _valid_font_size,
@@ -144,6 +178,9 @@ _EVIDENCE_VALIDATORS = {
     "checksum": _valid_checksum,
     "prob_positive": _valid_probability,
     "model": _valid_model,
+    "opacity": _valid_opacity,
+    "hidden_reason": _valid_hidden_reason,
+    "intent_score": _valid_intent_score,
 }
 
 
