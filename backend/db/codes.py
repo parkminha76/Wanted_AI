@@ -149,19 +149,41 @@ def _valid_intent_score(v) -> bool:
 # 한 것과 편집 중 우연히 남은 서식 잔재는 위험도가 다르다. hidden_reason만
 # 있으면 "무슨 수법인지"는 알아도 "그게 위험한 건지"는 못 나타낸다.
 #
+# 목록은 B의 실제 탐지 로직 기준(2026-09-10 확정)으로 맞춤. render_mode/
+# opacity/font_size/color는 evidence의 동명 키(수치)와 짝을 이루는
+# "이 값으로 탐지했다"는 표시이고, 나머지는 그 네 개로 깔끔하게 안 잡히는
+# 케이스(문서 형식별 특수 서식)를 위한 것이다. vanish/web_hidden/
+# blank_format/invisible_a/invisible_b는 정확한 정의를 B에게 확인 중 —
+# 일단 값 자체는 통과시켜두고 의미는 나중에 문서화한다.
+#
 # intent_score를 DB에 저장하는 이유는 XAI 근거 표시와 통계용이고, 실제
 # 위험점수 계산에 반영하려면 B가 Finding을 만들 때 이 값이 높을수록
 # Finding.confidence도 높게 잡아줘야 한다 — compute_risk_score()가
 # weight x confidence x log(count) 구조라 confidence를 통해서만 점수에
 # 반영되고, evidence 내부 값을 직접 읽어서 계산하지는 않는다.
+#
+# (2026-09-10) B는 confidence를 intent_score 그대로 쓰지 않고
+# "intent_score x 판독 확신도"로 분리해서 계산하기로 함 — 예: 흰 글씨는
+# 확실히 찾았지만(intent_score=0.9) 배경색을 못 읽어 흰 배경인지 확신
+# 못하면(판독 확신도=0.8) confidence=0.72. 이건 B가 Finding 만들 때
+# 자체적으로 계산하는 로직이라 evidence 화이트리스트나 스키마 변경이
+# 필요 없다 — confidence는 원래 Finding의 평범한 float 필드다.
 _HIDDEN_REASONS = {
-    "white_font_color",     # 글자색이 배경색과 동일
-    "zero_font_size",       # 폰트 크기 0 또는 극소
-    "zero_opacity",         # 투명도 0
-    "zero_width_char",      # 제로폭 문자(zero-width space 등) 삽입
-    "hidden_row_column",    # 숨긴 행/열 (스프레드시트)
-    "off_page_position",    # 페이지 밖으로 배치
-    "other",                # 위에 없는 숨김 방식 — 존재는 기록, 세부 분류는 나중에
+    "render_mode",         # PDF 렌더 모드로 탐지 (evidence.render_mode와 짝)
+    "opacity",             # 투명도로 탐지 (evidence.opacity와 짝)
+    "font_size",           # 폰트 크기로 탐지 (evidence.font_size와 짝)
+    "color",               # 글자색=배경색으로 탐지, 배경색 확인됨 (evidence.color/bg와 짝)
+    "color_unknown_bg",    # 글자색은 의심스러운데 배경색을 확인 못함
+    "vanish",              # 문서 서식의 "숨김(vanish)" 속성 — 정의 확인 중
+    "web_hidden",          # HTML/CSS 숨김 속성 (display:none 등) — 정의 확인 중
+    "blank_format",        # 빈 것처럼 보이게 만든 서식 — 정의 확인 중
+    "sheet_very_hidden",   # 엑셀 "매우 숨김(veryHidden)" 시트
+    "sheet_hidden",        # 엑셀 일반 숨김 시트
+    "row_hidden",          # 숨긴 행
+    "col_hidden",          # 숨긴 열
+    "invisible_a",         # 비가시 텍스트 유형 A — 정의 확인 중
+    "invisible_b",         # 비가시 텍스트 유형 B — 정의 확인 중
+    "other",               # 위에 없는 새 숨김 방식 발견 시 임시로 사용
 }
 
 
