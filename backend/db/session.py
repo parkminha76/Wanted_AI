@@ -50,6 +50,21 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+def drop_db() -> None:
+    """전체 테이블을 삭제한다. 되돌릴 수 없으니 개발 중 스키마를 갈아엎을 때만 쓴다.
+
+    FK 의존성이 있어도 SQLAlchemy가 참조 순서를 알아서 계산해서 지우므로
+    schema.sql처럼 순서를 직접 신경 쓸 필요는 없다.
+    """
+    Base.metadata.drop_all(bind=engine)
+
+
+def reset_db() -> None:
+    """drop_db() 후 init_db() — 스키마가 바뀌었을 때(v1 -> v2 등) 전체 재생성."""
+    drop_db()
+    init_db()
+
+
 def get_session():
     """FastAPI 의존성 주입용. 사용 예:
         def route(db: Session = Depends(get_session)): ...
@@ -62,5 +77,28 @@ def get_session():
 
 
 if __name__ == "__main__":
-    init_db()
-    print(f"테이블 생성 완료: {list(Base.metadata.tables.keys())}")
+    import sys
+
+    if "--reset" in sys.argv:
+        confirm = input(
+            f"'{DB_DATABASE}' 데이터베이스의 모든 테이블과 데이터를 삭제하고 "
+            "새로 만듭니다. 계속하려면 'yes' 입력: "
+        )
+        if confirm.strip().lower() != "yes":
+            print("취소되었습니다.")
+            sys.exit(0)
+        reset_db()
+        print(f"재생성 완료: {list(Base.metadata.tables.keys())}")
+    elif "--drop" in sys.argv:
+        confirm = input(
+            f"'{DB_DATABASE}' 데이터베이스의 모든 테이블을 삭제합니다. "
+            "계속하려면 'yes' 입력: "
+        )
+        if confirm.strip().lower() != "yes":
+            print("취소되었습니다.")
+            sys.exit(0)
+        drop_db()
+        print("전체 테이블 삭제 완료.")
+    else:
+        init_db()
+        print(f"테이블 생성 완료: {list(Base.metadata.tables.keys())}")

@@ -63,6 +63,16 @@ htmlcov/
 !/prompts/**/*.csv
 sample_data/*_sample.png
 
+# ultralytics(YOLO) 실험 산출물 전체 무시 — 중간 체크포인트, 로그, 재학습 실험본 등
+runs/
+
+# 단, B가 실제로 로드해서 마스킹/bbox 추출에 쓰는 최종 모델 파일만 예외.
+# 이게 없으면 배포 서버/팀원 로컬에서 "모델 파일이 없다"는 사고가 남
+# (7번 섹션의 샘플 PDF 예외와 같은 이유)
+!ml/models/infoguard_cnn_v1.pt
+!ml/models/fp_filter_v1.pkl
+!ml/models/injection_classifier_v1.pkl
+
 # ---------- 3. Node / 프론트엔드 ----------
 node_modules/
 dist/

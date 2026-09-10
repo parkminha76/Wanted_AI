@@ -76,6 +76,28 @@ def validate_rrn(number: str) -> bool:
     return check == digits[12]
 
 
+def validate_card_luhn(number: str) -> bool:
+    """카드번호 체크섬 검증 (Luhn 알고리즘 — ISO/IEC 7812 국제 공개 표준).
+
+    계좌번호와 달리 카드번호는 은행이 아니라 카드 브랜드(Visa/Mastercard 등)가
+    공통으로 쓰는 체크섬이 있다. rrn/foreign_reg/biz_reg와 같은 급의 "검증
+    가능" 필드로 분류한다.
+    """
+    digits_str = number.replace("-", "").replace(" ", "")
+    if not digits_str.isdigit() or not (12 <= len(digits_str) <= 19):
+        return False  # 카드번호는 브랜드별로 12~19자리까지 다양함
+
+    digits = [int(c) for c in digits_str]
+    checksum = 0
+    for i, d in enumerate(reversed(digits)):
+        if i % 2 == 1:
+            d *= 2
+            if d > 9:
+                d -= 9
+        checksum += d
+    return checksum % 10 == 0
+
+
 # ---------------------------------------------------------------------------
 # 검증 불가능 — 공개된 체크섬/검증 알고리즘이 없는 것
 # ---------------------------------------------------------------------------
@@ -231,6 +253,11 @@ if __name__ == "__main__":
     assert validate_rrn(test_rrn) is True, f"실패: {test_rrn}"
     assert validate_rrn(test_rrn.replace(test_rrn[-1], str((int(test_rrn[-1]) + 1) % 10))) is False
     print(f"주민등록번호 검증 통과: {test_rrn}")
+
+    # 카드번호 (Luhn — 공개된 국제표준 테스트 번호로 확인)
+    assert validate_card_luhn("4111111111111111") is True   # Visa 공개 테스트 번호
+    assert validate_card_luhn("4111111111111112") is False  # 마지막 자리 변조
+    print("카드번호(Luhn) 검증 통과")
 
     # 운전면허 형식
     assert validate_driver_license_format("11-24-123456-78") is True

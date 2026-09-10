@@ -66,12 +66,15 @@ def merge_json_files(paths: list[str]) -> list[dict]:
 
 def get_checksum_feature(text: str, risk_type: str) -> int:
     """체크섬 검증 가능한 타입이면 pass=1/fail=0, 검증 불가능한 타입이면 -1."""
-    from ml.data_generation.validators import validate_biz_reg, validate_foreign_reg, validate_rrn
+    from ml.data_generation.validators import (
+        validate_biz_reg, validate_foreign_reg, validate_rrn, validate_card_luhn,
+    )
 
     checkable = {
         "biz_reg": validate_biz_reg,
         "foreign_reg": validate_foreign_reg,
         "rrn": validate_rrn,
+        "card": validate_card_luhn,
         # passport는 인쇄된 여권번호 자체엔 체크 디지트가 없어 등록하지 않는다
         # (validators.py의 "검증 불가능" 섹션 설명 참고). MRZ를 별도로 캡처해서
         # 검증하고 싶으면 validate_passport_mrz_check_digit()을 쓴다.
@@ -156,7 +159,7 @@ class FalsePositiveFilter:
 
 if __name__ == "__main__":
     DATA_PATHS = [
-        # "sample_data/false_positive_B_0909.json",
+        # "sample_data/false_positive/false_positive_B_0909.json",
         # B가 데이터 보낼 때마다 여기에 파일 경로 추가
     ]
 
