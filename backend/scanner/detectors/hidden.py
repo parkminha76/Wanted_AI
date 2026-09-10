@@ -117,17 +117,18 @@ _REASONS = {
     "invisible_b": "보이지 않는 문자를 걷어내자 숨어 있던 문장이 드러났다",
 }
 
-# 근거별 확신도.
+# 근거별 의도성 점수 (0.0 ~ 1.0) — "이게 얼마나 일부러 숨긴 것으로 보이나".
 #
-# 숨긴 행·열과 숨긴 시트를 낮게 잡은 이유: 보조 계산용으로 접어두는 일이 정상 문서에
-# 흔하다. 반대로 `;;;` 서식과 veryHidden 시트는 실수로 만들어지지 않는다.
-# 확신도는 위험 점수에 곱해지므로(schema.compute_risk_score), 흔한 것은 점수를 덜 흔든다.
-_CONFIDENCE = {
+# 0에 가까우면 서식 잔재나 정상적인 사용이고, 1에 가까우면 실수로 그렇게 될 수 없는
+# 것이다. 숨긴 행·열을 낮게 잡은 이유: 보조 계산용으로 접어두는 일이 정상 문서에
+# 흔하다. 반대로 `;;;` 서식과 veryHidden 시트는 실수로 만들어지지 않는다 —
+# 만들려면 서식 대화상자를 열거나 VBA를 건드려야 한다.
+_INTENT = {
     "render_mode": 0.95,
     "opacity": 0.95,
     "font_size": 0.9,
     "color": 0.95,
-    "color_unknown_bg": 0.7,
+    "color_unknown_bg": 0.9,
     "vanish": 0.9,
     "web_hidden": 0.7,
     "blank_format": 0.9,
@@ -138,6 +139,24 @@ _CONFIDENCE = {
     "invisible_a": 0.9,
     "invisible_b": 0.8,
 }
+
+# 서식 값을 **제대로 읽었는지**에 대한 확신도. 의도성과는 다른 축이다.
+#
+# 흰 글씨를 찾았는데 배경색을 알아내지 못했다면(bg_known=False), "숨기려 했다"는
+# 판단은 그대로 강하지만 "정말 흰 배경 위였나"는 확실하지 않다. 두 불확실성을 한
+# 숫자에 섞으면 화면에 근거를 설명할 수 없다. 나눠서 곱한다.
+_READ_CERTAINTY = {
+    "color_unknown_bg": 0.8,
+}
+
+
+def _confidence(reason: str) -> float:
+    """위험 점수에 곱해질 확신도 = 의도성 x 판독 확신도.
+
+    schema.compute_risk_score()가 (가중치 x 확신도 x log(개수))로 계산하므로,
+    의도가 약한 근거는 여기서 자동으로 점수를 덜 흔든다.
+    """
+    return round(_INTENT.get(reason, 0.5) * _READ_CERTAINTY.get(reason, 1.0), 2)
 
 # 신고하지 않는 hidden_attr 사유.
 #
@@ -359,7 +378,7 @@ def detect(spans) -> list[dict]:
 
         # span 하나에 finding 하나. 확신도는 가장 강한 근거를 따르고 나머지는
         # evidence에 모아 담는다. 두 개를 내면 한 문장이 25점을 두 번 받는다.
-        signals.sort(key=lambda item: _CONFIDENCE.get(item[0], 0.5), reverse=True)
+        signals.sort(key=lambda item: _confidence(item[0]), reverse=True)
         top_reason = signals[0][0]
         evidence: dict = {"signals": [name for name, _ in signals]}
         for _, values in signals:
@@ -367,12 +386,18 @@ def detect(spans) -> list[dict]:
         if getattr(span, "where", "body") not in ("body", "cell"):
             evidence["where"] = span.where
 
+        # hidden_reason(수법 분류)과 intent_score(의도성)는 DB에도 남는 값이다.
+        # confidence를 왜 이 값으로 잡았는지의 근거이자, "어떤 수법이 제일 많았나"
+        # 통계의 재료다. 화면은 이 둘을 XAI 설명으로 그대로 보여준다.
+        evidence["hidden_reason"] = top_reason
+        evidence["intent_score"] = _INTENT.get(top_reason, 0.5)
+
         findings.append({
             "field": "hidden_text",
             "value": span.text,
             "start": span.start,
             "end": span.end,
-            "confidence": _CONFIDENCE.get(top_reason, 0.5),
+            "confidence": _confidence(top_reason),
             "reason": _REASONS.get(top_reason, "서식으로 감춰진 텍스트"),
             "evidence": evidence,
         })
@@ -390,12 +415,14 @@ def detect_text(text: str) -> list[dict]:
         line = match.group()
         span = _PlainSpan(text=line, start=match.start(), end=match.end())
         for reason, evidence in _invisible_signals(span, is_document_start=match.start() == 0):
+            evidence["hidden_reason"] = reason
+            evidence["intent_score"] = _INTENT.get(reason, 0.5)
             findings.append({
                 "field": "hidden_text",
                 "value": line,
                 "start": match.start(),
                 "end": match.end(),
-                "confidence": _CONFIDENCE.get(reason, 0.5),
+                "confidence": _confidence(reason),
                 "reason": _REASONS.get(reason, "보이지 않는 문자"),
                 "evidence": evidence,
             })
