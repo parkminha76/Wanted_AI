@@ -15,10 +15,15 @@ ner.py / hidden.py가 새로 구현할 때 지켜야 할 반환 형식(rules.py�
 mask.py는 함수가 둘 필요하다:
     build(raw_text, findings) -> str        # 텍스트용. scan_text가 부른다.
     build_file(path, doc, findings) -> str  # 파일 사본용. scan_file이 부른다.
-build_file은 doc(ParsedDoc, parse.load()가 준 것)의 spans를 받아서 findings의
-offset(start/end)을 bbox로 되짚어야 한다 — masked_text는 텍스트 치환이라
-오프셋만 있으면 되지만, PDF 리댁션은 페이지 좌표(bbox)가 있어야 실제로 값을
-지울 수 있다. doc 없이는 build_file을 호출할 수 없다(parser가 준비돼야 한다).
+
+오프셋 -> 페이지 좌표(bbox) 변환은 **scan.py가 한다**(_attach_bboxes). mask.py가
+계산해서 쓰고 버리면 Finding.bbox 칸이 빈 채로 화면에 나가서, D가 PDF 미리보기에
+형광펜을 칠할 수 없다(좌표를 모르니까). 계산은 한 번, 읽는 곳은 둘 — mask.py도
+읽고 화면도 읽는다.
+
+좌표는 parse.py의 TextSpan(dataclass, dict 아님)에서 온다. 그 조각이 탐지값보다
+넓으면 그 bbox를 그대로 쓰는 순간 멀쩡한 글자까지 리댁션 대상이 되므로, 조각은
+글자 단위처럼 촘촘해야 한다(PyMuPDF get_texttrace()가 주는 수준).
 
 단계별 계획: "rules.py만 연결한 최소 버전을 먼저 완성해서 C(훈련 모드)에 넘긴다"는
 원칙에 따라, models.py(오탐 제거 + 인젝션) 연결은 지금 단계에서는 꺼둔다
@@ -55,6 +60,15 @@ try:
 except ImportError:
     mask = None
 
+# 파일을 못 읽는 것은 "예상되는 실패"라 ScanResult.error로 바꿔 돌려준다.
+# 반대로 AttributeError 같은 엔진 버그를 여기서 함께 삼키면, 코드 오류가
+# "파일을 읽지 못했습니다"로 위장돼 원인 찾는 데만 한참 걸린다(실제로 겪었다).
+# 예상 못 한 예외는 그냥 올려보내고, 배치가 죽지 않게 막는 것은 scan_files가 한다.
+_ParseError = getattr(parse, "ParseError", None) if parse is not None else None
+_FILE_ERRORS: tuple[type[BaseException], ...] = (OSError, UnicodeDecodeError)
+if _ParseError is not None:
+    _FILE_ERRORS += (_ParseError,)
+
 
 _REASONS: dict[str, str] = {
     "rrn": "생년월일 유효성과 체크섬을 통과한 주민등록번호 형식",
@@ -71,6 +85,9 @@ _REASONS: dict[str, str] = {
     "api_key": "알려진 API 키/토큰 접두어 패턴",
     "db_credential": "DB 접속 문자열(URI) 패턴",
     "injection": "AI에게 내리는 지시로 보이는 문장 (키워드 기반 판정)",
+    # hidden.py는 판정 근거별로 훨씬 구체적인 reason을 직접 담아 보낸다.
+    # 이건 그게 없을 때만 쓰는 최후 문구다.
+    "hidden_text": "서식으로 감춰진 텍스트",
 }
 
 # 체크섬까지 검증된 타입은 evidence에 그 사실을 남긴다 (화면이 근거로 보여준다).
@@ -102,9 +119,17 @@ _FILE_TYPE_BY_EXTENSION: dict[str, str] = {
 
 def _raw_to_finding(raw: dict, source: str) -> Finding:
     """rules.py/ner.py/hidden.py 공통 반환 형식({field, value, start, end, confidence})을
-    Finding으로 바꾼다. field는 이미 schema.RiskType 문자열이라 번역이 필요 없다."""
+    Finding으로 바꾼다. field는 이미 schema.RiskType 문자열이라 번역이 필요 없다.
+
+    탐지기가 reason/evidence를 직접 담아 보내면 그것을 그대로 쓴다. hidden.py는
+    무엇을 근거로 숨은 텍스트라고 판정했는지(글자색·폰트 크기·제로폭 문자 개수)를
+    evidence에, 사람이 읽을 설명을 reason에 담아 보내고 화면 05가 그걸 그린다.
+    여기서 일괄로 덮어쓰면 그 정보가 사라진다.
+    """
     risk_type = raw["field"]
-    evidence = {"checksum": "pass"} if risk_type in _CHECKSUM_VERIFIED_TYPES else {}
+    evidence = raw.get("evidence")
+    if evidence is None:
+        evidence = {"checksum": "pass"} if risk_type in _CHECKSUM_VERIFIED_TYPES else {}
     return Finding(
         id="",  # 최종 목록이 정해진 뒤 _reassign_ids에서 한 번에 부여한다.
         type=risk_type,
@@ -113,8 +138,8 @@ def _raw_to_finding(raw: dict, source: str) -> Finding:
         end=raw["end"],
         confidence=raw["confidence"],
         source=source,
-        reason=_REASONS.get(risk_type, "탐지 규칙 일치"),
-        evidence=evidence,
+        reason=raw.get("reason") or _REASONS.get(risk_type, "탐지 규칙 일치"),
+        evidence=dict(evidence),
     )
 
 
@@ -176,14 +201,34 @@ def _apply_classifier_filters(
     return kept, filtered_out
 
 
+def _merge_hidden_evidence(survivor: Finding, dropped: Finding) -> None:
+    """밀려난 hidden_text의 판정 근거를 살아남은 Finding의 evidence로 옮긴다."""
+    survivor.evidence = {
+        **survivor.evidence,
+        "hidden": {"reason": dropped.reason, **dropped.evidence},
+    }
+
+
 def _dedupe(findings: list[Finding]) -> list[Finding]:
     """구간이 겹치면 위험 가중치(schema.RISK_WEIGHTS)가 높은 쪽만 남긴다.
     안 그러면 같은 값을 여러 탐지기가 동시에 잡을 때(예: 이메일을 NER이 조직명으로도
-    잡는 경우) 점수가 부풀려진다."""
+    잡는 경우) 점수가 부풀려진다.
+
+    단, 밀려나는 쪽이 hidden_text면 그 사실을 살아남은 쪽의 evidence["hidden"]으로
+    옮겨 담는다. 숨겨진 자리에서 API 키가 나오면 가중치가 높은 api_key(40점)만 남고
+    hidden_text(25점)가 통째로 지워지는데, 그러면 **"이 API 키는 투명 텍스트로
+    숨겨져 있었다"는 사실이 화면까지 가지 못한다** — 데모에서 가장 임팩트 있는
+    부분이 바로 그거다. 그렇다고 둘 다 Finding으로 남기면 한 문장이 65점(40+25)을
+    받아 점수가 부풀려진다. 그래서 타입은 하나만 남기고 근거만 옮긴다
+    (schema.py가 hidden_text -> injection 승격에서 쓰는 방식과 같다).
+    """
     by_weight = sorted(findings, key=lambda f: f.weight, reverse=True)
     kept: list[Finding] = []
     for f in by_weight:
-        if any(f.start < k.end and k.start < f.end for k in kept):
+        overlapping = [k for k in kept if f.start < k.end and k.start < f.end]
+        if overlapping:
+            if f.type == "hidden_text":
+                _merge_hidden_evidence(overlapping[0], f)
             continue
         kept.append(f)
     return sorted(kept, key=lambda f: f.start)
@@ -198,6 +243,88 @@ def _guess_file_type(path: str) -> str:
     return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "txt")
 
 
+def _union_bbox(boxes: list[tuple]) -> tuple[float, float, float, float]:
+    return (
+        min(b[0] for b in boxes),
+        min(b[1] for b in boxes),
+        max(b[2] for b in boxes),
+        max(b[3] for b in boxes),
+    )
+
+
+def _clip_span_bbox(span, start: int, end: int) -> tuple[float, float, float, float]:
+    """줄 단위 조각의 bbox를 탐지값이 차지하는 부분만큼 가로로 잘라낸다.
+
+    parse.py의 TextSpan은 한 줄이 조각 하나다("Contact: 010-1234-5678" 전체가
+    조각 1개). 그 bbox를 그대로 리댁션에 쓰면 전화번호만 지우려 해도
+    "Contact: "까지 삭제 대상이 된다.
+
+    글자별 좌표가 없어서 글자 수 비례로 자른다 — 한글과 ASCII의 폭이 달라
+    정확하지 않다. 값이 덜 덮이면 개인정보가 그대로 남는 쪽이 더 위험하므로
+    양옆으로 글자 하나 폭만큼 넓혀 둔다. 정확한 좌표는 parse.py가 글자별
+    bbox를 넘겨줘야 나온다(get_texttrace()의 chars에 이미 들어 있다).
+    """
+    x0, y0, x1, y1 = span.bbox
+    length = span.end - span.start
+    if length <= 0:
+        return (x0, y0, x1, y1)
+    width = x1 - x0
+    lead = max(start - span.start, 0) / length
+    trail = (min(end, span.end) - span.start) / length
+    pad = width / length
+    return (
+        max(x0, x0 + width * lead - pad),
+        y0,
+        min(x1, x0 + width * trail + pad),
+        y1,
+    )
+
+
+def _group_rects_by_line(rects: list[dict]) -> list[dict]:
+    """같은 페이지에서 y구간이 겹치는 네모들을 한 줄로 묶어 하나로 합친다.
+    한 줄이 조각 여러 개로 쪼개져 오는 경우(글꼴이 섞인 줄)를 위한 것이다."""
+    ordered = sorted(rects, key=lambda r: (r["page"] or 0, r["bbox"][1], r["bbox"][0]))
+    lines: list[dict] = []
+    for rect in ordered:
+        page, box = rect["page"], rect["bbox"]
+        if lines:
+            last = lines[-1]
+            same_line = (
+                last["page"] == page and box[1] < last["bbox"][3] and last["bbox"][1] < box[3]
+            )
+            if same_line:
+                last["bbox"] = _union_bbox([last["bbox"], box])
+                continue
+        lines.append({"page": page, "bbox": box})
+    return lines
+
+
+def _attach_bboxes(findings: list[Finding], spans) -> None:
+    """findings의 오프셋을 페이지 좌표로 되짚어 bbox와 evidence["rects"]를 채운다.
+
+    주소처럼 긴 값은 줄 끝에서 잘려 두 줄에 걸치는데, 그러면 네모가 2개 필요하다.
+    그런데 Finding.bbox는 네모 하나짜리 칸이다. 둘을 하나로 합친 네모로 리댁션하면
+    그 줄의 멀쩡한 글자까지 같이 지워진다("계약자 주소:"와 "입니다. 연락처는"까지
+    삭제된다). 그래서 용도를 나눈다:
+      - bbox: 합집합 네모 1개 — 화면 하이라이트용
+      - evidence["rects"]: 줄별 정밀 네모 여러 개 — 실제로 지울 때 mask.py가 쓴다
+    evidence는 자유 형식이라 schema 계약을 건드리지 않는다.
+    """
+    for f in findings:
+        overlapping = [s for s in spans if s.bbox and f.start < s.end and s.start < f.end]
+        if not overlapping:
+            continue
+        rects = _group_rects_by_line(
+            [
+                {"page": s.page, "bbox": _clip_span_bbox(s, f.start, f.end)}
+                for s in overlapping
+            ]
+        )
+        f.evidence = {**f.evidence, "rects": rects}
+        f.bbox = _union_bbox([r["bbox"] for r in rects])
+        f.page = rects[0]["page"]
+
+
 def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     """텍스트 1건을 검사한다. 훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다."""
     meta = meta or {}
@@ -210,9 +337,15 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     if ner is not None and hasattr(ner, "detect"):
         findings += [_raw_to_finding(d, "ner") for d in ner.detect(text)]
 
-    # 3. 서식 검사(숨은 텍스트) — 파서가 뽑아준 서식 정보(spans)가 있을 때만 가능하다.
-    if hidden is not None and hasattr(hidden, "detect") and meta.get("spans"):
-        findings += [_raw_to_finding(d, "format") for d in hidden.detect(meta["spans"])]
+    # 3. 숨은 텍스트. 파서가 준 서식 정보(spans)가 있으면 흰 글씨·0pt·숨김 속성까지
+    # 보고, 없으면(훈련 모드의 실시간 답장 스캔) 문자열만으로 제로폭·Bidi·태그
+    # 문자를 잡는다 — 서식을 못 봐도 이쪽은 잡을 수 있어서 건너뛰면 손해다.
+    if hidden is not None:
+        spans = meta.get("spans")
+        if spans and hasattr(hidden, "detect"):
+            findings += [_raw_to_finding(d, "format") for d in hidden.detect(spans)]
+        elif hasattr(hidden, "detect_text"):
+            findings += [_raw_to_finding(d, "format") for d in hidden.detect_text(text)]
 
     # 4. 인젝션 + 5. 오탐 제거 — models.py 연결은 다음 단계로 미뤄뒀다(_ENABLE_CLASSIFIER_STAGE).
     filtered_out: list[Finding] = []
@@ -228,6 +361,11 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     # findings 뒤에 이어 붙여 한 ScanResult 안에서 유일하게 만든다.
     _reassign_ids(filtered_out, offset=len(findings))
 
+    # 7. 오프셋 -> 페이지 좌표. 파서가 서식 정보를 준 파일 검사에서만 가능하다
+    # (훈련 모드의 텍스트 스캔은 좌표라는 개념 자체가 없다).
+    if meta.get("spans"):
+        _attach_bboxes(findings, meta["spans"])
+
     result = ScanResult(
         filename=meta.get("filename", ""),
         raw_text=text,
@@ -239,7 +377,7 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     if mask is not None and hasattr(mask, "build"):
         result.masked_text = mask.build(result.raw_text, result.findings)
 
-    return result.finalize()  # 7. 위험 점수 계산
+    return result.finalize()  # 8. 위험 점수 계산
 
 
 def scan_file(path: str) -> ScanResult:
@@ -253,28 +391,33 @@ def scan_file(path: str) -> ScanResult:
     try:
         if parse is not None and hasattr(parse, "load"):
             doc = parse.load(path)
-            result = scan_text(
-                doc.raw_text, meta={"filename": path, "spans": getattr(doc, "spans", [])}
-            )
+            result = scan_text(doc.raw_text, meta={"filename": path, "spans": doc.spans})
         else:
             with open(path, encoding="utf-8") as fh:
                 raw_text = fh.read()
             result = scan_text(raw_text, meta={"filename": path})
-    except Exception as exc:  # noqa: BLE001
-        # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계다. 파일 하나가
-        # 깨졌다고 예외를 위로 던지면 scan_files가 통째로 죽어서, 같이 올린
-        # 멀쩡한 파일들의 결과까지 날아간다("파일 10개를 위험도순으로" 화면이
-        # 파일 하나 때문에 통째로 실패한다). schema.ScanResult.error가 바로
-        # 이 경우를 위해 있는 필드다.
-        #
-        # 메시지에 파일 내용을 넣지 않는다 — 예외 문자열에 원문 조각이 섞여
-        # 화면까지 나가면 개인정보가 새는 셈이다.
-        result = ScanResult(filename=path, error=f"파일을 읽지 못했습니다 ({type(exc).__name__})")
+    except _FILE_ERRORS as exc:
+        # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계라, 못 읽는 파일은
+        # 예외가 아니라 결과로 돌려준다(schema.ScanResult.error가 그 자리다).
+        # parse.ParseError의 메시지는 파일 내용을 담지 않기로 계약돼 있어서
+        # 그대로 내보내고, 그 외 예외는 메시지에 원문 조각이 섞일 수 있으니
+        # 종류만 남긴다.
+        detail = str(exc) if _ParseError and isinstance(exc, _ParseError) else type(exc).__name__
+        result = ScanResult(filename=path, error=f"파일을 읽지 못했습니다: {detail}")
         result.file_type = _guess_file_type(path)
         return result.finalize()
 
     result.filename = path
-    result.file_type = _guess_file_type(path)
+    # 파서가 판단한 형식이 우선이다(스캔본 PDF를 image로 넘기는 등의 판단이 들어있다).
+    result.file_type = getattr(doc, "file_type", "") or _guess_file_type(path)
+
+    # 페이지 번호. 좌표가 있는 PDF는 _attach_bboxes가 이미 채웠고, docx/xlsx처럼
+    # 좌표가 없는 형식은 page_map(문자 1개당 페이지·시트 번호 1개)으로 채운다.
+    page_map = getattr(doc, "page_map", None)
+    if page_map:
+        for f in result.findings:
+            if f.page is None and f.start < len(page_map):
+                f.page = page_map[f.start]
 
     # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
     # 제품의 주 동작은 "마스킹된 파일 다운로드"이고, PDF에서 값을 실제로 지우려면
@@ -287,5 +430,19 @@ def scan_file(path: str) -> ScanResult:
 
 
 def scan_files(paths: list[str]) -> ScanBatch:
-    """파일 여러 개를 검사하고 위험도 순으로 정렬해 돌려준다."""
-    return ScanBatch(results=[scan_file(p) for p in paths])
+    """파일 여러 개를 검사하고 위험도 순으로 정렬해 돌려준다.
+
+    파일 하나가 예상 못 한 예외로 죽어도 배치는 끝까지 돈다 — 같이 올린 멀쩡한
+    파일들의 결과까지 날아가면 "파일 10개를 위험도순으로" 화면이 파일 하나 때문에
+    통째로 실패한다. 예상되는 파일 오류는 scan_file이 이미 error로 바꿔 돌려주므로,
+    여기서 잡히는 것은 엔진 버그다. 그래서 메시지를 구분해 둔다.
+    """
+    results = []
+    for path in paths:
+        try:
+            results.append(scan_file(path))
+        except Exception as exc:  # noqa: BLE001
+            broken = ScanResult(filename=path, error=f"검사 중 오류 ({type(exc).__name__})")
+            broken.file_type = _guess_file_type(path)
+            results.append(broken.finalize())
+    return ScanBatch(results=results)
