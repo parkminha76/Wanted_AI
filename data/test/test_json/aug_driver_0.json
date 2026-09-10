@@ -1,0 +1,119 @@
+{
+  "ground_truth": {
+    "name": "김영희",
+    "resident_number": "290529-2784363",
+    "license_number": "21-20-032909-21",
+    "address": "대구광역시 영등포구 테헤란88거리 436-8\n",
+    "issue_date": "2020.08.18.",
+    "expiry_date": "2030.08.18.",
+    "vehicle_class": "1종보통",
+    "aptitude_label": "적성검사",
+    "aptitude_test_date": "2020.08.18.",
+    "period_label": "기    간 :  ~",
+    "condition_label": "조    건 :",
+    "secondary_code": "X513Y",
+    "issuing_authority": "부산지방경찰청장"
+  },
+  "detected": [
+    {
+      "label": "face",
+      "confidence": 0.984,
+      "bbox": [
+        7.5,
+        88.8,
+        158.0,
+        274.4
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.978,
+      "bbox": [
+        165.6,
+        103.8,
+        278.6,
+        119.5
+      ]
+    },
+    {
+      "label": "license_number",
+      "confidence": 0.974,
+      "bbox": [
+        161.6,
+        43.2,
+        340.4,
+        62.5
+      ]
+    },
+    {
+      "label": "expiry_date",
+      "confidence": 0.971,
+      "bbox": [
+        237.2,
+        206.8,
+        298.9,
+        217.9
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.965,
+      "bbox": [
+        164.4,
+        88.0,
+        200.0,
+        102.3
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.959,
+      "bbox": [
+        166.5,
+        125.1,
+        362.1,
+        140.6
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.948,
+      "bbox": [
+        165.6,
+        107.6,
+        278.3,
+        121.8
+      ]
+    },
+    {
+      "label": "license_number",
+      "confidence": 0.898,
+      "bbox": [
+        161.4,
+        47.3,
+        340.6,
+        66.3
+      ]
+    },
+    {
+      "label": "expiry_date",
+      "confidence": 0.471,
+      "bbox": [
+        237.7,
+        204.3,
+        298.8,
+        215.8
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.382,
+      "bbox": [
+        164.8,
+        119.2,
+        358.8,
+        131.6
+      ]
+    }
+  ]
+}
