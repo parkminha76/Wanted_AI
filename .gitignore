@@ -122,6 +122,9 @@ Desktop.ini
 # 심사위원용 데모 샘플(계약서 PDF)은 반드시 커밋되어야 한다.
 # 이 예외가 없으면 발표 당일 "샘플 4개 중 3개만 동작"하는 사고가 난다.
 !sample_data/**/*.pdf
+# 숨은 텍스트 테스트 문서(렌더 모드 3 / 투명도 0 / 배경색 = 글자색)도 같은 이유로
+# 커밋되어야 한다. 이 예외가 없으면 hidden.py의 PDF 케이스 4개가 조용히 빠진다.
+!backend/scanner/tests/**/*.pdf
 playwright-report/
 test-results/
 
