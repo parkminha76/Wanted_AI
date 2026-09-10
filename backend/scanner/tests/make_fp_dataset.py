@@ -52,6 +52,20 @@ RECORDS_PER_TEMPLATE = 2
 TARGET_PER_BUCKET = 30
 MIN_TEMPLATES = TARGET_PER_BUCKET // RECORDS_PER_TEMPLATE
 
+# 칸별 목표 예외. **A와 합의한 것만** 여기 적고, 왜 낮췄는지 같이 남긴다.
+# 그냥 채우기 힘들다고 낮추면 그 칸의 분류기 성능이 조용히 나빠진다.
+TEMPLATE_TARGET_OVERRIDES: dict[tuple[str, int], int] = {
+    # 2026-09-10 A와 합의. `01[016789]` 패턴이 좁아서 "전화번호 형식인데 전화번호가
+    # 아닌 것"이 현실에 거의 없다. 문서 내 예시·테스트 더미 정도뿐이고 그마저
+    # 서로 비슷해서, 억지로 채우면 비슷한 문장만 늘어 학습에 해가 된다.
+    ("phone", 0): 4,
+}
+
+
+def target_templates(risk_type: str, label: int) -> int:
+    """그 칸에 필요한 문장 수."""
+    return TEMPLATE_TARGET_OVERRIDES.get((risk_type, label), MIN_TEMPLATES)
+
 random.seed(20260910)              # 돌릴 때마다 같은 값이 나오게 고정
 
 
@@ -80,6 +94,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             "대금은 하나은행 {value} 계좌로 입금해 주세요",
             "보증금 반환 계좌: {value} (예금주 본인 확인 필요)",
             "자동이체 등록 계좌 {value} 승인되었습니다",
+            "{value}로 잔금 이체를 완료했습니다",
+            "정산 대금 수령 계좌를 {value}로 등록해 주십시오",
+            "국민은행 {value} 예금주명이 일치하지 않습니다",
+            "계약금은 아래 계좌로 송금 바랍니다 — {value}",
+            "월세는 매월 이십오일에 {value}로 자동 출금됩니다",
+            "출금 계좌 {value}의 잔액이 부족합니다",
+            "지급 계좌 정보가 {value}로 확인되었습니다",
+            "후원금은 {value}(농협)로 보내주시면 됩니다",
+            "기존 입금계좌 {value}는 폐업으로 사용이 중지되었습니다",
         ],
         0: [
             ("주문번호 {value} 배송 조회 부탁드립니다", "주문번호"),
@@ -88,6 +111,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("상담 접수번호 {value}로 진행 상황을 확인하세요", "접수번호"),
             ("재고 관리 코드 {value} 품목은 단종되었습니다", "재고 코드"),
             ("회의실 예약번호 {value} 확인 부탁드립니다", "예약번호"),
+            ("청구서 번호 {value} 기준으로 재발행했습니다", "청구서 번호"),
+            ("견적서 {value} 유효기간은 발행일로부터 보름입니다", "견적서 번호"),
+            ("등기번호 {value}로 우편물 조회가 가능합니다", "등기번호"),
+            ("작업지시서 {value} 공정이 완료되었습니다", "작업지시번호"),
+            ("차량 배차번호 {value} 기사님께 전달했습니다", "배차번호"),
+            ("바코드 {value} 스캔 오류가 발생했습니다", "바코드"),
+            ("A/S 접수번호는 {value}이며 방문은 사흘 내 예정입니다", "A/S 접수번호"),
+            ("정기점검 이력번호 {value} 조회 결과입니다", "이력번호"),
+            ("입찰 공고번호 {value} 마감이 연장되었습니다", "공고번호"),
         ],
     },
     # ---------------- 사업자등록번호 ----------------
@@ -99,6 +131,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             "세금계산서에 기재된 사업자번호 {value}가 맞는지 확인해 주세요",
             "폐업 조회 결과 사업자등록번호 {value}는 정상 사업자입니다",
             "부가세 신고 시 사업자등록번호 {value}를 입력하세요",
+            "{value} 사업자로 등록된 상호가 변경되었습니다",
+            "계산서 발행처 사업자번호: {value}",
+            "홈택스에서 {value} 사업자 상태를 조회했습니다",
+            "면세사업자 {value}는 계산서만 발행 가능합니다",
+            "사업자등록증 사본과 함께 {value} 확인 부탁드립니다",
+            "본 계약의 갑은 사업자등록번호 {value}의 법인입니다",
+            "간이과세자 {value}로 등록 변경을 신청했습니다",
+            "공급자 등록번호 {value} 오기재로 계산서를 수정합니다",
+            "입점 심사에 필요한 사업자번호는 {value}입니다",
         ],
         0: [
             ("발주서 번호 {value} 기준으로 처리하겠습니다", "발주번호"),
@@ -107,6 +148,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("쿠폰 코드 {value}는 이번 달까지 사용 가능합니다", "쿠폰코드"),
             ("설비 일련번호 {value} 점검이 완료되었습니다", "일련번호"),
             ("교육 수강번호 {value}로 출석이 등록되었습니다", "수강번호"),
+            ("도서 관리번호 {value} 현재 대출 중입니다", "도서 관리번호"),
+            ("품목 코드 {value} 단가가 인상되었습니다", "품목 코드"),
+            ("보증서 번호 {value}를 분실했습니다", "보증서 번호"),
+            ("전표번호 {value} 승인 대기 상태입니다", "전표번호"),
+            ("공사 현장코드 {value} 안전점검 일정입니다", "현장코드"),
+            ("배송 예약번호 {value}로 변경 가능합니다", "예약번호"),
+            ("설문 응답번호 {value} 데이터를 집계했습니다", "응답번호"),
+            ("증빙자료 일련번호 {value} 첨부합니다", "일련번호"),
+            ("정기구독 번호 {value} 갱신 안내드립니다", "구독번호"),
         ],
     },
     # ---------------- 사번 ----------------
@@ -118,6 +168,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             "사번 {value} 직원의 연차 잔여일수를 확인합니다",
             "퇴사 처리된 사번 {value} 계정을 비활성화합니다",
             "급여명세서는 사번 {value} 기준으로 발급됩니다",
+            "{value} 사원의 부서 이동을 승인합니다",
+            "교육 이수 현황 — 사번 {value} 미이수",
+            "출입카드 재발급 대상 사번은 {value}입니다",
+            "사번 {value}로 사내 시스템 권한을 신청했습니다",
+            "평가 대상자 사번 {value}의 면담 일정입니다",
+            "직원번호 {value} 경력 증명서를 발급했습니다",
+            "사번 {value} 계정의 비밀번호가 초기화되었습니다",
+            "신규 입사자에게 사번 {value}를 부여했습니다",
+            "사번 {value} 님의 건강검진 예약이 완료되었습니다",
         ],
         0: [
             ("문서번호 {value} 결재 요청드립니다", "문서번호"),
@@ -126,13 +185,24 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("차량 관리번호 {value} 정기 점검일입니다", "차량 관리번호"),
             ("티켓 번호 {value} 문의가 접수되었습니다", "티켓번호"),
             ("빌드 번호 {value} 배포가 완료되었습니다", "빌드번호"),
+            ("회의록 번호 {value} 공유드립니다", "회의록 번호"),
+            ("규정 개정번호 {value} 시행일은 다음 달입니다", "개정번호"),
+            ("자재 청구번호 {value} 승인되었습니다", "청구번호"),
+            ("공정 번호 {value} 작업이 지연되고 있습니다", "공정번호"),
+            ("좌석 배치번호 {value}로 안내드립니다", "좌석번호"),
+            ("보관함 번호 {value} 이용 기간이 만료됩니다", "보관함 번호"),
+            ("도면 번호 {value} 최신본을 확인하세요", "도면번호"),
+            ("행사 참가번호 {value}를 입구에서 제시하세요", "참가번호"),
+            ("장비 대여번호 {value} 반납 예정일입니다", "대여번호"),
         ],
     },
     # ---------------- 전화번호 ----------------
     #
-    # ⚠️ 이 칸의 label=0이 다섯 중 제일 어렵다. `01[016789]` 패턴이 워낙 좁아서
+    # label=0이 다섯 칸 중 제일 어렵다. `01[016789]` 패턴이 워낙 좁아서
     # "전화번호처럼 생겼는데 전화번호가 아닌 것"이 현실에 별로 없다.
-    # 억지로 30건을 채우기보다, 안 되면 A와 상의해서 목표를 낮추는 게 낫다.
+    # 억지로 15건을 채우면 이상한 문장만 늘어난다 — 지금 4개는 그나마 실제로
+    # 나올 법한 경우(문서 예시·테스트 더미)만 남긴 것이다.
+    # 더 못 채우겠으면 A와 상의해서 이 칸만 목표를 낮추는 게 낫다.
     "phone": {
         1: [
             "담당자 연락처는 {value}입니다",
@@ -141,6 +211,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             "긴급 시 {value}로 전화 부탁드립니다",
             "배송 기사 연락처 {value} 안내드립니다",
             "예약 확인을 위해 {value}로 연락드리겠습니다",
+            "{value}로 부재중 전화가 왔습니다",
+            "비상연락망에 {value}를 등록했습니다",
+            "수신자 번호 {value}가 결번입니다",
+            "본인 명의 휴대전화 {value}로 본인확인을 진행합니다",
+            "가입 시 입력하신 번호 {value}가 맞습니까",
+            "택배 수령인 연락처: {value}",
+            "면접 안내는 {value}로 문자 발송됩니다",
+            "{value} 번호로 알림톡이 전송되었습니다",
+            "보호자 연락처 {value}를 기재해 주세요",
         ],
         0: [
             ("양식의 연락처란에는 {value} 형태로 입력하세요", "입력 서식 예시"),
@@ -158,6 +237,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             "환불은 결제하신 카드 {value}로 처리됩니다",
             "법인카드 {value} 사용 내역을 첨부합니다",
             "카드 {value} 분실 신고가 접수되었습니다",
+            "{value} 카드로 할부 결제했습니다",
+            "체크카드 {value} 한도가 초과되었습니다",
+            "정기결제 수단을 카드 {value}로 변경했습니다",
+            "해외 결제가 차단된 카드 {value} 해제를 요청드립니다",
+            "카드번호 {value} 건의 승인이 취소되었습니다",
+            "재발급된 카드 {value}를 등록해 주세요",
+            "가맹점 매출전표의 카드번호는 {value}입니다",
+            "{value} 카드의 청구 내역을 조회했습니다",
+            "결제수단으로 등록된 신용카드 {value}가 만료되었습니다",
         ],
         0: [
             ("상품권 번호 {value}를 입력하시면 사용 가능합니다", "상품권 번호"),
@@ -166,6 +254,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("장비 시리얼 {value} 보증기간이 만료되었습니다", "장비 시리얼"),
             ("멤버십 카드번호 {value} 포인트 적립 내역입니다", "멤버십 번호"),
             ("회원번호 {value}로 조회하시면 됩니다", "회원번호"),
+            ("도서 바코드 {value} 반납 처리되었습니다", "바코드"),
+            ("제품 등록번호 {value} 보증 서비스 안내입니다", "제품 등록번호"),
+            ("주차권 번호 {value}는 당일에만 유효합니다", "주차권 번호"),
+            ("사원증 일련번호 {value} 재발급 신청서입니다", "사원증 일련번호"),
+            ("소프트웨어 인증번호 {value}를 입력하세요", "인증번호"),
+            ("교통카드 충전 이력번호 {value} 확인 바랍니다", "이력번호"),
+            ("경품 응모번호 {value} 당첨자 발표입니다", "응모번호"),
+            ("설비 자산태그 {value} 위치가 변경되었습니다", "자산태그"),
+            ("택배 운송장번호 {value} 배송 완료되었습니다", "운송장번호"),
         ],
     },
 }
@@ -211,10 +308,27 @@ def gen_biz_reg() -> str:
 
 # 은행별 자릿수 묶음. 총 10~16자리여야 rules.py가 account 후보로 잡는다.
 #
-# (4, 2, 7)은 카카오뱅크 실제 형식(3333-01-1234567)인데 **지금 rules.py가 못 잡는다.**
-# 계좌 정규식이 묶음 하나를 `\d{2,6}`으로 제한해서 마지막 7자리에서 걸린다.
-# 일부러 남겨 뒀다 — 검증 표에 "탐지 안 됨"으로 떠서 rules.py를 고칠 때까지 눈에 보인다.
-_ACCOUNT_SHAPES = ((3, 2, 4, 5), (3, 3, 6), (4, 3, 6), (3, 6, 5), (4, 2, 7), (3, 4, 6))
+# 카카오뱅크 형식(4-2-7, 예: 3333-01-1234567)은 **일부러 뺐다.** 지금 rules.py가
+# 못 잡아서(_KNOWN_GAPS 참고) 분류기에 후보로 넘어올 일이 없고, 넘어오지 않는 값으로
+# 학습시키면 데이터만 더러워진다. rules.py가 고쳐지면 (4, 2, 7)을 여기 다시 넣을 것.
+_ACCOUNT_SHAPES = ((3, 2, 4, 5), (3, 3, 6), (4, 3, 6), (3, 6, 5), (4, 4, 5), (3, 4, 6))
+
+
+# rules.py가 못 잡는 것으로 확인된 실제 형식. 돌릴 때마다 다시 확인해서, 고쳐지면
+# 경고가 사라진다. 데이터에서 뺐다고 문제까지 사라지는 게 아니라서 남겨 둔다.
+_KNOWN_GAPS = (
+    ("account", "3333-01-1234567", "카카오뱅크 계좌 형식 (4-2-7)"),
+)
+
+
+def check_known_gaps() -> list[str]:
+    """rules.py의 알려진 구멍이 아직 그대로인지 확인한다."""
+    still_broken = []
+    for risk_type, value, label in _KNOWN_GAPS:
+        hits = rules.find_all(f"입금 계좌는 {value}입니다")
+        if not any(h["field"] == risk_type for h in hits):
+            still_broken.append(f"{label}: '{value}' -> rules.py가 {risk_type}로 못 잡음")
+    return still_broken
 
 
 def gen_account() -> str:
@@ -367,7 +481,7 @@ def report(records: list[dict], detection: dict) -> bool:
         for label in (1, 0):
             templates = len(buckets.get(label, []))
             count = sum(1 for r in records if r["type"] == risk_type and r["label"] == label)
-            short = max(0, MIN_TEMPLATES - templates)
+            short = max(0, target_templates(risk_type, label) - templates)
             if short:
                 ready = False
             stats = detection.get((risk_type, label), {})
@@ -375,7 +489,9 @@ def report(records: list[dict], detection: dict) -> bool:
             print(f"{risk_type:<10s}{label:^6d}{templates:>4d}{count:>6d}"
                   f"{('문장 +' + str(short)) if short else '충족':>9s}   {detail}")
     print("-" * 72)
-    print(f"총 {len(records)}건 (목표 {TARGET_PER_BUCKET * 2 * len(TEMPLATES)}건)")
+    goal = sum(target_templates(t, l) * RECORDS_PER_TEMPLATE
+               for t in TEMPLATES for l in (1, 0))
+    print(f"총 {len(records)}건 (목표 {goal}건)")
     return ready
 
 
@@ -394,6 +510,13 @@ def main() -> int:
     print()
     ready = report(records, detection)
     print()
+
+    gaps = check_known_gaps()
+    if gaps:
+        print("⚠️ rules.py 미해결 (B-2 확인 필요):")
+        for gap in gaps:
+            print(f"  - {gap}")
+        print()
 
     if missed:
         # 분류기는 rules.py가 잡은 후보만 넘겨받는다. 여기 뜨는 값은 실제로는
@@ -417,6 +540,7 @@ def main() -> int:
     print(f"저장: {os.path.relpath(path, REPO_ROOT)}" + (" (덮어씀)" if existed else ""))
     if not ready:
         print(f"아직 목표 미달이다. 칸마다 문장 {MIN_TEMPLATES}개가 될 때까지 TEMPLATES에 추가할 것.")
+        print("(A와 합의해서 목표를 낮춘 칸은 TEMPLATE_TARGET_OVERRIDES에 적는다.)")
         print("완성 전이라도 이대로 A에게 먼저 보내도 된다 — 추가분은 BATCH 번호를 올려서 새 파일로.")
     return 0
 
