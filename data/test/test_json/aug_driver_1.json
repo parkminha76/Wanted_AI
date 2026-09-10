@@ -1,0 +1,89 @@
+{
+  "ground_truth": {
+    "name": "류종수",
+    "resident_number": "040415-2945492",
+    "license_number": "17-23-372881-41",
+    "address": "전라남도 남양주시 오금3거리 755-34\n(현정구읍)",
+    "issue_date": "2023.11.04.",
+    "expiry_date": "2033.11.04.",
+    "vehicle_class": "1종보통",
+    "aptitude_label": "적성검사",
+    "aptitude_test_date": "2023.11.04.",
+    "period_label": "기    간 :  ~",
+    "condition_label": "조    건 :",
+    "secondary_code": "X318P",
+    "issuing_authority": "인천지방경찰청장"
+  },
+  "detected": [
+    {
+      "label": "face",
+      "confidence": 0.969,
+      "bbox": [
+        9.6,
+        110.3,
+        164.6,
+        278.8
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.966,
+      "bbox": [
+        156.1,
+        98.6,
+        192.1,
+        116.2
+      ]
+    },
+    {
+      "label": "license_number",
+      "confidence": 0.909,
+      "bbox": [
+        149.3,
+        42.7,
+        324.8,
+        74.8
+      ]
+    },
+    {
+      "label": "expiry_date",
+      "confidence": 0.904,
+      "bbox": [
+        246.7,
+        215.3,
+        308.0,
+        234.2
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.901,
+      "bbox": [
+        156.4,
+        104.1,
+        272.2,
+        124.7
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.891,
+      "bbox": [
+        165.0,
+        129.8,
+        334.1,
+        177.3
+      ]
+    },
+    {
+      "label": "license_number",
+      "confidence": 0.643,
+      "bbox": [
+        142.6,
+        36.0,
+        323.7,
+        64.7
+      ]
+    }
+  ]
+}

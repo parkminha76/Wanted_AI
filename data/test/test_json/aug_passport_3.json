@@ -1,0 +1,117 @@
+{
+  "ground_truth": {
+    "type": "PM",
+    "nationality": "REPUBLIC OF KOREA",
+    "passport_number": "M66482329",
+    "surname": "HA",
+    "given_names": "DOYUN",
+    "korean_name": "하도윤",
+    "date_of_birth": "09 6월/JUN 1970",
+    "sex": "M",
+    "issue_date": "15 8월/AUG 2021",
+    "expiry_date": "15 8월/AUG 2031",
+    "mrz": "PMKORHA<<DOYUN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\nM664823299KOR7006092M3108156<<<<<<<<<<<<<<11"
+  },
+  "detected": [
+    {
+      "label": "expiry_date",
+      "confidence": 0.992,
+      "bbox": [
+        607.2,
+        437.7,
+        806.7,
+        463.0
+      ]
+    },
+    {
+      "label": "mrz",
+      "confidence": 0.991,
+      "bbox": [
+        25.9,
+        509.4,
+        873.0,
+        594.4
+      ]
+    },
+    {
+      "label": "face",
+      "confidence": 0.99,
+      "bbox": [
+        48.5,
+        111.0,
+        299.5,
+        426.6
+      ]
+    },
+    {
+      "label": "date_of_birth",
+      "confidence": 0.981,
+      "bbox": [
+        340.4,
+        312.7,
+        530.7,
+        337.5
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.978,
+      "bbox": [
+        337.4,
+        426.6,
+        537.6,
+        452.0
+      ]
+    },
+    {
+      "label": "passport_number",
+      "confidence": 0.976,
+      "bbox": [
+        618.2,
+        118.2,
+        770.7,
+        141.7
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.974,
+      "bbox": [
+        344.2,
+        209.1,
+        447.3,
+        233.9
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.972,
+      "bbox": [
+        343.1,
+        258.6,
+        415.4,
+        284.4
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.947,
+      "bbox": [
+        346.6,
+        157.6,
+        386.8,
+        182.1
+      ]
+    },
+    {
+      "label": "sex",
+      "confidence": 0.908,
+      "bbox": [
+        610.9,
+        319.9,
+        636.3,
+        342.3
+      ]
+    }
+  ]
+}

@@ -60,13 +60,20 @@ class TextSpan:
     page: int
     font_size: float       # pt
     color: str             # "#ffffff"
-    bg_color: str          # "#ffffff" (알 수 없으면 흰색으로 간주)
+    bg_color: str          # 그 위치의 실제 배경 채움색. 흰색으로 가정하지 않는다 (↓ 주의)
     render_mode: int       # PDF 전용. 3 = 화면에 안 그려짐
+    opacity: float         # PDF 전용. 0.0 = 완전 투명 (색·크기·렌더모드 검사를 모두 통과한다)
     hidden_attr: bool      # docx의 vanish, xlsx의 hidden row/col 등
     bbox: tuple | None     # 마스킹 좌표 (PDF)
 ```
 
 `bbox`가 여기 있는 이유: PyMuPDF는 탐지할 때 얻은 좌표를 **그대로 리댁션에 넘길 수 있다.** 탐지 따로, 마스킹 따로 좌표를 구하면 어긋난다.
+
+`bg_color`를 흰색으로 가정하지 않는 이유: 파란 표 셀에 파란 글씨를 넣으면 "흰 배경 + 흰 글씨"만 보는
+검사를 그냥 통과한다. 그래서 이 값은 상수가 아니라 **그 위치의 실제 채움색**이어야 하고, 그건 span을
+뽑는 `parse.py`만 알 수 있다 (PDF는 도형·사각형 채움, XLSX는 셀 `fill`, DOCX는 문단·표 음영).
+정말로 알아낼 수 없을 때만 흰색으로 두되, 그 사실을 `hidden.py`가 알 수 있어야 한다 —
+"모르는 값"과 "진짜 흰색"을 구분하지 못하면 오탐이 난다.
 
 ---
 
@@ -84,6 +91,9 @@ class TextSpan:
 | TXT/MD | 내장 | UTF-8, 인코딩 실패 시 cp949 재시도 |
 
 **`get_texttrace()`를 쓰는 이유** — PDF에는 "글자를 배치하되 화면에는 그리지 않는" 렌더링 모드 3이 있다. 이건 글자색 검사도, 폰트 크기 검사도 둘 다 통과하면서 사람 눈에는 안 보인다. 숨은 명령을 심기에 가장 좋은 자리인데 `get_text()`나 pdfplumber로는 이 값이 안 나온다. `get_texttrace()`는 span마다 렌더 모드·색·크기·bbox를 다 준다.
+
+**투명도 0도 같은 사각지대다.** 실제로 넣고 읽어보면 `color=(0,0,0)` `size=11` `type=0`으로
+검사를 전부 통과하는데 `opacity=0.0`이라 화면에는 안 보인다. 렌더 모드와 함께 검사한다.
 
 **offset 관리가 이 파일의 핵심이자 유일한 어려움이다.** `raw_text`를 만들면서 각 span이 몇 번째 문자에서 시작하는지 같이 기록해야 한다. 여기가 어긋나면 화면 하이라이트가 엉뚱한 글자에 칠해진다.
 
@@ -130,17 +140,117 @@ AI 모델이 전혀 필요 없는 규칙 검사인데, **데모에서 가장 임
 
 | 형식 | 탐지 조건 |
 |---|---|
-| 공통 | 제로폭 문자 `U+200B U+200C U+200D U+2060 U+FEFF U+180E` |
-| PDF | 렌더 모드 3 / 폰트 크기 < 2pt / 글자색 ≈ 배경색 / CropBox 밖 좌표 / 이미지에 가려진 z-order |
+| 공통 | 보이지 않는 유니코드 문자 — 제로폭 · Bidi 재정의 · 태그 문자 (아래 목록) |
+| PDF | 렌더 모드 3 / **투명도 0** / 폰트 크기 < 2pt / 글자색 ≈ 배경색 / CropBox 밖 좌표 / 이미지에 가려진 z-order |
 | DOCX | `w:vanish`(숨김 속성) / 글자색 `FFFFFF` / `w:sz` ≤ 4 (=2pt) / 머리말·꼬리말·텍스트상자 / 변경내용 추적·메모 |
-| XLSX | 숨긴 행·열·시트 / 흰색 글꼴 / 사용자 지정 서식 `;;;` / 사용 범위 밖 셀 |
+| XLSX | 숨긴 행·열 / 숨긴 시트 — 특히 `veryHidden`(엑셀 UI에서 "숨기기 취소"조차 안 보인다) / 흰색 글꼴 / 사용자 지정 서식 `;;;` / 사용 범위 밖 셀 |
 
-색 비교는 정확히 같은 값만 보면 안 된다. `#fffffe` 같은 회피를 잡으려면 거리 임계값을 쓴다.
+#### 보이지 않는 유니코드 문자
+
+제로폭 4~6개만 보면 절반도 못 잡는다. 정규식 한 줄로 범위를 넓힌다.
+
+```python
+INVISIBLE = re.compile(
+    "[\u200b-\u200f"          # ZWSP, ZWNJ, ZWJ, LRM, RLM
+    "\u202a-\u202e"           # Bidi 재정의 (Trojan Source)
+    "\u2060-\u2064"           # word joiner, invisible operators
+    "\u2066-\u2069"           # Bidi isolate
+    "\ufeff\u00ad\u034f"      # BOM, soft hyphen, CGJ
+    "\U000e0000-\U000e007f"   # 태그 문자
+    "]"
+)
+```
+
+두 범위가 특히 중요하다.
+
+- **`\u202a-\u202e` Bidi 재정의** — 화면에 보이는 글자 순서와 파일에 저장된 순서를 다르게 만든다. 케임브리지 연구팀이 2021년 "Trojan Source"로 발표한 기법이다. 소스코드 공격으로 유명해졌지만 문서에도 그대로 통한다.
+- **`\U000e0000-\U000e007f` 태그 문자** — 어떤 폰트로도 렌더링되지 않는 블록인데 ASCII를 1:1로 인코딩할 수 있다(`0xE0000`을 빼면 원래 ASCII가 나온다). 아스키 문장 하나를 통째로 투명하게 숨길 수 있어서, LLM 프롬프트 인젝션에서 실제로 쓰이는 최신 기법이다("ASCII smuggling"). 정규식 한 줄인데 발표에서 힘이 실린다.
+
+#### ⚠️ 오탐 주의 — 문자 하나 발견을 위험으로 잡지 않는다
+
+위 목록에는 **정상 문서에 널려 있는 문자가 섞여 있다.** 발견 즉시 신고하면 멀쩡한 파일이 전부 빨간불이 되고, "우리는 오탐을 겨냥한다"는 주장이 우리 손으로 무너진다.
+
+그래서 문자를 **두 등급으로 나눈다.** 같은 규칙을 전부에 적용하면 안 된다.
+
+**A급 — 정상 문서에 나올 이유가 없다.** 개수나 밀도만 넘어도 신고한다.
+
+| 범위 | 무엇 |
+|---|---|
+| `U+202A ~ U+202E` | Bidi 재정의 (Trojan Source) |
+| `U+2066 ~ U+2069` | Bidi isolate |
+| `U+E0000 ~ U+E007F` | 태그 문자 (ASCII smuggling) |
+
+**B급 — 정상 문서에 흔하다.** 개수·밀도를 넘어도 **복원까지 통과해야** 신고한다.
+
+| 문자 | 정상적으로 나오는 이유 |
+|---|---|
+| `U+FEFF` BOM | UTF-8 파일 맨 앞에 아주 흔하다. 맨 앞 1개는 아예 세지 않는다 |
+| `U+00AD` soft hyphen | 워드의 자동 하이픈. 정상 문서에 수십 개씩 들어 있다 |
+| `U+200B` ZWSP | 줄바꿈 위치 지정용. 웹에서 복사해 붙이면 딸려온다 |
+| `U+200C` ZWNJ | 아랍어·페르시아어·인도계 문자에서 정상적으로 쓴다 |
+| `U+200E` `U+200F` LRM/RLM | 아랍어·히브리어가 섞인 문서에서 정상 |
+| `U+2060 ~ U+2064` | 수식 조판에서 나온다 |
+| `U+034F` CGJ | 정렬·검색 보정용 |
+| `U+200D` ZWJ | **이모지 결합.** 함정 2 참고 — 별도 예외가 필요하다 |
+
+**판정 규칙**
+
+| 조건 | A급 | B급 |
+|---|---|---|
+| **개수** — 한 span/문단에 3개 이상 | 신고 | 다음 조건을 본다 |
+| **밀도** — 한 span/문단에서 2% 초과 | 신고 | 다음 조건을 본다 |
+| **복원** — 제거·디코드하면 의미 있는 문장이 나온다 | 신고 | **신고** |
+
+복원이 가장 강한 근거다. 태그 문자는 `0xE0000`을 빼서 디코드하고 Bidi는 재정의를 걷어낸 뒤, 의미 있는 문장이 나오는지 본다. 나오면 개수·밀도와 무관하게 신고하고 그 문장을 `evidence`에 넣는다(숨은 명령 확인 화면이 그대로 보여준다). 나오지 않으면 서식 잡음으로 보고 버린다.
+
+**3개 / 2%는 일단 정해둔 값이다.** 숨은 텍스트 샘플 8~10개와 정상 문서 대조군을 직접 돌려서, **놓치면 내리고 오탐이 나면 올리며** 맞춘다. 맞춘 뒤에는 최종 값과 맞춘 날짜를 이 문서에 적어둔다 — 심사에서 "왜 2%냐"를 물으면 그 실험이 답이다.
+
+##### 함정 1 — 밀도의 분모를 문서 전체로 잡지 않는다
+
+50,000자짜리 계약서에 제로폭 200개를 심어도 문서 전체 기준으로는 0.4%다. 그냥 통과한다.
+
+숨은 명령은 한 자리에 뭉쳐 있으므로 **분모는 span 하나 또는 문단 하나**여야 한다. 그 문단만 떼어 보면 밀도가 확 올라간다.
+
+반대로 짧은 span에서는 밀도가 의미가 없다(10자에 1개면 10%다). **50자 미만이면 밀도 판정을 건너뛰고 개수 규칙만 본다.**
+
+##### 함정 2 — `U+200D`(ZWJ)는 이모지가 정상적으로 쓴다
+
+가족 이모지 하나가 ZWJ 3개다. 전체 7자 중 3자니까 밀도 43%다. **이모지 하나만으로 개수와 밀도를 동시에 통과한다.**
+
+특히 `scan_text()`는 C의 훈련 모드에서 실시간 채팅 답장을 검사한다. 짧은 메시지에 이모지 하나면 무조건 오탐이다.
+
+→ ZWJ는 **앞뒤가 이모지면 세지 않는다.**
+
+```python
+# 변형 선택자(\ufe0f)와 피부색 수정자도 이모지 쪽에 포함시킨다.
+# 하트+불꽃 이모지처럼 ZWJ 바로 앞이 \ufe0f인 조합이 있기 때문이다.
+EMOJI = re.compile(
+    "[\U0001f000-\U0001faff"     # 그림 이모지 대부분
+    "\u2600-\u27bf\u2b00-\u2bff"   # 기호·화살표류
+    "\ufe0f\U0001f3fb-\U0001f3ff"     # 변형 선택자, 피부색 수정자
+    "]"
+)
+
+def is_emoji_zwj(text: str, i: int) -> bool:
+    """이모지를 잇는 ZWJ면 True — 세지 않는다."""
+    return (text[i] == "\u200d"
+            and 0 < i < len(text) - 1
+            and EMOJI.match(text[i - 1]) is not None
+            and EMOJI.match(text[i + 1]) is not None)
+```
+
+정상 문서 대조군에서 **오탐 0건**을 확인하고 넘어간다. 그 숫자가 그대로 발표 자료가 된다.
+
+#### 색 비교
+
+정확히 같은 값만 보면 안 된다. `#fffffe` 같은 회피를 잡으려면 거리 임계값을 쓴다.
 
 ```python
 def is_invisible_color(fg, bg, threshold=30):
     # 두 색의 RGB 거리가 threshold 미만이면 안 보이는 것으로 본다
 ```
+
+**배경을 흰색으로 가정하지 않는다.** 파란 표 셀에 파란 글씨를 넣으면 "흰 배경 + 흰 글씨"만 보는 검사는 그냥 통과한다. `bg_color`는 상수가 아니라 그 위치의 **실제 채움색**이어야 하고, 그 값은 `parse.py`가 span을 뽑을 때 같이 뽑아줘야 한다 (PDF는 도형·사각형 채움, XLSX는 셀 `fill`, DOCX는 문단·표 음영).
 
 숨은 텍스트를 찾으면 `type="hidden_text"`(25점)로 Finding을 만들고, **그 문장이 AI를 향한 명령인지**는 `models.is_injection()`에 물어서 참이면 `type="injection"`(50점)으로 **승격**한다.
 
@@ -208,6 +318,60 @@ def is_injection(sentence) -> tuple[bool, float]:
 
 주 동작은 **다운로드**이고, 여러 파일은 `.zip`으로 묶어 한 번에 준다.
 
+#### 함수는 둘이다
+
+```python
+def build(raw_text: str, findings: list[Finding]) -> str:
+    """ScanResult.masked_text 용. 지금도 scan.py가 이걸 부르고 있다."""
+
+def build_file(path: str, findings: list[Finding], out_dir: str) -> str:
+    """마스킹 사본 파일을 만들고 그 경로를 돌려준다. ScanResult.masked_path에 들어간다."""
+```
+
+`build()`만으로는 부족하다. 제품의 주 동작이 **사본 파일 다운로드**이고 schema에 `masked_path` 필드가 이미 있다. 지금 `scan.py`는 `build()`만 부르므로, `scan_file()`에 `build_file()` 호출 한 줄이 더 필요하다.
+
+#### ⚠️ `bbox`는 mask.py가 구하지 않는다
+
+PDF 리댁션에는 좌표가 필요한데, `rules.py`·`ner.py`가 만든 Finding에는 offset(`start`/`end`)만 있고 좌표가 없다. offset을 좌표로 되짚는 일이 어딘가에서 일어나야 한다. **그 자리는 `mask.py`가 아니라 `scan.py`다.**
+
+`Finding.bbox`는 4명이 함께 쓰는 공용 필드이고 `to_dict()`로 화면까지 나간다 (schema.py:269-276). `mask.py`가 좌표를 혼자 구해서 쓰고 버리면 `Finding.bbox`는 영원히 `null`로 남고, **D가 PDF 미리보기 위에 하이라이트 박스를 그릴 방법이 사라진다.**
+
+그래서 이렇게 나눈다.
+
+| 누가 | 무엇 |
+|---|---|
+| `parser/` (B-1) | offset → 좌표 매핑 함수를 제공한다. span 기하를 아는 쪽이라 여기 있어야 한다 |
+| `scan.py` (B-2) | dedupe 직후 그 함수를 불러 `Finding.bbox`와 `Finding.page`를 채운다 |
+| `masking/mask.py` (B-1) | `finding.bbox`를 **읽기만** 한다. 좌표를 다시 찾지 않는다 |
+
+```python
+# parser/locate.py — B-1이 제공
+def rects_for(doc: ParsedDoc, start: int, end: int) -> list[tuple[float, float, float, float]]:
+    """offset 구간과 겹치는 span들의 좌표를 돌려준다. 줄바꿈으로 갈라지면 여러 개다."""
+```
+
+**줄바꿈 주의.** 값 하나가 두 줄에 걸치면 사각형이 둘 필요하다. 그런데 `Finding.bbox`는 사각형 하나짜리 필드다. 합집합 하나로 지우면 그 사이의 멀쩡한 글자까지 지워진다.
+
+**결정: 사각형은 여러 개로 담는다.** `bbox`의 타입을 리스트로 바꾸는 것은 공용 계약 변경이라
+4명 합의가 필요하므로, 기존 필드는 그대로 두고 `evidence`에 나눠 담는다 — `evidence`는 자유
+형식이라 계약을 건드리지 않는다.
+
+```python
+rects = locate.rects_for(doc, f.start, f.end)   # 줄마다 하나씩, 여러 개
+if rects:
+    f.bbox = union(rects)            # 화면 하이라이트용 — 합집합 하나 (기존 계약 유지)
+    f.evidence["rects"] = rects      # 리댁션용 정밀 좌표 — 이쪽이 실제로 지우는 데 쓰인다
+```
+
+리댁션은 **반드시 `evidence["rects"]`를 순회**한다. `bbox` 하나로 지우면 두 줄에 걸친 값의
+사이 글자까지 지워진다.
+
+```python
+for rect in f.evidence.get("rects") or ([f.bbox] if f.bbox else []):
+    page.add_redact_annot(rect, text=f.placeholder)
+page.apply_redactions()
+```
+
 ---
 
 ### `scan.py` — 전부 이어 붙이기
@@ -220,11 +384,17 @@ def scan_file(path):
     findings += hidden.detect(doc.spans)                     # 4. 서식 검사
     findings, filtered = models.apply_filters(findings, doc.raw_text)  # 5. 오탐 제거 + 인젝션
     findings  = dedupe(findings)                             # 6. 겹치는 구간 정리
+    locate.fill_coords(doc, findings)                        # 7. offset -> bbox/page 채우기
     result = ScanResult(filename=..., raw_text=doc.raw_text,
                         findings=findings, filtered_out=filtered)
-    result.masked_text = mask.build(result)
-    return result.finalize()                                 # 7. 위험 점수 계산
+    result.masked_text = mask.build(result.raw_text, result.findings)   # 8. 텍스트 사본
+    result.masked_path = mask.build_file(path, result.findings, tmp)    # 9. 파일 사본
+    return result.finalize()                                 # 10. 위험 점수 계산
 ```
+
+> **7·9번은 B-1이 낸 제안이다. `scan.py`는 B-2(민하) 담당이므로 확인을 거쳐 반영한다.**
+> `Finding.bbox`/`page`를 채우는 자리와 파일 사본을 만드는 자리가 필요해서다.
+> 7번을 빼면 마스킹은 되지만 화면이 좌표를 못 받는다 — 위 `mask.py` 절의 경고 참고.
 
 **6번 중복 제거를 빠뜨리지 말 것.** 같은 글자를 정규식과 NER이 동시에 잡는 일이 흔하다(예: 이메일을 NER이 조직명으로도 잡음). 구간이 겹치면 가중치가 높은 쪽만 남긴다. 안 그러면 점수가 부풀려진다.
 
@@ -262,7 +432,8 @@ GET  /health        살아있는지 확인 (배포 후 핑용)
 |---|---|---|
 | 데모 샘플 (심사위원용) | 4개 | 고객명단.xlsx / 개발문서(API키).md / 계약서.pdf / **숨은 명령이 심긴 docx** |
 | 형식별 회귀 테스트 | 형식당 2~3개 | pdf, docx, xlsx, txt — 파싱이 안 깨지는지 확인용 |
-| 숨은 텍스트 케이스 | 8~10개 | 흰 글씨 / 1pt / 제로폭 / 렌더모드3 / 숨긴 행 — **하나씩 직접 만들어 봐야 탐지 코드를 짤 수 있다** |
+| 숨은 텍스트 케이스 | 12~14개 | 흰 글씨 / 1pt / 제로폭 / 렌더모드3 / 숨긴 행 / `veryHidden` 시트 / `;;;` 서식 / Bidi 재정의 / 태그 문자 / 색 배경에 같은 색 글씨 — **하나씩 직접 만들어 봐야 탐지 코드를 짤 수 있다** |
+| **오탐 대조군** | 5개 | 아무것도 숨기지 않은 정상 문서. BOM 있는 txt · 자동 하이픈(soft hyphen) 있는 워드 · 이모지 있는 문서 · 웹에서 복사해 붙인 문단 · 아랍어나 인도계 문자가 섞인 문서. **여기서 탐지가 0건이어야 통과다** |
 | 오탐 평가셋 | 100건 | `ml/eval/`에 둔다. 계좌 vs 주문번호·사번·송장번호. **학습에 절대 쓰지 않는다** |
 
 전부 Faker(ko_KR) + 직접 작성. **실제 개인정보는 한 건도 넣지 않는다.**

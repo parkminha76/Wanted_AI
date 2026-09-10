@@ -1,0 +1,117 @@
+{
+  "ground_truth": {
+    "type": "PM",
+    "nationality": "REPUBLIC OF KOREA",
+    "passport_number": "M91733596",
+    "surname": "HAN",
+    "given_names": "NAYUN",
+    "korean_name": "한나윤",
+    "date_of_birth": "17 8월/AUG 1985",
+    "sex": "M",
+    "issue_date": "15 8월/AUG 2023",
+    "expiry_date": "15 8월/AUG 2033",
+    "mrz": "PMKORHAN<<NAYUN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\nM917335963KOR8508172M3308154<<<<<<<<<<<<<<59"
+  },
+  "detected": [
+    {
+      "label": "name",
+      "confidence": 0.973,
+      "bbox": [
+        369.6,
+        284.8,
+        449.9,
+        321.6
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.967,
+      "bbox": [
+        393.4,
+        157.8,
+        468.8,
+        193.3
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.917,
+      "bbox": [
+        379.8,
+        224.4,
+        497.3,
+        263.9
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.916,
+      "bbox": [
+        327.7,
+        498.8,
+        543.2,
+        549.4
+      ]
+    },
+    {
+      "label": "sex",
+      "confidence": 0.884,
+      "bbox": [
+        650.3,
+        411.9,
+        681.8,
+        441.1
+      ]
+    },
+    {
+      "label": "face",
+      "confidence": 0.848,
+      "bbox": [
+        22.6,
+        69.3,
+        327.4,
+        482.3
+      ]
+    },
+    {
+      "label": "date_of_birth",
+      "confidence": 0.779,
+      "bbox": [
+        356.8,
+        353.1,
+        552.7,
+        397.9
+      ]
+    },
+    {
+      "label": "passport_number",
+      "confidence": 0.74,
+      "bbox": [
+        712.7,
+        173.8,
+        884.2,
+        219.7
+      ]
+    },
+    {
+      "label": "date_of_birth",
+      "confidence": 0.432,
+      "bbox": [
+        351.6,
+        374.2,
+        576.2,
+        415.2
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.3,
+      "bbox": [
+        382.6,
+        233.5,
+        494.6,
+        269.4
+      ]
+    }
+  ]
+}
