@@ -120,6 +120,13 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("A/S 접수번호는 {value}이며 방문은 사흘 내 예정입니다", "A/S 접수번호"),
             ("정기점검 이력번호 {value} 조회 결과입니다", "이력번호"),
             ("입찰 공고번호 {value} 마감이 연장되었습니다", "공고번호"),
+            # --- 사번 (schema.py가 emp_no를 넣은 이유: 사번이 계좌·사업자번호로 오탐난다) ---
+            # 값이 사번처럼 보여야 문장이 자연스러워서 전용 생성기를 지정한다.
+            ("사번 {value} 직원의 근태 기록을 첨부합니다", "사번", "emp_no_like_account"),
+            ("인사 시스템에서 직원번호 {value}로 조회했습니다", "사번", "emp_no_like_account"),
+            ("퇴사자 사번 {value} 계정을 비활성화했습니다", "사번", "emp_no_like_account"),
+            ("출입기록은 사원번호 {value} 기준으로 집계됩니다", "사번", "emp_no_like_account"),
+            ("교육 이수자 명단에 사번 {value}가 누락되었습니다", "사번", "emp_no_like_account"),
         ],
     },
     # ---------------- 사업자등록번호 ----------------
@@ -157,6 +164,15 @@ TEMPLATES: dict[str, dict[int, list]] = {
             ("설문 응답번호 {value} 데이터를 집계했습니다", "응답번호"),
             ("증빙자료 일련번호 {value} 첨부합니다", "일련번호"),
             ("정기구독 번호 {value} 갱신 안내드립니다", "구독번호"),
+            # --- 사번 ---
+            # 값은 타입 기본 생성기(체크섬 통과 3-2-5)를 그대로 쓴다. 사번이 그 형식일
+            # 확률은 낮지만, 분류기가 배워야 할 규칙("사번이라는 단어가 있으면
+            # 사업자등록번호가 아니다")은 형식과 무관하게 같다.
+            ("사번 {value} 직원의 재직증명서를 발급했습니다", "사번"),
+            ("직원번호 {value}로 사내 시스템에 접속했습니다", "사번"),
+            ("사원번호 {value} 부서 이동 내역입니다", "사번"),
+            ("퇴직 처리된 사번 {value}를 명단에서 제외했습니다", "사번"),
+            ("사번 {value} 님의 교육 이수 현황입니다", "사번"),
         ],
     },
     # ---------------- 사번 ----------------
@@ -362,12 +378,29 @@ def gen_emp_no() -> str:
     return f"{random.randint(10, 99)}-{random.randint(0, 99999):05d}"
 
 
+def gen_emp_no_like_account() -> str:
+    """사번처럼 보이면서 계좌번호 패턴(10~16자리)에도 걸리는 값.
+
+    `account`의 label=0에 쓴다. gen_account()가 만드는 은행 형식(예: 512-55-9401-22268)을
+    "사번"이라고 부르는 문장은 어색해서 학습에 도움이 안 된다. 사번스러운 자릿수로
+    만들되 계좌 정규식에는 걸리게 해야 분류기가 실제로 판정할 거리가 된다.
+    """
+    style = random.randint(0, 2)
+    if style == 0:
+        return f"{random.randint(2015, 2026)}-{random.randint(0, 9999):04d}-{random.randint(0, 9999):04d}"
+    if style == 1:
+        return f"{random.randint(10, 99)}-{random.randint(0, 999999):06d}-{random.randint(0, 999):03d}"
+    return f"{random.randint(100, 999)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
+
+
 GENERATORS = {
     "account": gen_account,
     "biz_reg": gen_biz_reg,
     "emp_no": gen_emp_no,
     "phone": gen_phone,
     "card": gen_card,
+    # 타입 이름이 아니라 문장별로 지정할 수 있는 생성기 (템플릿 3번째 칸에 이름을 쓴다)
+    "emp_no_like_account": gen_emp_no_like_account,
 }
 
 
@@ -378,11 +411,16 @@ GENERATORS = {
 PLACEHOLDER = "{value}"
 
 
-def _unpack(entry) -> tuple[str, str]:
-    """템플릿 항목을 (문장, 설명)으로 푼다. 설명은 없어도 된다."""
+def _unpack(entry) -> tuple[str, str, str]:
+    """템플릿 항목을 (문장, 설명, 생성기이름)으로 푼다. 뒤 둘은 없어도 된다.
+
+        "문장 {value}"                          -> 설명 없음, 타입 기본 생성기
+        ("문장 {value}", "설명")                 -> 타입 기본 생성기
+        ("문장 {value}", "설명", "생성기이름")     -> 그 문장만 다른 생성기를 쓴다
+    """
     if isinstance(entry, tuple):
-        return entry[0], entry[1]
-    return entry, ""
+        return entry[0], entry[1], (entry[2] if len(entry) > 2 else "")
+    return entry, "", ""
 
 
 def build_records() -> tuple[list[dict], list[str]]:
@@ -394,7 +432,8 @@ def build_records() -> tuple[list[dict], list[str]]:
         generate = GENERATORS[risk_type]
         for label in (1, 0):
             for template_index, entry in enumerate(buckets.get(label, []), start=1):
-                template, note = _unpack(entry)
+                template, note, generator_name = _unpack(entry)
+                make_value = GENERATORS.get(generator_name, generate)
 
                 if template.count(PLACEHOLDER) != 1:
                     problems.append(
@@ -409,9 +448,9 @@ def build_records() -> tuple[list[dict], list[str]]:
 
                 used: set[str] = set()
                 for _ in range(RECORDS_PER_TEMPLATE):
-                    value = generate()
+                    value = make_value()
                     while value in used:              # 같은 묶음 안에서는 값이 겹치지 않게
-                        value = generate()
+                        value = make_value()
                     used.add(value)
 
                     start = len(template.split(PLACEHOLDER)[0])
