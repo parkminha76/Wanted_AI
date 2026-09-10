@@ -216,7 +216,15 @@ def find_business_registration_numbers(text: str) -> list[dict]:
 
 def find_corporate_registration_numbers(text: str) -> list[dict]:
     """형식(6-7자리)과 체크섬을 모두 통과한 법인등록번호 후보만 반환한다.
-    체크섬은 주민등록번호와 동일한 공식을 쓴다."""
+    체크섬은 주민등록번호와 동일한 공식을 쓴다.
+
+    한계: 자릿수(13)도 체크섬 공식도 주민등록번호와 같아서, 앞 6자리가 우연히
+    유효한 날짜이고 7번째가 1~4인 법인등록번호는 형식만으로 주민등록번호와
+    구분할 수 없다. 그런 값은 dedupe에서 위험도가 높은 rrn(40점)으로 남아
+    실제 위험도(법인등록번호 5점)보다 8배 부풀려진다. 원리적 한계라 규칙으로는
+    못 고치고, 앞뒤 문맥("법인등록번호:" 같은)을 보는 오탐 제거 분류기가
+    붙어야 갈린다. 앞 6자리가 날짜가 아닌 대부분의 법인등록번호는 rrn 쪽이
+    생년월일 검증에서 탈락하므로 정상적으로 corp_reg로 잡힌다."""
     matches = []
     for m in CORPORATE_REGISTRATION_NUMBER_PATTERN.finditer(text):
         digits = re.sub(r"\D", "", m.group())
@@ -393,8 +401,17 @@ def find_db_connection_strings(text: str) -> list[dict]:
 
 
 def find_all(text: str) -> list[dict]:
-    """모든 필드 탐지기를 돌려서 하나의 목록으로 합친다."""
-    return (
+    """모든 필드 탐지기를 돌려서 하나의 목록으로 합친다.
+
+    계좌번호만 맨 마지막에 따로 처리한다. 은행별 자릿수를 못 박을 수 없어 패턴이
+    넓다 보니 다른 번호를 통째로 삼키는데, scan.py의 dedupe는 위험 가중치만 보기
+    때문에(계좌 30점 > 사업자등록번호 5점) **체크섬으로 검증된 쪽이 밀려나** 오히려
+    오탐이 된다. 실제로 "123-45-67891"(체크섬 통과한 사업자등록번호)이 확신도 0.3짜리
+    계좌번호로 표시되는 걸 확인했다. 그래서 다른 탐지기가 이미 잡은 구간과 겹치는
+    계좌번호 후보는 여기서 버린다 — 계좌번호는 "다른 무엇도 아닌 숫자"일 때만
+    계좌번호다.
+    """
+    findings = (
         find_resident_registration_numbers(text)
         + find_foreign_registration_numbers(text)
         + find_business_registration_numbers(text)
@@ -402,10 +419,16 @@ def find_all(text: str) -> list[dict]:
         + find_driver_license_numbers(text)
         + find_passport_numbers(text)
         + find_card_numbers(text)
-        + find_bank_account_numbers(text)
         + find_phone_numbers(text)
         + find_emails(text)
         + find_ip_addresses(text)
         + find_api_keys_and_tokens(text)
         + find_db_connection_strings(text)
     )
+    claimed = [(m["start"], m["end"]) for m in findings]
+    accounts = [
+        m
+        for m in find_bank_account_numbers(text)
+        if not any(m["start"] < end and start < m["end"] for start, end in claimed)
+    ]
+    return findings + accounts
