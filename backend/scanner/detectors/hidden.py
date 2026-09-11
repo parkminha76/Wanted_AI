@@ -16,7 +16,7 @@ AI 모델이 전혀 필요 없는 규칙 검사인데, 데모에서 가장 임�
 
 임계값을 정한 방법
 ------------------
-`backend/scanner/tests/`의 숨긴 문서 16개 + 정상 문서 5개를 돌려서 맞췄다.
+`backend/scanner/tests/`의 숨긴 문서 22개 + 정상 문서 8개를 돌려서 맞췄다.
 놓치면 내리고, 정상 문서가 걸리면 올렸다. 확인은 아래 한 줄로 다시 돌릴 수 있다.
 
     uv run python backend/scanner/tests/check_thresholds.py
@@ -32,7 +32,7 @@ from backend.scanner.detectors import models, rules
 
 
 # ---------------------------------------------------------------------------
-# 임계값 — 2026-09-10 1회차로 맞춘 값
+# 임계값 — 2026-09-11 6회차까지 돌려서 맞춘 값
 # ---------------------------------------------------------------------------
 
 # A급: 정상 문서에 나올 이유가 없는 문자 (Bidi 재정의·isolate, 태그 문자).
@@ -113,21 +113,26 @@ _REASONS = {
     "sheet_hidden": "숨긴 시트",
     "row_hidden": "숨긴 행",
     "col_hidden": "숨긴 열",
+    "outside_page": "페이지 경계 밖에 배치된 글자 — 화면에도 인쇄물에도 안 나온다",
+    "covered_by_image": "글자를 그린 뒤 그 위에 이미지를 덮었다",
+    "outside_used_range": "엑셀이 기록한 사용 범위 밖의 셀 — Ctrl+End로도 찾을 수 없다",
+    "deleted_command": "변경내용 추적으로 지운 자리에 AI를 향한 명령이 남아 있다",
     "invisible_a": "보이지 않는 제어 문자 — 정상 문서에 쓰일 이유가 없다",
     "invisible_b": "보이지 않는 문자를 걷어내자 숨어 있던 문장이 드러났다",
 }
 
-# 근거별 확신도.
+# 근거별 의도성 점수 (0.0 ~ 1.0) — "이게 얼마나 일부러 숨긴 것으로 보이나".
 #
-# 숨긴 행·열과 숨긴 시트를 낮게 잡은 이유: 보조 계산용으로 접어두는 일이 정상 문서에
-# 흔하다. 반대로 `;;;` 서식과 veryHidden 시트는 실수로 만들어지지 않는다.
-# 확신도는 위험 점수에 곱해지므로(schema.compute_risk_score), 흔한 것은 점수를 덜 흔든다.
-_CONFIDENCE = {
+# 0에 가까우면 서식 잔재나 정상적인 사용이고, 1에 가까우면 실수로 그렇게 될 수 없는
+# 것이다. 숨긴 행·열을 낮게 잡은 이유: 보조 계산용으로 접어두는 일이 정상 문서에
+# 흔하다. 반대로 `;;;` 서식과 veryHidden 시트는 실수로 만들어지지 않는다 —
+# 만들려면 서식 대화상자를 열거나 VBA를 건드려야 한다.
+_INTENT = {
     "render_mode": 0.95,
     "opacity": 0.95,
     "font_size": 0.9,
     "color": 0.95,
-    "color_unknown_bg": 0.7,
+    "color_unknown_bg": 0.9,
     "vanish": 0.9,
     "web_hidden": 0.7,
     "blank_format": 0.9,
@@ -135,19 +140,47 @@ _CONFIDENCE = {
     "sheet_hidden": 0.5,
     "row_hidden": 0.5,
     "col_hidden": 0.5,
+    # 아래 셋은 문서를 손으로 편집해서는 나오기 어렵다. 페이지 밖으로 글자를 밀거나,
+    # 글자 위에 이미지를 덮거나, 파일에 적힌 사용 범위를 좁히려면 도구를 써야 한다.
+    "outside_page": 0.9,
+    "covered_by_image": 0.85,
+    "outside_used_range": 0.85,
+    "deleted_command": 0.9,
     "invisible_a": 0.9,
     "invisible_b": 0.8,
 }
 
-# 신고하지 않는 hidden_attr 사유.
+# 서식 값을 **제대로 읽었는지**에 대한 확신도. 의도성과는 다른 축이다.
 #
-# "deleted"(변경내용 추적으로 지워진 글자)는 검토 중인 계약서에 수백 개씩 들어 있다.
-# 전부 신고하면 화면이 도배되고 위험 점수가 무의미해진다. parse.py는 계속 표시해서
-# 넘기고, 신고 여부만 여기서 끊는다.
+# 흰 글씨를 찾았는데 배경색을 알아내지 못했다면(bg_known=False), "숨기려 했다"는
+# 판단은 그대로 강하지만 "정말 흰 배경 위였나"는 확실하지 않다. 두 불확실성을 한
+# 숫자에 섞으면 화면에 근거를 설명할 수 없다. 나눠서 곱한다.
+_READ_CERTAINTY = {
+    "color_unknown_bg": 0.8,
+}
+
+
+def _confidence(reason: str) -> float:
+    """위험 점수에 곱해질 확신도 = 의도성 x 판독 확신도.
+
+    schema.compute_risk_score()가 (가중치 x 확신도 x log(개수))로 계산하므로,
+    의도가 약한 근거는 여기서 자동으로 점수를 덜 흔든다.
+    """
+    return round(_INTENT.get(reason, 0.5) * _READ_CERTAINTY.get(reason, 1.0), 2)
+
+# 조건을 하나 더 봐야 신고할 수 있는 사유.
 #
-# 주의: 이 정책을 바꾸려면 **추적 변경이 들어간 정상 문서를 대조군에 먼저 넣고**
-# 오탐이 몇 건 나는지 재고 나서 바꿀 것.
-_IGNORED_HIDDEN_REASONS = {"deleted"}
+# "deleted"(변경내용 추적으로 지워진 글자)가 그렇다. 검토 중인 계약서에는 삭제 표시가
+# 수십~수백 개 들어 있는 게 정상이라, 그 자체를 신고하면 문서가 통째로 빨간불이 된다.
+# 2026-09-11에 대조군 두 개로 실제로 재봤다.
+#
+#     전부 신고    -> clean/07 8건, clean/08 1건 오탐   (문서가 도배된다)
+#     신고 안 함   -> hidden/22 놓침                    (지운 자리의 숨은 명령을 놓친다)
+#     명령일 때만  -> 놓침 0, 오탐 0                     <- 채택
+#
+# "지웠다"는 사실이 아니라 **지운 자리에 무엇이 남아 있는가**로 가른다. B급 보이지
+# 않는 문자를 복원 검사로 거르는 것과 같은 구조다.
+_CONDITIONAL_HIDDEN_REASONS = {"deleted"}
 
 
 # ---------------------------------------------------------------------------
@@ -310,8 +343,15 @@ def _format_signals(span) -> list[tuple[str, dict]]:
 
     if getattr(span, "hidden_attr", False):
         for reason in (getattr(span, "hidden_reason", "") or "unknown").split("+"):
-            if reason and reason not in _IGNORED_HIDDEN_REASONS:
-                signals.append((reason, {"hidden_reason": reason}))
+            if not reason:
+                continue
+            if reason in _CONDITIONAL_HIDDEN_REASONS:
+                # 지운 자리에 AI를 향한 명령이 남아 있을 때만 신고한다.
+                # 정상적인 문구 수정("계약 기간은 6개월로 한다")은 여기서 걸러진다.
+                if models.is_injection(span.text)[0]:
+                    signals.append(("deleted_command", {"hidden_reason": reason}))
+                continue
+            signals.append((reason, {"hidden_reason": reason}))
     return signals
 
 
@@ -359,7 +399,7 @@ def detect(spans) -> list[dict]:
 
         # span 하나에 finding 하나. 확신도는 가장 강한 근거를 따르고 나머지는
         # evidence에 모아 담는다. 두 개를 내면 한 문장이 25점을 두 번 받는다.
-        signals.sort(key=lambda item: _CONFIDENCE.get(item[0], 0.5), reverse=True)
+        signals.sort(key=lambda item: _confidence(item[0]), reverse=True)
         top_reason = signals[0][0]
         evidence: dict = {"signals": [name for name, _ in signals]}
         for _, values in signals:
@@ -367,12 +407,18 @@ def detect(spans) -> list[dict]:
         if getattr(span, "where", "body") not in ("body", "cell"):
             evidence["where"] = span.where
 
+        # hidden_reason(수법 분류)과 intent_score(의도성)는 DB에도 남는 값이다.
+        # confidence를 왜 이 값으로 잡았는지의 근거이자, "어떤 수법이 제일 많았나"
+        # 통계의 재료다. 화면은 이 둘을 XAI 설명으로 그대로 보여준다.
+        evidence["hidden_reason"] = top_reason
+        evidence["intent_score"] = _INTENT.get(top_reason, 0.5)
+
         findings.append({
             "field": "hidden_text",
             "value": span.text,
             "start": span.start,
             "end": span.end,
-            "confidence": _CONFIDENCE.get(top_reason, 0.5),
+            "confidence": _confidence(top_reason),
             "reason": _REASONS.get(top_reason, "서식으로 감춰진 텍스트"),
             "evidence": evidence,
         })
@@ -390,12 +436,14 @@ def detect_text(text: str) -> list[dict]:
         line = match.group()
         span = _PlainSpan(text=line, start=match.start(), end=match.end())
         for reason, evidence in _invisible_signals(span, is_document_start=match.start() == 0):
+            evidence["hidden_reason"] = reason
+            evidence["intent_score"] = _INTENT.get(reason, 0.5)
             findings.append({
                 "field": "hidden_text",
                 "value": line,
                 "start": match.start(),
                 "end": match.end(),
-                "confidence": _CONFIDENCE.get(reason, 0.5),
+                "confidence": _confidence(reason),
                 "reason": _REASONS.get(reason, "보이지 않는 문자"),
                 "evidence": evidence,
             })

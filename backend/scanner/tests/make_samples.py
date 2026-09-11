@@ -2,8 +2,8 @@
 
     uv run python backend/scanner/tests/make_samples.py
 
-hidden/ 16개 — 숨기는 수법을 하나씩 따로 담은 파일. hidden.py가 이걸 잡아야 한다.
-clean/  5개 — 아무것도 숨기지 않은 정상 문서. **여기서 탐지가 0건이어야 통과다.**
+hidden/ 22개 — 숨기는 수법을 하나씩 따로 담은 파일. hidden.py가 이걸 잡아야 한다.
+clean/  8개 — 아무것도 숨기지 않은 정상 문서. **여기서 탐지가 0건이어야 통과다.**
 
 왜 대조군을 같이 만드는가
 -------------------------
@@ -75,7 +75,7 @@ def _write_bytes(path: str, data: bytes) -> None:
 
 
 # ---------------------------------------------------------------------------
-# hidden/ — 숨긴 문서 16개
+# hidden/ — 숨긴 문서 22개
 # ---------------------------------------------------------------------------
 
 
@@ -196,6 +196,70 @@ def hidden_pdf_same_color_as_bg(path: str) -> None:
     _save_pdf(document, path)
 
 
+def hidden_pdf_outside_page(path: str) -> None:
+    """페이지 경계 밖에 배치. 화면에도 인쇄물에도 안 나오지만 파일에는 남아 있다."""
+    import pymupdf
+
+    document = pymupdf.open()
+    page = document.new_page()
+    _pdf_cover(page)
+    # A4 높이가 842pt다. 900pt는 종이 아래쪽 바깥이다.
+    page.insert_text((72, 900), INJECTION_EN, fontsize=11)
+    _save_pdf(document, path)
+
+
+def hidden_pdf_covered_by_image(path: str) -> None:
+    """글자를 먼저 그리고 그 위에 이미지를 덮었다.
+
+    PDF는 나중에 그린 것이 위에 얹힌다. 배경 이미지(레터헤드)는 글자보다 **먼저**
+    그려지므로 정상이고, 글자 **뒤에** 그려져 완전히 덮는 이미지가 은닉이다.
+    """
+    import pymupdf
+
+    document = pymupdf.open()
+    page = document.new_page()
+    _pdf_cover(page)
+    page.insert_text((72, 205), INJECTION_EN, fontsize=11)
+    patch = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 360, 40))
+    patch.set_rect(patch.irect, (245, 245, 245))
+    # keep_proportion=False가 없으면 이미지가 비율을 지키느라 줄어들어 글자를 다 못 덮는다.
+    page.insert_image(pymupdf.Rect(60, 190, 520, 216), pixmap=patch, keep_proportion=False)
+    _save_pdf(document, path)
+
+
+def _rewrite_zip_member(path: str, member: str, old: bytes, new: bytes) -> None:
+    """zip 안의 파일 하나에서 바이트를 바꿔치기한다. 나머지는 그대로 옮긴다."""
+    import shutil
+    import tempfile
+    import zipfile
+
+    handle, temporary = tempfile.mkstemp(suffix=".xlsx")
+    os.close(handle)
+    with zipfile.ZipFile(path) as source, zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename == member:
+                data = data.replace(old, new)
+            target.writestr(item, data)
+    shutil.move(temporary, path)
+
+
+def hidden_xlsx_outside_used_range(path: str) -> None:
+    """파일에 적힌 사용 범위 밖의 셀.
+
+    엑셀은 시트마다 <dimension ref="A1:C10">으로 사용 범위를 적어 둔다. 값을 넣은 뒤
+    이 값을 좁게 고치면 Ctrl+End로도 안 잡히고, dimension을 그대로 믿는 도구는
+    그 셀을 통째로 건너뛴다. openpyxl은 실제 셀에서 범위를 다시 계산하므로
+    파일에 적힌 원본과 비교해야 보인다.
+    """
+    sheet = _xlsx_cover()
+    sheet["H40"] = f"{INJECTION_KR2} {FAKE_API_KEY}"
+    sheet.parent.save(path)
+    # 저장하면 openpyxl이 dimension을 A1:H40으로 적는다. 그걸 좁게 되돌린다.
+    _rewrite_zip_member(path, "xl/worksheets/sheet1.xml",
+                        b'<dimension ref="A1:H40"/>', b'<dimension ref="A1:B3"/>')
+
+
 def hidden_xlsx_hidden_row_col(path: str) -> None:
     """숨긴 행 + 숨긴 열. 엑셀 화면에서는 행 번호가 건너뛰는 것 말고 단서가 없다."""
     sheet = _xlsx_cover()
@@ -292,6 +356,64 @@ def hidden_txt_tag_chars(path: str) -> None:
     _write_bytes(path, text.encode("utf-8"))
 
 
+def _tracked_deletion(text: str, author: str = "검토자") -> str:
+    """변경내용 추적으로 지워진 글자 하나를 만드는 XML 조각."""
+    import docx
+    from docx.oxml.ns import nsdecls
+
+    return (f'<w:del {nsdecls("w")} w:id="{abs(hash(text)) % 9999}" w:author="{author}" '
+            f'w:date="2026-01-05T09:00:00Z"><w:r><w:delText xml:space="preserve">{text}'
+            f"</w:delText></w:r></w:del>")
+
+
+def hidden_xlsx_hidden_sheet(path: str) -> None:
+    """평범하게 숨긴 시트. veryHidden과 달리 "숨기기 취소"로 되돌릴 수 있다.
+
+    실수로도 만들어지고 보조 계산용으로도 흔해서, veryHidden(0.9)보다 확신도를
+    낮게(0.5) 매긴다. 그 차이가 실제로 나는지 확인하는 파일이다.
+    """
+    sheet = _xlsx_cover()
+    workbook = sheet.parent
+    folded = workbook.create_sheet("메모")
+    folded["A1"] = f"{INJECTION_KR} 연락처 {FAKE_PHONE}"
+    folded.sheet_state = "hidden"
+    workbook.save(path)
+
+
+def hidden_docx_web_hidden(path: str) -> None:
+    """워드의 웹 보기 전용 숨김 속성(w:webHidden). vanish와는 다른 속성이다."""
+    import docx
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls
+
+    document = docx.Document()
+    document.add_paragraph(COVER_TITLE)
+    paragraph = document.add_paragraph()
+    paragraph._p.append(parse_xml(
+        f'<w:r {nsdecls("w")}><w:rPr><w:webHidden/></w:rPr>'
+        f"<w:t>{INJECTION_KR2} {FAKE_EMAIL}</w:t></w:r>"
+    ))
+    document.add_paragraph(COVER_BODY)
+    document.save(path)
+
+
+def hidden_docx_tracked_injection(path: str) -> None:
+    """변경내용 추적으로 "지운" 자리에 숨은 명령을 심었다.
+
+    화면에는 취소선이 그어져 보이거나 최종본 보기에서는 아예 안 보이는데,
+    파일에는 글자가 그대로 남아 있어서 문서를 통째로 읽는 AI는 이 문장을 본다.
+    """
+    import docx
+    from docx.oxml import parse_xml
+
+    document = docx.Document()
+    document.add_paragraph(COVER_TITLE)
+    paragraph = document.add_paragraph()
+    paragraph._p.append(parse_xml(_tracked_deletion(INJECTION_KR)))
+    document.add_paragraph(COVER_BODY)
+    document.save(path)
+
+
 def _save_pdf(document, path: str) -> None:
     """PDF를 저장한다. **폰트를 쓰는 글자만 남기고 잘라낸다.**
 
@@ -337,7 +459,7 @@ def _xlsx_cover():
 
 
 # ---------------------------------------------------------------------------
-# clean/ — 대조군 5개. 여기서 탐지 0건이어야 통과다.
+# clean/ — 대조군 8개. 여기서 탐지 0건이어야 통과다.
 # ---------------------------------------------------------------------------
 
 
@@ -385,6 +507,68 @@ def clean_txt_web_paste(path: str) -> None:
     _write_bytes(path, text.encode("utf-8"))
 
 
+def clean_docx_tracked_changes(path: str) -> None:
+    """계약서 검토본. **정상적인 수정 이력이 많이 들어 있다.**
+
+    변호사·담당자가 문장을 고칠 때마다 삭제 표시가 하나씩 쌓인다. 검토 중인 계약서에
+    수십 개가 있는 건 지극히 정상이다. 추적 삭제분을 전부 신고하면 이런 문서가
+    통째로 빨간불이 되고, 진짜 위험한 항목이 삭제 흔적에 묻힌다.
+    """
+    import docx
+    from docx.oxml import parse_xml
+
+    document = docx.Document()
+    document.add_paragraph("용역 계약서 (검토본)")
+    edits = [
+        ("계약 기간은 6개월로 한다", "계약 기간은 12개월로 한다"),
+        ("대금은 착수 시 전액 지급한다", "대금은 착수금 30%, 잔금 70%로 나누어 지급한다"),
+        ("하자보수 기간은 1년으로 한다", "하자보수 기간은 2년으로 한다"),
+        ("분쟁은 서울중앙지방법원을 관할로 한다", "분쟁은 상호 협의로 해결한다"),
+        ("을은 주 2회 진행 상황을 보고한다", "을은 주 1회 진행 상황을 보고한다"),
+        ("검수 기간은 14일로 한다", "검수 기간은 7일로 한다"),
+        ("재위탁은 금지한다", "재위탁은 갑의 사전 동의를 받아 가능하다"),
+        ("계약 해지는 30일 전 통보한다", "계약 해지는 60일 전 통보한다"),
+    ]
+    for removed, kept in edits:
+        paragraph = document.add_paragraph()
+        paragraph._p.append(parse_xml(_tracked_deletion(removed)))
+        paragraph.add_run(kept)
+    document.add_paragraph("이상의 내용에 합의한다.")
+    document.save(path)
+
+
+def clean_docx_tracked_light(path: str) -> None:
+    """가볍게 한두 군데만 고친 문서. 삭제 표시가 적을 때도 통과해야 한다."""
+    import docx
+    from docx.oxml import parse_xml
+
+    document = docx.Document()
+    document.add_paragraph(COVER_TITLE)
+    paragraph = document.add_paragraph()
+    paragraph._p.append(parse_xml(_tracked_deletion("담당자는 재무팀 김대리입니다")))
+    paragraph.add_run("담당자는 재무팀 이과장입니다")
+    document.add_paragraph(COVER_BODY)
+    document.save(path)
+
+
+def clean_pdf_background_image(path: str) -> None:
+    """레터헤드처럼 **배경 이미지를 먼저 깔고** 그 위에 글자를 얹은 정상 PDF.
+
+    18번(이미지로 덮음)의 짝이다. 이미지가 글자를 가리는지 아닌지는 **그린 순서**로만
+    갈린다. 순서를 안 보고 "글자를 덮는 이미지가 있다"만 보면 이 파일이 걸리고,
+    사보·안내문처럼 배경을 깐 문서가 전부 빨간불이 된다.
+    """
+    import pymupdf
+
+    document = pymupdf.open()
+    page = document.new_page()
+    banner = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 360, 40))
+    banner.set_rect(banner.irect, (235, 242, 250))
+    page.insert_image(pymupdf.Rect(50, 80, 545, 175), pixmap=banner, keep_proportion=False)
+    _pdf_cover(page)          # 이미지를 깐 뒤에 글자를 얹는다
+    _save_pdf(document, path)
+
+
 def clean_txt_rtl_mixed(path: str) -> None:
     """아랍어가 섞인 문서. LRM/RLM과 ZWNJ를 정상적으로 쓴다.
 
@@ -421,6 +605,12 @@ HIDDEN_SAMPLES = [
     ("14_txt_bidi_override.txt", hidden_txt_bidi_override, "Bidi 재정의"),
     ("15_txt_tag_chars.txt", hidden_txt_tag_chars, "태그 문자"),
     ("16_txt_bidi_long_paragraph.txt", hidden_txt_bidi_long_paragraph, "Bidi 재정의 (긴 문단)"),
+    ("17_pdf_outside_page.pdf", hidden_pdf_outside_page, "페이지 경계 밖"),
+    ("18_pdf_covered_by_image.pdf", hidden_pdf_covered_by_image, "이미지로 덮음"),
+    ("19_xlsx_outside_used_range.xlsx", hidden_xlsx_outside_used_range, "사용 범위 밖 셀"),
+    ("20_xlsx_hidden_sheet.xlsx", hidden_xlsx_hidden_sheet, "평범하게 숨긴 시트"),
+    ("21_docx_web_hidden.docx", hidden_docx_web_hidden, "웹 보기 숨김 속성"),
+    ("22_docx_tracked_injection.docx", hidden_docx_tracked_injection, "추적 삭제분의 숨은 명령"),
 ]
 
 CLEAN_SAMPLES = [
@@ -429,6 +619,9 @@ CLEAN_SAMPLES = [
     ("03_txt_emoji.txt", clean_txt_emoji, "이모지 ZWJ 5개"),
     ("04_txt_web_paste.txt", clean_txt_web_paste, "웹 복붙 제로폭 2개"),
     ("05_txt_rtl_mixed.txt", clean_txt_rtl_mixed, "아랍어 LRM/RLM 7개"),
+    ("06_pdf_background_image.pdf", clean_pdf_background_image, "배경 이미지 위의 글자"),
+    ("07_docx_tracked_changes.docx", clean_docx_tracked_changes, "계약서 검토본 삭제 8개"),
+    ("08_docx_tracked_light.docx", clean_docx_tracked_light, "가벼운 수정 삭제 1개"),
 ]
 
 

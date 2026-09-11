@@ -55,6 +55,21 @@ class TextSpan:
     hidden_attr: bool = False   # docx의 vanish, xlsx의 숨긴 행/열·시트 등
     bbox: tuple | None = None   # 마스킹 좌표 (PDF만 채워진다)
 
+    # 글자별 가로 좌표. 글자 수 + 1개다 — 각 글자의 왼쪽 경계에 마지막 글자의
+    # 오른쪽 경계를 하나 더 붙인 것. i번째 글자가 차지하는 x 구간은
+    # char_x[i] ~ char_x[i+1]이다. PDF 가로쓰기에서만 채워진다.
+    #
+    # 여기 있는 이유: 마스킹은 "몇 번째 글자"가 아니라 "페이지 위 좌표"로 지운다.
+    # span 사각형 하나만 남기면 그 안의 특정 구간 좌표를 글자 수로 비례 배분해
+    # 짐작할 수밖에 없는데, 한글(약 10.3pt)과 ASCII(약 6.7pt)는 폭이 1.5배 차이라
+    # 섞인 줄에서 글자 한두 개분씩 밀린다. 덜 덮이면 개인정보가 그대로 남고,
+    # 넓히면 옆 글자까지 지워진다. get_texttrace()가 글자마다 주는 좌표를 그냥
+    # 들고 있으면 짐작할 필요가 없어진다.
+    #
+    # 세로 좌표를 안 싣는 이유: 같은 span 안의 글자는 y 구간을 공유한다.
+    # bbox[1], bbox[3]을 그대로 쓰면 되므로 숫자를 4분의 1로 줄인다.
+    char_x: list[float] | None = None
+
     # --- 아래 둘은 README 계약에 없는 추가 필드다 ---
 
     # bg_color가 진짜 그 자리의 채움색인지, 알아내지 못해서 흰색으로 둔 것인지.
@@ -69,6 +84,15 @@ class TextSpan:
     # 머리말이 있다. 서식상 숨겨진 것이 아니라 "눈에 잘 안 띄는 자리"일 뿐이라,
     # 판정은 hidden.py가 다른 근거와 함께 내려야 한다. 여기서는 자리만 알려준다.
     where: str = "body"
+
+    # XLSX 전용. 이 조각이 어느 셀에서 나왔는지: "Sheet1!B3", 셀 주석이면 "Sheet1!B3#comment".
+    #
+    # 여기 있는 이유: masking/mask.py가 사본을 만들 때 "raw_text의 몇 번째 글자"를
+    # 다시 셀 주소로 되짚어야 한다. DOCX는 문서를 같은 순서로 다시 훑어서 i번째
+    # 노드와 i번째 span을 짝지을 수 있지만(parse.docx_text_nodes), XLSX는 순회
+    # 조건이 복잡해서(수식 대체·빈 셀 건너뛰기·주석) 그 방식이 깨지기 쉽다.
+    # 주소는 살아 있는 객체 참조가 아니라 문자열이라 ParsedDoc에 담아도 안전하다.
+    origin: str = ""
 
     # hidden_attr이 True가 된 이유. 여러 개면 "+"로 잇는다.
     #   "vanish" | "web_hidden" | "deleted" | "row_hidden" | "col_hidden"
@@ -344,6 +368,7 @@ class _PdfItem:
     render_mode: int
     spacewidth: float
     seqno: int
+    char_x: list[float] | None
 
 
 def _safe_chr(code) -> str:
@@ -351,6 +376,29 @@ def _safe_chr(code) -> str:
         return chr(code)
     except (ValueError, TypeError):
         return "�"
+
+
+def _char_x_edges(chars, direction) -> list[float] | None:
+    """글자별 가로 경계 목록. 가로쓰기가 아니거나 좌표가 이상하면 None.
+
+    None이면 locate.py가 span 사각형 전체로 물러선다 — 값보다 넓게 지우는 쪽이라
+    개인정보가 남지는 않지만 옆 글자가 같이 지워질 수 있다.
+    """
+    if tuple(direction or (1.0, 0.0)) != (1.0, 0.0):    # 세로쓰기·회전된 텍스트
+        return None
+    edges: list[float] = []
+    for char in chars:
+        bbox = char[3]
+        if not bbox or len(bbox) < 4:
+            return None
+        edges.append(float(bbox[0]))
+    if not edges:
+        return None
+    edges.append(float(chars[-1][3][2]))
+    # 왼쪽에서 오른쪽으로 정렬돼 있어야 구간을 잘라 쓸 수 있다.
+    if any(b < a for a, b in zip(edges, edges[1:])):
+        return None
+    return edges
 
 
 def _pdf_page_items(page) -> list[_PdfItem]:
@@ -374,6 +422,7 @@ def _pdf_page_items(page) -> list[_PdfItem]:
                 render_mode=int(span.get("type", 0)),
                 spacewidth=float(span.get("spacewidth") or 0.0),
                 seqno=int(span.get("seqno", -1)),
+                char_x=_char_x_edges(chars, span.get("dir")),
             )
         )
     return items
@@ -436,6 +485,40 @@ def _pdf_bg_at(fills, bbox: tuple, seqno: int) -> str | None:
     return best[1] if best else None
 
 
+def _rect_contains(outer, inner, tolerance: float = 1.0) -> bool:
+    """outer가 inner를 (여유 tolerance만큼) 감싸는가."""
+    return (outer[0] - tolerance <= inner[0] and outer[1] - tolerance <= inner[1]
+            and outer[2] + tolerance >= inner[2] and outer[3] + tolerance >= inner[3])
+
+
+def _rects_overlap(a, b) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def _pdf_covers(page) -> list[tuple[int, tuple]]:
+    """글자를 덮을 수 있는 그림의 목록. (그때까지 그려진 글자 수, 사각형).
+
+    PDF는 나중에 그린 것이 위에 얹힌다. 그래서 **글자보다 뒤에 그려진 이미지**만
+    글자를 가릴 수 있다. 앞에 그려진 이미지는 배경(레터헤드·워터마크)이라 정상이다.
+
+    get_bboxlog()가 그린 순서대로 (종류, 사각형)을 준다. 이미지를 만날 때까지 센
+    글자 수를 같이 기록해 두면, i번째 글자가 그 이미지보다 먼저 그려졌는지 알 수 있다.
+    """
+    covers: list[tuple[int, tuple]] = []
+    try:
+        log = page.get_bboxlog()
+    except Exception:
+        return covers
+    text_count = 0
+    for entry in log:
+        kind, bbox = entry[0], entry[1]
+        if "text" in kind:
+            text_count += 1
+        elif kind == "fill-image" and text_count:
+            covers.append((text_count, tuple(bbox)))
+    return covers
+
+
 def _load_pdf(path: str) -> ParsedDoc:
     import pymupdf
 
@@ -450,7 +533,12 @@ def _load_pdf(path: str) -> ParsedDoc:
             raise ParseError("암호가 걸린 PDF다")
         for page_number, page in enumerate(document, start=1):
             fills = _pdf_fills(page)
-            for line in _pdf_group_lines(_pdf_page_items(page)):
+            covers = _pdf_covers(page)
+            crop = tuple(page.cropbox)
+            items = _pdf_page_items(page)
+            # 그려진 순서(seqno)로 매긴 번호. _pdf_covers가 센 글자 수와 맞춰 쓴다.
+            draw_order = {id(it): i for i, it in enumerate(sorted(items, key=lambda x: x.seqno))}
+            for line in _pdf_group_lines(items):
                 builder.newline(page_number)
                 previous: _PdfItem | None = None
                 for item in line:
@@ -459,9 +547,23 @@ def _load_pdf(path: str) -> ParsedDoc:
                         if gap > previous.spacewidth * _PDF_SPACE_GAP_RATIO:
                             builder.add_gap(" ", page_number)
                     background = _pdf_bg_at(fills, item.bbox, item.seqno)
+
+                    reasons = []
+                    # CropBox 밖 — 페이지 경계 바깥에 배치된 글자는 화면에 안 보인다.
+                    # 겹치는 부분이 조금도 없을 때만 잡는다(잘린 글자를 신고하지 않도록).
+                    if not _rects_overlap(crop, item.bbox):
+                        reasons.append("outside_page")
+                    # 이미지에 가려짐 — 이 글자보다 뒤에 그려진 이미지가 통째로 덮는 경우
+                    order = draw_order.get(id(item), 0)
+                    if any(order < text_count and _rect_contains(rect, item.bbox)
+                           for text_count, rect in covers):
+                        reasons.append("covered_by_image")
+
                     builder.add_span(
                         item.text,
                         page=page_number,
+                        hidden_attr=bool(reasons),
+                        hidden_reason="+".join(reasons),
                         font_size=item.size,
                         color=item.color,
                         bg_color=background or DEFAULT_BG_COLOR,
@@ -469,6 +571,7 @@ def _load_pdf(path: str) -> ParsedDoc:
                         render_mode=item.render_mode,
                         opacity=item.opacity,
                         bbox=item.bbox,
+                        char_x=item.char_x,
                     )
                     previous = item
 
@@ -624,6 +727,40 @@ def _docx_parts(document) -> list[tuple[object, str]]:
     return [(element, where) for _, _, element, where in collected]
 
 
+def iter_docx_nodes(document):
+    """DOCX에서 의미 있는 노드만 읽는 순서대로 돌려준다: ("break"|"tab"|"text", node, where).
+
+    순회가 여기 한 곳뿐인 이유
+    --------------------------
+    `_load_docx`는 이 순서로 span을 만들고, `masking/mask.py`는 **같은 순서**로 사본의
+    run을 고친다. 두 순회가 조금이라도 어긋나면 엉뚱한 run을 가려서, 개인정보는 남고
+    멀쩡한 글자가 지워진다. 그래서 순회 규칙은 복사하지 않고 이 함수 하나만 쓴다.
+
+    텍스트가 빈 노드는 내보내지 않는다 — `_Builder.add_span`이 빈 텍스트로는 span을
+    만들지 않아서, 여기서 걸러야 "i번째 노드 = i번째 span"이 성립한다.
+    """
+    for element, part_where in _docx_parts(document):
+        for node in element.iter():
+            if not isinstance(node.tag, str):     # XML 주석 노드
+                continue
+            if node.tag in _DOCX_BREAK_TAGS:
+                yield "break", node, part_where
+            elif node.tag == _w("tab"):
+                yield "tab", node, part_where
+            elif node.tag in _DOCX_TEXT_TAGS and node.text:
+                yield "text", node, part_where
+
+
+def docx_text_nodes(document) -> list:
+    """텍스트 노드만 순서대로. i번째 노드가 `ParsedDoc.spans`의 i번째 span이다.
+
+    `mask.py`가 이 짝을 써서 "raw_text의 몇 번째 글자"를 "어느 run의 몇 번째 글자"로
+    되짚는다. span에 노드를 직접 매달지 않는 이유는, ParsedDoc이 4명이 주고받는
+    공용 자료라 살아 있는 XML 참조를 넣으면 안 되기 때문이다.
+    """
+    return [node for kind, node, _ in iter_docx_nodes(document) if kind == "text"]
+
+
 def _load_docx(path: str) -> ParsedDoc:
     import docx
 
@@ -635,60 +772,53 @@ def _load_docx(path: str) -> ParsedDoc:
     default_size = _docx_default_font_size(document)
     builder = _Builder()
 
-    for element, part_where in _docx_parts(document):
-        previous_paragraph = None
-        for node in element.iter():
-            if not isinstance(node.tag, str):     # XML 주석 노드
-                continue
+    previous_paragraph = None
 
-            if node.tag in _DOCX_BREAK_TAGS:
-                builder.add_gap("\n", page=1)
-                continue
-            if node.tag == _w("tab"):
-                builder.add_gap("\t", page=1)
-                continue
-            if node.tag not in _DOCX_TEXT_TAGS:
-                continue
+    for kind, node, part_where in iter_docx_nodes(document):
+        if kind == "break":
+            builder.add_gap("\n", page=1)
+            continue
+        if kind == "tab":
+            builder.add_gap("\t", page=1)
+            continue
 
-            text = node.text or ""
-            if not text:
-                continue
+        text = node.text
 
-            # 문단이 바뀌면 줄바꿈. 같은 문단 안의 run들은 붙여 쓴다 — 워드가 맞춤법
-            # 검사나 서식 때문에 한 단어를 run 여러 개로 쪼개 놓는 일이 흔해서,
-            # run 사이에 공백을 넣으면 "010-1234-" + "5678"이 안 잡힌다.
-            paragraph = _ancestor(node, _w("p"))
-            if paragraph is not previous_paragraph:
-                builder.newline(page=1)
-                previous_paragraph = paragraph
+        # 문단이 바뀌면 줄바꿈. 같은 문단 안의 run들은 붙여 쓴다 — 워드가 맞춤법
+        # 검사나 서식 때문에 한 단어를 run 여러 개로 쪼개 놓는 일이 흔해서,
+        # run 사이에 공백을 넣으면 "010-1234-" + "5678"이 안 잡힌다.
+        paragraph = _ancestor(node, _w("p"))
+        if paragraph is not previous_paragraph:
+            builder.newline(page=1)
+            previous_paragraph = paragraph
 
-            run = _ancestor(node, _w("r"))
-            fmt = _docx_run_format(run, default_size)
+        run = _ancestor(node, _w("r"))
+        fmt = _docx_run_format(run, default_size)
 
-            where = part_where
-            if _ancestor(node, _w("txbxContent")) is not None:
-                where = "textbox"
-            if node.tag == _w("delText"):
-                # 변경내용 추적으로 지워진 글자. 화면에는 안 보이지만 파일에는 남아 있다.
-                where = "deleted"
-                fmt["hidden_attr"] = True
-                fmt["hidden_reason"] = "+".join(filter(None, [fmt["hidden_reason"], "deleted"]))
+        where = part_where
+        if _ancestor(node, _w("txbxContent")) is not None:
+            where = "textbox"
+        if node.tag == _w("delText"):
+            # 변경내용 추적으로 지워진 글자. 화면에는 안 보이지만 파일에는 남아 있다.
+            where = "deleted"
+            fmt["hidden_attr"] = True
+            fmt["hidden_reason"] = "+".join(filter(None, [fmt["hidden_reason"], "deleted"]))
 
-            background = _docx_bg_color(run if run is not None else node)
-            if background is None and run is not None:
-                properties = run.find(_w("rPr"))
-                highlight = properties.find(_w("highlight")) if properties is not None else None
-                if highlight is not None:
-                    background = _DOCX_HIGHLIGHTS.get(highlight.get(_w("val")) or "")
+        background = _docx_bg_color(run if run is not None else node)
+        if background is None and run is not None:
+            properties = run.find(_w("rPr"))
+            highlight = properties.find(_w("highlight")) if properties is not None else None
+            if highlight is not None:
+                background = _DOCX_HIGHLIGHTS.get(highlight.get(_w("val")) or "")
 
-            builder.add_span(
-                text,
-                page=1,          # DOCX는 렌더링하기 전에는 페이지를 알 수 없다
-                bg_color=background or DEFAULT_BG_COLOR,
-                bg_known=background is not None,
-                where=where,
-                **fmt,
-            )
+        builder.add_span(
+            text,
+            page=1,          # DOCX는 렌더링하기 전에는 페이지를 알 수 없다
+            bg_color=background or DEFAULT_BG_COLOR,
+            bg_known=background is not None,
+            where=where,
+            **fmt,
+        )
 
     return builder.build("text", path, "docx")
 
@@ -800,6 +930,58 @@ def _xlsx_hidden_columns(sheet) -> set[str]:
     return hidden
 
 
+def _xlsx_declared_ranges(path: str) -> dict[str, tuple[int, int, int, int]]:
+    """시트 이름 -> 파일에 적힌 사용 범위 (첫열, 첫행, 끝열, 끝행).
+
+    엑셀은 시트마다 <dimension ref="A1:C10">으로 "여기까지가 사용 범위"를 적어 둔다.
+    그 범위 **밖**에 값을 넣으면 Ctrl+End로도 안 잡히고, 이 값을 그대로 믿는 도구는
+    통째로 건너뛴다. openpyxl의 ws.dimensions는 실제 셀에서 다시 계산한 값이라
+    이 속임수가 안 보인다. 그래서 파일에 적힌 원본을 직접 읽는다.
+
+    시트 이름과 XML 파일의 연결은 workbook.xml의 관계 id로 찾는다. sheet1.xml이
+    첫 번째 시트라는 보장이 없다.
+    """
+    from openpyxl.utils import range_boundaries
+
+    relationship_id = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+    ranges: dict[str, tuple[int, int, int, int]] = {}
+    try:
+        with zipfile.ZipFile(path) as archive:
+            try:
+                rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+                workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+            except (KeyError, ET.ParseError):
+                return {}
+
+            targets = {rel.get("Id"): rel.get("Target") for rel in rels}
+            for node in workbook.iter():
+                if not node.tag.endswith("}sheet"):
+                    continue
+                name = node.get("name")
+                target = targets.get(node.get(relationship_id))
+                if not name or not target:
+                    continue
+                member = target.lstrip("/")
+                if not member.startswith("xl/"):
+                    member = "xl/" + member
+                try:
+                    head = archive.read(member)[:4096].decode("utf-8", errors="ignore")
+                except KeyError:
+                    continue
+                match = re.search(r'<dimension\s+ref="([^"]+)"', head)
+                if not match:
+                    continue
+                try:
+                    bounds = range_boundaries(match.group(1))
+                except Exception:
+                    continue
+                if all(v is not None for v in bounds):
+                    ranges[name] = bounds
+    except (OSError, zipfile.BadZipFile):
+        return {}
+    return ranges
+
+
 def _xlsx_has_formulas(path: str) -> bool:
     """수식이 하나라도 있는 파일인가. 워크북을 두 번 여는 비용을 피하려고 먼저 확인한다."""
     try:
@@ -815,11 +997,14 @@ def _xlsx_has_formulas(path: str) -> bool:
     return False
 
 
-def _cell_text(value) -> str:
+def cell_text(value) -> str:
     """셀 값을 문자열로.
 
     정수로 떨어지는 실수에 소수점을 붙이지 않는다 — 숫자로 입력된 전화번호가
     "1012345678.0"이 되면 정규식이 못 잡는다.
+
+    밑줄 없는 이름인 이유: mask.py가 사본을 만들기 전에 "셀 값이 span과 같은가"를
+    확인하는 데 쓴다. 규칙이 둘로 갈라지면 숫자 셀에서 짝이 어긋난다.
     """
     if value is None:
         return ""
@@ -843,6 +1028,7 @@ def _load_xlsx(path: str) -> ParsedDoc:
 
     theme = _xlsx_theme_colors(path)
     has_formulas = _xlsx_has_formulas(path)
+    declared_ranges = _xlsx_declared_ranges(path)
     builder = _Builder()
     formula_book = None
 
@@ -853,15 +1039,16 @@ def _load_xlsx(path: str) -> ParsedDoc:
             sheet_where = _XLSX_SHEET_WHERE.get(sheet.sheet_state, "sheet_hidden")
             hidden_rows = {index for index, dim in sheet.row_dimensions.items() if dim.hidden}
             hidden_columns = _xlsx_hidden_columns(sheet)
+            declared = declared_ranges.get(sheet.title)
 
             for row in sheet.iter_rows():
                 row_started = False
                 for cell in row:
-                    text = _cell_text(cell.value)
+                    text = cell_text(cell.value)
                     if not text and has_formulas:
                         if formula_book is None:
                             formula_book = load_workbook(path, data_only=False)
-                        text = _cell_text(formula_book[sheet.title][cell.coordinate].value)
+                        text = cell_text(formula_book[sheet.title][cell.coordinate].value)
                     if not text:
                         continue
 
@@ -885,6 +1072,9 @@ def _load_xlsx(path: str) -> ParsedDoc:
                         reasons.append("col_hidden")
                     if (cell.number_format or "").strip() == _XLSX_BLANK_FORMAT:
                         reasons.append("blank_format")
+                    if declared and not (declared[0] <= cell.column <= declared[2]
+                                         and declared[1] <= cell.row <= declared[3]):
+                        reasons.append("outside_used_range")
 
                     builder.add_span(
                         text,
@@ -896,6 +1086,7 @@ def _load_xlsx(path: str) -> ParsedDoc:
                         hidden_attr=bool(reasons),
                         hidden_reason="+".join(reasons),
                         where=sheet_where,
+                        origin=f"{sheet.title}!{cell.coordinate}",
                     )
 
                     # 셀 주석. 마우스를 올려야 보이지만 정상 문서에도 흔하므로
@@ -909,6 +1100,7 @@ def _load_xlsx(path: str) -> ParsedDoc:
                             hidden_attr=sheet_hidden,
                             hidden_reason=sheet_where if sheet_hidden else "",
                             where="comment",
+                            origin=f"{sheet.title}!{cell.coordinate}#comment",
                         )
     finally:
         workbook.close()
