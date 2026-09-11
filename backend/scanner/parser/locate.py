@@ -86,16 +86,23 @@ def _merge(rects: list[Rect]) -> list[Rect]:
     return merged
 
 
-def rects_for(doc, start: int, end: int) -> list[Rect]:
+def rects_for(doc, start: int, end: int, page: int | None = None) -> list[Rect]:
     """offset 구간과 겹치는 span들의 좌표를 돌려준다.
 
     줄바꿈으로 갈라지면 여러 개다. 좌표가 없는 형식(DOCX/XLSX/TXT)이면 빈 목록이다.
+
+    `page`를 주면 그 페이지의 span만 본다. 값 하나가 페이지 경계를 넘어가면(앞
+    페이지 끝에 "010-1234-", 다음 페이지 머리에 "5678") 두 페이지의 좌표가 한
+    목록에 섞이는데, 리댁션은 사각형을 페이지 하나에 그리므로 뒤 페이지 좌표가
+    앞 페이지의 엉뚱한 자리를 지운다. 좌표계가 다른 것을 섞지 않는다.
     """
     if end <= start:
         return []
     rects: list[Rect] = []
     for span in doc.spans:
         if span.end <= start or end <= span.start:
+            continue
+        if page is not None and span.page != page:
             continue
         rect = _rect_for_span(span, max(start, span.start), min(end, span.end))
         if rect is not None:
@@ -129,7 +136,7 @@ def fill_coords(doc, findings) -> int:
         if finding.page is None:
             finding.page = page_of(doc, finding.start)
 
-        rects = rects_for(doc, finding.start, finding.end)
+        rects = rects_for(doc, finding.start, finding.end, page=finding.page)
         if not rects:
             continue
         finding.bbox = union(rects)                       # 화면용 — 합집합 하나
