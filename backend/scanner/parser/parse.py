@@ -476,6 +476,40 @@ def _pdf_bg_at(fills, bbox: tuple, seqno: int) -> str | None:
     return best[1] if best else None
 
 
+def _rect_contains(outer, inner, tolerance: float = 1.0) -> bool:
+    """outer가 inner를 (여유 tolerance만큼) 감싸는가."""
+    return (outer[0] - tolerance <= inner[0] and outer[1] - tolerance <= inner[1]
+            and outer[2] + tolerance >= inner[2] and outer[3] + tolerance >= inner[3])
+
+
+def _rects_overlap(a, b) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def _pdf_covers(page) -> list[tuple[int, tuple]]:
+    """글자를 덮을 수 있는 그림의 목록. (그때까지 그려진 글자 수, 사각형).
+
+    PDF는 나중에 그린 것이 위에 얹힌다. 그래서 **글자보다 뒤에 그려진 이미지**만
+    글자를 가릴 수 있다. 앞에 그려진 이미지는 배경(레터헤드·워터마크)이라 정상이다.
+
+    get_bboxlog()가 그린 순서대로 (종류, 사각형)을 준다. 이미지를 만날 때까지 센
+    글자 수를 같이 기록해 두면, i번째 글자가 그 이미지보다 먼저 그려졌는지 알 수 있다.
+    """
+    covers: list[tuple[int, tuple]] = []
+    try:
+        log = page.get_bboxlog()
+    except Exception:
+        return covers
+    text_count = 0
+    for entry in log:
+        kind, bbox = entry[0], entry[1]
+        if "text" in kind:
+            text_count += 1
+        elif kind == "fill-image" and text_count:
+            covers.append((text_count, tuple(bbox)))
+    return covers
+
+
 def _load_pdf(path: str) -> ParsedDoc:
     import pymupdf
 
@@ -490,7 +524,12 @@ def _load_pdf(path: str) -> ParsedDoc:
             raise ParseError("암호가 걸린 PDF다")
         for page_number, page in enumerate(document, start=1):
             fills = _pdf_fills(page)
-            for line in _pdf_group_lines(_pdf_page_items(page)):
+            covers = _pdf_covers(page)
+            crop = tuple(page.cropbox)
+            items = _pdf_page_items(page)
+            # 그려진 순서(seqno)로 매긴 번호. _pdf_covers가 센 글자 수와 맞춰 쓴다.
+            draw_order = {id(it): i for i, it in enumerate(sorted(items, key=lambda x: x.seqno))}
+            for line in _pdf_group_lines(items):
                 builder.newline(page_number)
                 previous: _PdfItem | None = None
                 for item in line:
@@ -499,9 +538,23 @@ def _load_pdf(path: str) -> ParsedDoc:
                         if gap > previous.spacewidth * _PDF_SPACE_GAP_RATIO:
                             builder.add_gap(" ", page_number)
                     background = _pdf_bg_at(fills, item.bbox, item.seqno)
+
+                    reasons = []
+                    # CropBox 밖 — 페이지 경계 바깥에 배치된 글자는 화면에 안 보인다.
+                    # 겹치는 부분이 조금도 없을 때만 잡는다(잘린 글자를 신고하지 않도록).
+                    if not _rects_overlap(crop, item.bbox):
+                        reasons.append("outside_page")
+                    # 이미지에 가려짐 — 이 글자보다 뒤에 그려진 이미지가 통째로 덮는 경우
+                    order = draw_order.get(id(item), 0)
+                    if any(order < text_count and _rect_contains(rect, item.bbox)
+                           for text_count, rect in covers):
+                        reasons.append("covered_by_image")
+
                     builder.add_span(
                         item.text,
                         page=page_number,
+                        hidden_attr=bool(reasons),
+                        hidden_reason="+".join(reasons),
                         font_size=item.size,
                         color=item.color,
                         bg_color=background or DEFAULT_BG_COLOR,
@@ -841,6 +894,58 @@ def _xlsx_hidden_columns(sheet) -> set[str]:
     return hidden
 
 
+def _xlsx_declared_ranges(path: str) -> dict[str, tuple[int, int, int, int]]:
+    """시트 이름 -> 파일에 적힌 사용 범위 (첫열, 첫행, 끝열, 끝행).
+
+    엑셀은 시트마다 <dimension ref="A1:C10">으로 "여기까지가 사용 범위"를 적어 둔다.
+    그 범위 **밖**에 값을 넣으면 Ctrl+End로도 안 잡히고, 이 값을 그대로 믿는 도구는
+    통째로 건너뛴다. openpyxl의 ws.dimensions는 실제 셀에서 다시 계산한 값이라
+    이 속임수가 안 보인다. 그래서 파일에 적힌 원본을 직접 읽는다.
+
+    시트 이름과 XML 파일의 연결은 workbook.xml의 관계 id로 찾는다. sheet1.xml이
+    첫 번째 시트라는 보장이 없다.
+    """
+    from openpyxl.utils import range_boundaries
+
+    relationship_id = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+    ranges: dict[str, tuple[int, int, int, int]] = {}
+    try:
+        with zipfile.ZipFile(path) as archive:
+            try:
+                rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+                workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+            except (KeyError, ET.ParseError):
+                return {}
+
+            targets = {rel.get("Id"): rel.get("Target") for rel in rels}
+            for node in workbook.iter():
+                if not node.tag.endswith("}sheet"):
+                    continue
+                name = node.get("name")
+                target = targets.get(node.get(relationship_id))
+                if not name or not target:
+                    continue
+                member = target.lstrip("/")
+                if not member.startswith("xl/"):
+                    member = "xl/" + member
+                try:
+                    head = archive.read(member)[:4096].decode("utf-8", errors="ignore")
+                except KeyError:
+                    continue
+                match = re.search(r'<dimension\s+ref="([^"]+)"', head)
+                if not match:
+                    continue
+                try:
+                    bounds = range_boundaries(match.group(1))
+                except Exception:
+                    continue
+                if all(v is not None for v in bounds):
+                    ranges[name] = bounds
+    except (OSError, zipfile.BadZipFile):
+        return {}
+    return ranges
+
+
 def _xlsx_has_formulas(path: str) -> bool:
     """수식이 하나라도 있는 파일인가. 워크북을 두 번 여는 비용을 피하려고 먼저 확인한다."""
     try:
@@ -884,6 +989,7 @@ def _load_xlsx(path: str) -> ParsedDoc:
 
     theme = _xlsx_theme_colors(path)
     has_formulas = _xlsx_has_formulas(path)
+    declared_ranges = _xlsx_declared_ranges(path)
     builder = _Builder()
     formula_book = None
 
@@ -894,6 +1000,7 @@ def _load_xlsx(path: str) -> ParsedDoc:
             sheet_where = _XLSX_SHEET_WHERE.get(sheet.sheet_state, "sheet_hidden")
             hidden_rows = {index for index, dim in sheet.row_dimensions.items() if dim.hidden}
             hidden_columns = _xlsx_hidden_columns(sheet)
+            declared = declared_ranges.get(sheet.title)
 
             for row in sheet.iter_rows():
                 row_started = False
@@ -926,6 +1033,9 @@ def _load_xlsx(path: str) -> ParsedDoc:
                         reasons.append("col_hidden")
                     if (cell.number_format or "").strip() == _XLSX_BLANK_FORMAT:
                         reasons.append("blank_format")
+                    if declared and not (declared[0] <= cell.column <= declared[2]
+                                         and declared[1] <= cell.row <= declared[3]):
+                        reasons.append("outside_used_range")
 
                     builder.add_span(
                         text,
