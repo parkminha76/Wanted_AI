@@ -3,14 +3,20 @@
 backend/shared/schema.py가 정의한 공용 계약(Finding, ScanResult, scan_text/scan_file/
 scan_files)의 실제 구현이다.
 
-ner(detectors/ner.py), hidden(detectors/hidden.py), parser(parser/parse.py)는 아직
-팀원 작업이 끝나지 않아 비어 있거나 아예 없을 수 있다. "모델이 없어도 엔진 전체가
-돌아가야 한다" 원칙에 따라, 그 모듈이 없거나 detect/load 함수가 없으면 그 단계만
-건너뛰고 나머지 파이프라인은 그대로 돈다.
+붙어 있는 것: rules.py(정규식+체크섬), ner.py(이름·주소·조직명),
+hidden.py(숨은 텍스트), parser/parse.py(문서 파싱), models.py(오탐 제거·인젝션,
+지금은 _ENABLE_CLASSIFIER_STAGE로 꺼둠).
+아직 없는 것: masking/mask.py, detectors/id_detector.py(신분증 CNN).
 
-ner.py / hidden.py가 새로 구현할 때 지켜야 할 반환 형식(rules.py와 동일):
+"모델이 없어도 엔진 전체가 돌아가야 한다" 원칙에 따라, 모듈이 없거나 약속한
+함수가 없으면 그 단계만 건너뛰고 나머지 파이프라인은 그대로 돈다.
+
+탐지기 공통 반환 형식(rules.py / ner.py / hidden.py / id_detector.py 모두 동일):
     [{"field": <schema.RiskType 문자열>, "value": str, "start": int, "end": int,
       "confidence": float}, ...]
+    reason과 evidence를 함께 담아 보내면 그 값을 그대로 쓴다 — hidden.py는
+    판정 근거(글자색·폰트 크기·복원한 문장)를 evidence에 담아 보내고, 화면 05가
+    그것을 그린다.
 
 mask.py는 함수가 둘 필요하다:
     build(raw_text, findings) -> str        # 텍스트용. scan_text가 부른다.
@@ -60,6 +66,15 @@ try:
 except ImportError:
     mask = None
 
+# 신분증 이미지 CNN 호출부. models.py와 같은 패턴이다 — B가 부르는 자리를 만들고
+# A가 알맹이를 채운다(backend/scanner/README.md: "ml/에서 학습된 모델을 갖다 쓰는 자리").
+# 계약: id_detector.detect(path) -> rules.py와 같은 형식의 목록.
+#       field는 schema.RiskType의 "id_photo" | "signature" | "id_meta".
+try:
+    from backend.scanner.detectors import id_detector
+except ImportError:
+    id_detector = None
+
 # 파일을 못 읽는 것은 "예상되는 실패"라 ScanResult.error로 바꿔 돌려준다.
 # 반대로 AttributeError 같은 엔진 버그를 여기서 함께 삼키면, 코드 오류가
 # "파일을 읽지 못했습니다"로 위장돼 원인 찾는 데만 한참 걸린다(실제로 겪었다).
@@ -90,8 +105,10 @@ _REASONS: dict[str, str] = {
     "hidden_text": "서식으로 감춰진 텍스트",
 }
 
-# 체크섬까지 검증된 타입은 evidence에 그 사실을 남긴다 (화면이 근거로 보여준다).
-_CHECKSUM_VERIFIED_TYPES = {"rrn", "biz_reg", "corp_reg", "card"}
+# evidence.checksum은 각 탐지기가 직접 담아 보낸다(rules.py의 CHECKSUM_PASS /
+# CHECKSUM_NOT_AVAILABLE). 여기서 타입 목록을 따로 들고 있으면, 어느 필드가
+# 체크섬 검증되는지에 대한 판단이 두 곳에 생겨서 어긋난다 — 실제로 법인등록번호를
+# "검증됨"으로 잘못 표시하고 있었다(알고리즘 출처가 확정되지 않은 필드였다).
 
 # 문장 단위로 잘라 인젝션 여부를 검사한다. 마침표/느낌표/물음표/줄바꿈 기준.
 _SENTENCE_SPLIT_PATTERN = re.compile(r"[^.!?\n]+[.!?]?")
@@ -105,16 +122,20 @@ _ENABLE_CLASSIFIER_STAGE = False
 
 # 확장자 -> schema.ScanResult.file_type. 화면(D)이 "PDF 사본 받기"인지 "텍스트 사본
 # 받기"인지 구분하는 데 쓰고, mask.build_file도 이 값으로 리댁션 방식을 고른다.
+#
+# 표를 손으로 두 벌 관리하면 parse.py가 확장자를 늘릴 때 여기가 조용히 뒤처진다.
+# 실제로 .csv·.log·.bmp·.gif·.webp·.tif·.tiff·.xlsm 8개가 빠져 있었다. 그래서
+# parse.py의 표를 권위로 삼아 그대로 가져다 쓴다.
+# parse.load()가 if 분기로 직접 처리해서 그 표에 없는 형식만 여기서 보탠다.
 _FILE_TYPE_BY_EXTENSION: dict[str, str] = {
     ".pdf": "pdf",
     ".docx": "docx",
     ".xlsx": "xlsx",
-    ".txt": "txt",
-    ".md": "md",
-    ".png": "image",
-    ".jpg": "image",
-    ".jpeg": "image",
+    ".xlsm": "xlsx",
 }
+if parse is not None:
+    _FILE_TYPE_BY_EXTENSION.update(getattr(parse, "TEXT_EXTENSIONS", {}))
+    _FILE_TYPE_BY_EXTENSION.update(getattr(parse, "IMAGE_EXTENSIONS", {}))
 
 
 def _raw_to_finding(raw: dict, source: str) -> Finding:
@@ -127,9 +148,7 @@ def _raw_to_finding(raw: dict, source: str) -> Finding:
     여기서 일괄로 덮어쓰면 그 정보가 사라진다.
     """
     risk_type = raw["field"]
-    evidence = raw.get("evidence")
-    if evidence is None:
-        evidence = {"checksum": "pass"} if risk_type in _CHECKSUM_VERIFIED_TYPES else {}
+    evidence = raw.get("evidence") or {}
     return Finding(
         id="",  # 최종 목록이 정해진 뒤 _reassign_ids에서 한 번에 부여한다.
         type=risk_type,
@@ -140,6 +159,12 @@ def _raw_to_finding(raw: dict, source: str) -> Finding:
         source=source,
         reason=raw.get("reason") or _REASONS.get(risk_type, "탐지 규칙 일치"),
         evidence=dict(evidence),
+        # 좌표를 이미 아는 탐지기는 직접 담아 보낸다. 이미지 CNN이 그 경우다 —
+        # 이미지에는 문자 오프셋이 없어서 _attach_bboxes로는 좌표를 만들 수 없고,
+        # YOLO가 준 박스가 유일한 마스킹 근거다. 여기서 버리면 얼굴을 가릴
+        # 좌표가 사라진다.
+        bbox=raw.get("bbox"),
+        page=raw.get("page"),
     )
 
 
@@ -240,7 +265,13 @@ def _reassign_ids(findings: list[Finding], offset: int = 0) -> None:
 
 
 def _guess_file_type(path: str) -> str:
-    return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "txt")
+    """확장자로 형식을 추측한다. parse.load()가 판단한 doc.file_type이 없을 때만 쓴다.
+
+    모르는 확장자는 빈 문자열로 둔다. 읽지도 못한 .hwp를 "txt"라고 표시하면 화면이
+    "텍스트 사본 받기" 버튼을 띄울 수 있다 — 사본이 없는 파일에 다운로드 버튼이
+    붙는다.
+    """
+    return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "")
 
 
 def _union_bbox(boxes: list[tuple]) -> tuple[float, float, float, float]:
@@ -380,18 +411,45 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     return result.finalize()  # 8. 위험 점수 계산
 
 
+def _scan_image(doc) -> ScanResult:
+    """텍스트 레이어가 없는 파일(신분증 사진, 스캔본 PDF)을 이미지 파이프라인으로 보낸다.
+
+    parse.py가 kind="image"로 표시해준 파일이 여기로 온다. 정규식·NER·서식 검사는
+    글자가 있어야 돌아가므로 이 파일들에는 아무것도 못 하고, 신분증 CNN이 얼굴
+    사진·서명·발급일자를 찾아야 한다.
+
+    CNN이 아직 연결되지 않았을 때 findings를 빈 채로 돌려주면 위험점수 0 =
+    "안전"(초록불)으로 나간다. 신분증 사진은 고유식별정보 덩어리인데 그걸 안전하다고
+    표시하는 것은 이 서비스가 낼 수 있는 가장 위험한 오답이다. 그래서 검사할 수단이
+    없으면 error에 남겨, 화면이 점수 대신 안내를 띄우도록 한다.
+    """
+    result = ScanResult(raw_text="")
+    if id_detector is not None and hasattr(id_detector, "detect"):
+        result.findings = [_raw_to_finding(d, "cnn") for d in id_detector.detect(doc.path)]
+        _reassign_ids(result.findings)
+    else:
+        result.error = "이미지 파일은 아직 검사할 수 없습니다 (신분증 검사기 연결 전)"
+    return result.finalize()
+
+
 def scan_file(path: str) -> ScanResult:
     """파일 1개를 파싱해서 검사하고, 마스킹된 파일 사본까지 만든다.
 
-    parser 모듈(backend/scanner/parser/parse.py)이 아직 없어서, 지금은 UTF-8 텍스트를
-    직접 읽어 scan_text로 넘기는 임시 다리 역할만 한다. PDF/DOCX/이미지 분기는
-    parse.load가 준비되면 이 함수의 분기만 바꿔 끼우면 된다.
+    parse.load()가 형식을 판단해서 텍스트(pdf/docx/xlsx/txt)와 이미지(사진, 텍스트
+    레이어가 없는 스캔본 PDF)로 갈라주고, 이 함수가 그 kind를 보고 텍스트
+    파이프라인과 이미지 파이프라인으로 분기한다. parse가 없는 환경에서는 UTF-8
+    텍스트로 직접 읽는 경로로 떨어진다.
     """
     doc = None
     try:
         if parse is not None and hasattr(parse, "load"):
             doc = parse.load(path)
-            result = scan_text(doc.raw_text, meta={"filename": path, "spans": doc.spans})
+            # 파서가 이미지로 판정한 파일(사진, 텍스트 레이어 없는 스캔본 PDF)은
+            # 글자가 없어서 텍스트 탐지기를 돌릴 것이 없다. 이미지 파이프라인으로 보낸다.
+            if getattr(doc, "kind", "text") == "image":
+                result = _scan_image(doc)
+            else:
+                result = scan_text(doc.raw_text, meta={"filename": path, "spans": doc.spans})
         else:
             with open(path, encoding="utf-8") as fh:
                 raw_text = fh.read()
