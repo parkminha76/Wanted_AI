@@ -174,15 +174,36 @@ _HIDDEN_REASONS = {
     "font_size",           # 폰트 크기로 탐지 (evidence.font_size와 짝)
     "color",               # 글자색=배경색으로 탐지, 배경색 확인됨 (evidence.color/bg와 짝)
     "color_unknown_bg",    # 글자색은 의심스러운데 배경색을 확인 못함
-    "vanish",              # 문서 서식의 "숨김(vanish)" 속성 — 정의 확인 중
-    "web_hidden",          # HTML/CSS 숨김 속성 (display:none 등) — 정의 확인 중
-    "blank_format",        # 빈 것처럼 보이게 만든 서식 — 정의 확인 중
+    "vanish",              # 워드의 "숨김" 글꼴 서식(w:vanish). 색도 크기도
+                           # 정상인데 화면에 나오지 않는다
+    "web_hidden",          # 워드의 웹 보기 전용 숨김 서식(w:webHidden).
+                           # vanish와는 별개 속성이다 (HTML/CSS 아님)
+    "blank_format",        # 엑셀 사용자 지정 서식 ";;;". 값이 있어도 화면에
+                           # 아무것도 안 나오고, 숨긴 행과 달리 행 번호도
+                           # 건너뛰지 않아 눈으로는 빈 칸과 구별이 안 된다
     "sheet_very_hidden",   # 엑셀 "매우 숨김(veryHidden)" 시트
     "sheet_hidden",        # 엑셀 일반 숨김 시트
     "row_hidden",          # 숨긴 행
     "col_hidden",          # 숨긴 열
-    "invisible_a",         # 비가시 텍스트 유형 A — 정의 확인 중
-    "invisible_b",         # 비가시 텍스트 유형 B — 정의 확인 중
+    "invisible_a",         # A급 보이지 않는 문자 — Bidi 재정의(U+202A~202E),
+                           # Bidi isolate(U+2066~2069), 태그 문자(U+E0000~E007F).
+                           # 정상 문서에 나올 이유가 없어 1개만 나와도 신고한다
+    "invisible_b",         # B급 보이지 않는 문자 — 제로폭·BOM·soft hyphen 등.
+                           # 정상 문서에 흔해서, 걷어냈을 때 위험한 것이 새로
+                           # 드러나야 신고한다(복원 검사)
+
+    # --- 2026-09-11 추가. hidden.py 4·6회차에서 늘어난 탐지 수법 (B) ---
+    "outside_page",        # PDF 페이지 경계(CropBox) 밖에 배치된 글자.
+                           # 화면에도 인쇄물에도 안 나오지만 파일에는 남아 있다
+    "covered_by_image",    # 글자를 그린 뒤 그 위에 이미지를 덮은 것. 그린 순서로
+                           # 판정한다 — 배경 이미지(레터헤드)는 글자보다 먼저
+                           # 그려지므로 정상이고 여기 해당하지 않는다
+    "outside_used_range",  # 엑셀이 파일에 적어둔 사용 범위(<dimension ref>) 밖의 셀.
+                           # Ctrl+End로도 안 잡히고, 그 값을 믿는 도구는 건너뛴다
+    "deleted_command",     # 변경내용 추적으로 "지운" 자리에 남아 있는 AI 지시문.
+                           # 삭제 표시 자체는 검토 중인 문서에 흔해서(대조군에서
+                           # 8건·1건 오탐), 인젝션으로 판정될 때만 신고한다
+
     "other",               # 위에 없는 새 숨김 방식 발견 시 임시로 사용
 }
 
