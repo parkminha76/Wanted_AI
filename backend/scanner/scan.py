@@ -4,9 +4,9 @@ backend/shared/schema.py가 정의한 공용 계약(Finding, ScanResult, scan_te
 scan_files)의 실제 구현이다.
 
 붙어 있는 것: rules.py(정규식+체크섬), ner.py(이름·주소·조직명),
-hidden.py(숨은 텍스트), parser/parse.py(문서 파싱), models.py(오탐 제거·인젝션,
-지금은 _ENABLE_CLASSIFIER_STAGE로 꺼둠).
-아직 없는 것: masking/mask.py, detectors/id_detector.py(신분증 CNN).
+hidden.py(숨은 텍스트), id_detector.py(신분증 CNN), parser/parse.py(문서 파싱),
+parser/locate.py(오프셋->좌표), masking/mask.py(마스킹 사본),
+models.py(오탐 제거·인젝션, 지금은 _ENABLE_CLASSIFIER_STAGE로 꺼둠).
 
 "모델이 없어도 엔진 전체가 돌아가야 한다" 원칙에 따라, 모듈이 없거나 약속한
 함수가 없으면 그 단계만 건너뛰고 나머지 파이프라인은 그대로 돈다.
@@ -18,18 +18,18 @@ hidden.py(숨은 텍스트), parser/parse.py(문서 파싱), models.py(오탐 �
     판정 근거(글자색·폰트 크기·복원한 문장)를 evidence에 담아 보내고, 화면 05가
     그것을 그린다.
 
-mask.py는 함수가 둘 필요하다:
+mask.py가 쓰는 두 함수:
     build(raw_text, findings) -> str        # 텍스트용. scan_text가 부른다.
     build_file(path, doc, findings) -> str  # 파일 사본용. scan_file이 부른다.
 
-오프셋 -> 페이지 좌표(bbox) 변환은 **scan.py가 한다**(_attach_bboxes). mask.py가
-계산해서 쓰고 버리면 Finding.bbox 칸이 빈 채로 화면에 나가서, D가 PDF 미리보기에
-형광펜을 칠할 수 없다(좌표를 모르니까). 계산은 한 번, 읽는 곳은 둘 — mask.py도
-읽고 화면도 읽는다.
+좌표 분담(팀 계획서 기준):
+    parser/locate.py (B-1)  오프셋 -> 좌표 매핑 함수를 제공한다. span 기하를 아는 쪽
+    scan.py          (B-2)  locate.fill_coords를 불러 Finding.bbox와 page를 채운다
+    masking/mask.py  (B-1)  그 좌표를 **읽기만** 한다. 다시 찾지 않는다
 
-좌표는 parse.py의 TextSpan(dataclass, dict 아님)에서 온다. 그 조각이 탐지값보다
-넓으면 그 bbox를 그대로 쓰는 순간 멀쩡한 글자까지 리댁션 대상이 되므로, 조각은
-글자 단위처럼 촘촘해야 한다(PyMuPDF get_texttrace()가 주는 수준).
+좌표를 두 군데서 따로 구하면 같은 값이 여러 번 나올 때 엉뚱한 자리를 지운다.
+그리고 scan.py가 채우지 않으면 Finding.bbox가 null로 남아, PDF 마스킹 사본이
+만들어지지 않고 화면도 미리보기에 하이라이트를 그릴 수 없다.
 
 단계별 계획: "rules.py만 연결한 최소 버전을 먼저 완성해서 C(훈련 모드)에 넘긴다"는
 원칙에 따라, models.py(오탐 제거 + 인젝션) 연결은 지금 단계에서는 꺼둔다
@@ -60,6 +60,11 @@ try:
     from backend.scanner.parser import parse
 except ImportError:
     parse = None
+
+try:
+    from backend.scanner.parser import locate
+except ImportError:
+    locate = None
 
 try:
     from backend.scanner.masking import mask
@@ -94,7 +99,9 @@ _REASONS: dict[str, str] = {
     "passport": "여권번호 형식",
     "card": "Luhn 체크섬을 통과한 카드번호 형식",
     "account": "계좌번호로 보이는 숫자 패턴 (체크섬 검증 불가 — 분류기가 최종 판정)",
-    "phone": "휴대폰 번호 형식",
+    # 휴대폰뿐 아니라 집·사무실·인터넷전화·안심번호를 포함한다. schema.py의
+    # 라벨도 "전화번호"다 — 화면에 "휴대폰 02-1234-5678"로 나가면 안 된다.
+    "phone": "전화번호 형식",
     "email": "이메일 형식",
     "ip": "IP 주소 형식",
     "api_key": "알려진 API 키/토큰 접두어 패턴",
@@ -226,6 +233,52 @@ def _apply_classifier_filters(
     return kept, filtered_out
 
 
+# hidden.py의 _looks_dangerous가 "AI에게 내리는 지시문"이라고 판정했을 때 쓰는 문구.
+# 그 판정은 내부에서 models.is_injection을 부른 결과다.
+_HIDDEN_INJECTION_KIND = "AI에게 내리는 지시문"
+
+
+def _promote_hidden_injections(findings: list[Finding]) -> None:
+    """숨겨진 텍스트가 AI를 향한 명령이면 injection으로 **타입을 교체**한다.
+
+    hidden_text(25점)는 그 자체로는 "확인이 필요하다"는 신호일 뿐이다. 정상 문서에도
+    숨은 텍스트는 있다(메모, 편집 흔적, 서식 잔재). 실제 위험은 그 내용이 AI에게
+    내리는 명령일 때 생기고, 그때 injection(50점)이 된다 — schema.py의 점수표가
+    이 승격 구조를 전제로 짜여 있다.
+
+    Finding을 새로 만들지 않고 타입만 바꾸는 이유: 둘 다 남기면 한 문장이
+    25+50=75점을 받는다. 어떻게 숨겨져 있었는지는 evidence에 그대로 남아 있어서
+    화면 05가 "흰 글씨로 숨겨져 있던 명령"이라고 보여줄 수 있다.
+
+    판정 경로가 둘이다.
+      - 제로폭·Bidi·태그로 숨긴 경우: hidden.py가 복원한 문장을 이미 판정해서
+        evidence["restored_kind"]에 남겨뒀다. 그 결과를 그대로 쓴다.
+      - 서식으로 숨긴 경우(흰 글씨·0pt·투명도): 복원할 것이 없고 보이는 문장
+        자체가 명령문이다. models.is_injection으로 직접 본다.
+
+    _ENABLE_CLASSIFIER_STAGE와 무관하게 항상 돈다. 그 플래그는 "문서 전체를
+    문장 단위로 훑는 인젝션 스캔 + 오탐 제거"를 미뤄둔 것이고, 이쪽은 이미 탐지된
+    항목의 위험도를 25점과 50점 중 어디로 볼지 가르는 판정이라 성격이 다르다.
+    """
+    for f in findings:
+        if f.type != "hidden_text":
+            continue
+
+        if f.evidence.get("restored_kind") == _HIDDEN_INJECTION_KIND:
+            promoted = True
+        else:
+            # 복원된 문장이 있으면 그것을, 없으면 보이는 문장을 본다.
+            candidate = f.evidence.get("restored") or f.text
+            promoted, _ = models.is_injection(candidate)
+
+        if not promoted:
+            continue
+
+        f.evidence = {**f.evidence, "promoted_from": "hidden_text", "hidden_reason_text": f.reason}
+        f.type = "injection"
+        f.reason = "숨겨진 자리에서 발견된 AI 지시문"
+
+
 def _merge_hidden_evidence(survivor: Finding, dropped: Finding) -> None:
     """밀려난 hidden_text의 판정 근거를 살아남은 Finding의 evidence로 옮긴다."""
     survivor.evidence = {
@@ -274,88 +327,6 @@ def _guess_file_type(path: str) -> str:
     return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "")
 
 
-def _union_bbox(boxes: list[tuple]) -> tuple[float, float, float, float]:
-    return (
-        min(b[0] for b in boxes),
-        min(b[1] for b in boxes),
-        max(b[2] for b in boxes),
-        max(b[3] for b in boxes),
-    )
-
-
-def _clip_span_bbox(span, start: int, end: int) -> tuple[float, float, float, float]:
-    """줄 단위 조각의 bbox를 탐지값이 차지하는 부분만큼 가로로 잘라낸다.
-
-    parse.py의 TextSpan은 한 줄이 조각 하나다("Contact: 010-1234-5678" 전체가
-    조각 1개). 그 bbox를 그대로 리댁션에 쓰면 전화번호만 지우려 해도
-    "Contact: "까지 삭제 대상이 된다.
-
-    글자별 좌표가 없어서 글자 수 비례로 자른다 — 한글과 ASCII의 폭이 달라
-    정확하지 않다. 값이 덜 덮이면 개인정보가 그대로 남는 쪽이 더 위험하므로
-    양옆으로 글자 하나 폭만큼 넓혀 둔다. 정확한 좌표는 parse.py가 글자별
-    bbox를 넘겨줘야 나온다(get_texttrace()의 chars에 이미 들어 있다).
-    """
-    x0, y0, x1, y1 = span.bbox
-    length = span.end - span.start
-    if length <= 0:
-        return (x0, y0, x1, y1)
-    width = x1 - x0
-    lead = max(start - span.start, 0) / length
-    trail = (min(end, span.end) - span.start) / length
-    pad = width / length
-    return (
-        max(x0, x0 + width * lead - pad),
-        y0,
-        min(x1, x0 + width * trail + pad),
-        y1,
-    )
-
-
-def _group_rects_by_line(rects: list[dict]) -> list[dict]:
-    """같은 페이지에서 y구간이 겹치는 네모들을 한 줄로 묶어 하나로 합친다.
-    한 줄이 조각 여러 개로 쪼개져 오는 경우(글꼴이 섞인 줄)를 위한 것이다."""
-    ordered = sorted(rects, key=lambda r: (r["page"] or 0, r["bbox"][1], r["bbox"][0]))
-    lines: list[dict] = []
-    for rect in ordered:
-        page, box = rect["page"], rect["bbox"]
-        if lines:
-            last = lines[-1]
-            same_line = (
-                last["page"] == page and box[1] < last["bbox"][3] and last["bbox"][1] < box[3]
-            )
-            if same_line:
-                last["bbox"] = _union_bbox([last["bbox"], box])
-                continue
-        lines.append({"page": page, "bbox": box})
-    return lines
-
-
-def _attach_bboxes(findings: list[Finding], spans) -> None:
-    """findings의 오프셋을 페이지 좌표로 되짚어 bbox와 evidence["rects"]를 채운다.
-
-    주소처럼 긴 값은 줄 끝에서 잘려 두 줄에 걸치는데, 그러면 네모가 2개 필요하다.
-    그런데 Finding.bbox는 네모 하나짜리 칸이다. 둘을 하나로 합친 네모로 리댁션하면
-    그 줄의 멀쩡한 글자까지 같이 지워진다("계약자 주소:"와 "입니다. 연락처는"까지
-    삭제된다). 그래서 용도를 나눈다:
-      - bbox: 합집합 네모 1개 — 화면 하이라이트용
-      - evidence["rects"]: 줄별 정밀 네모 여러 개 — 실제로 지울 때 mask.py가 쓴다
-    evidence는 자유 형식이라 schema 계약을 건드리지 않는다.
-    """
-    for f in findings:
-        overlapping = [s for s in spans if s.bbox and f.start < s.end and s.start < f.end]
-        if not overlapping:
-            continue
-        rects = _group_rects_by_line(
-            [
-                {"page": s.page, "bbox": _clip_span_bbox(s, f.start, f.end)}
-                for s in overlapping
-            ]
-        )
-        f.evidence = {**f.evidence, "rects": rects}
-        f.bbox = _union_bbox([r["bbox"] for r in rects])
-        f.page = rects[0]["page"]
-
-
 def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     """텍스트 1건을 검사한다. 훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다."""
     meta = meta or {}
@@ -384,7 +355,13 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
         findings += _find_injections(text)
         findings, filtered_out = _apply_classifier_filters(findings, text)
 
-    # 6. 겹치는 구간 정리
+    # 6. 숨겨진 텍스트가 AI 지시문이면 injection으로 승격(25점 -> 50점).
+    # dedupe보다 먼저 해야 한다 — 승격되면 가중치가 바뀌고, dedupe는 가중치로
+    # 무엇을 남길지 정하기 때문이다. 순서가 뒤집히면 숨겨진 인젝션이 같은 자리의
+    # 다른 탐지(api_key 40점 등)에 밀려 사라진다.
+    _promote_hidden_injections(findings)
+
+    # 7. 겹치는 구간 정리
     findings = _dedupe(findings)
     _reassign_ids(findings)
     # 걸러낸 항목에도 id를 준다. 화면 03의 "오탐으로 제외한 항목" 카드가 이 목록을
@@ -392,10 +369,8 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     # findings 뒤에 이어 붙여 한 ScanResult 안에서 유일하게 만든다.
     _reassign_ids(filtered_out, offset=len(findings))
 
-    # 7. 오프셋 -> 페이지 좌표. 파서가 서식 정보를 준 파일 검사에서만 가능하다
-    # (훈련 모드의 텍스트 스캔은 좌표라는 개념 자체가 없다).
-    if meta.get("spans"):
-        _attach_bboxes(findings, meta["spans"])
+    # 오프셋 -> 페이지 좌표 변환은 scan_file이 한다. locate.fill_coords가 doc 전체를
+    # 필요로 하는데(spans의 글자별 경계 + page_map) 여기서는 doc이 없다.
 
     result = ScanResult(
         filename=meta.get("filename", ""),
@@ -469,18 +444,18 @@ def scan_file(path: str) -> ScanResult:
     # 파서가 판단한 형식이 우선이다(스캔본 PDF를 image로 넘기는 등의 판단이 들어있다).
     result.file_type = getattr(doc, "file_type", "") or _guess_file_type(path)
 
-    # 페이지 번호. 좌표가 있는 PDF는 _attach_bboxes가 이미 채웠고, docx/xlsx처럼
-    # 좌표가 없는 형식은 page_map(문자 1개당 페이지·시트 번호 1개)으로 채운다.
-    page_map = getattr(doc, "page_map", None)
-    if page_map:
-        for f in result.findings:
-            if f.page is None and f.start < len(page_map):
-                f.page = page_map[f.start]
+    # 오프셋 -> 페이지 좌표. 이걸 빼먹으면 Finding.bbox가 영원히 null로 남아
+    # PDF 마스킹 사본이 아예 만들어지지 않고, 화면도 미리보기에 하이라이트 박스를
+    # 그릴 수 없다. mask.py는 여기서 채운 좌표를 **읽기만** 한다 — 좌표를 두 군데서
+    # 따로 구하면 같은 값이 여러 번 나올 때 엉뚱한 자리를 지운다.
+    #
+    # 좌표가 없는 형식(DOCX/XLSX/TXT)과 이미지는 그냥 지나간다. 이미지는 CNN이
+    # 이미 bbox를 채워뒀고 doc.spans가 비어 있어서 덮어쓰이지 않는다.
+    if doc is not None and locate is not None and hasattr(locate, "fill_coords"):
+        locate.fill_coords(doc, result.findings)
 
     # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
-    # 제품의 주 동작은 "마스킹된 파일 다운로드"이고, PDF에서 값을 실제로 지우려면
-    # 오프셋이 아니라 페이지 좌표(bbox)가 필요하다. 그 좌표는 doc.spans에만 있어서
-    # ParsedDoc을 통째로 넘긴다. parser와 mask가 둘 다 준비돼야 동작한다.
+    # 제품의 주 동작은 "마스킹된 파일 다운로드"다.
     if doc is not None and mask is not None and hasattr(mask, "build_file"):
         result.masked_path = mask.build_file(path, doc, result.findings)
 
