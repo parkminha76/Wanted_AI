@@ -19,21 +19,20 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from kiwipiepy import Kiwi
 from scipy.sparse import hstack, csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, precision_recall_fscore_support
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    average_precision_score,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+    roc_auc_score,
+)
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.preprocessing import OneHotEncoder
 
-kiwi = Kiwi()
-
-
-def tokenize(text: str) -> list[str]:
-    """형태소 단위 토큰화. 명사/동사/형용사/외국어/숫자 위주로 필터링."""
-    tokens = kiwi.tokenize(text)
-    return [t.form for t in tokens if t.tag.startswith(("N", "V", "SL", "SN"))]
+from ml.training.false_positive_classifier.features import tokenize
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +105,7 @@ def get_checksum_feature(text: str, risk_type: str, start: int, end: int) -> int
 # ---------------------------------------------------------------------------
 
 class FalsePositiveFilter:
-    def __init__(self):
+    def __init__(self, *, c: float = 1.0):
         self.vectorizer = TfidfVectorizer(
             tokenizer=tokenize,
             token_pattern=None,
@@ -114,7 +113,13 @@ class FalsePositiveFilter:
             min_df=1,
         )
         self.onehot = OneHotEncoder(handle_unknown="ignore")
-        self.clf = LogisticRegression(max_iter=1000, class_weight="balanced")
+        self.clf = LogisticRegression(
+            C=c,
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=42,
+        )
+        self.c = c
         self.risk_types: list[str] = []
 
     def _build_features(self, texts: list[str], types: list[str], checksums: list[int], fit: bool):
@@ -128,31 +133,34 @@ class FalsePositiveFilter:
         checksum_vec = csr_matrix(np.array(checksums).reshape(-1, 1))
         return hstack([text_vec, type_vec, checksum_vec])
 
-    def fit(self, data: list[dict]):
+    def fit(self, data: list[dict]) -> "FalsePositiveFilter":
+        """전체 데이터로 모델을 학습한다. 성능 평가는 evaluate_group_cv를 쓴다."""
+        return self.fit_final(data)
+
+    def fit_final(self, data: list[dict]) -> "FalsePositiveFilter":
+        """평가가 끝난 뒤 전달용 모델을 전체 데이터로 학습한다."""
         texts = [d["text"] for d in data]
         types = [d["type"] for d in data]
-        labels = [d["label"] for d in data]
+        labels = np.array([d["label"] for d in data])
         checksums = [
             get_checksum_feature(d["text"], d["type"], d["start"], d["end"])
             for d in data
         ]
-
         X = self._build_features(texts, types, checksums, fit=True)
-        y = np.array(labels)
+        self.clf.fit(X, labels)
+        self.risk_types = sorted(set(types))
+        return self
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
-
-        self.clf.fit(X_train, y_train)
-
-        y_pred = self.clf.predict(X_test)
-        print(classification_report(y_test, y_pred, target_names=["오탐(0)", "진짜(1)"]))
-
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            y_test, y_pred, average="binary"
-        )
-        return {"precision": precision, "recall": recall, "f1": f1}
+    def predict_proba_many(self, data: list[dict]) -> np.ndarray:
+        """평가용 일괄 추론. 각 항목에는 text/type/start/end가 필요하다."""
+        texts = [d["text"] for d in data]
+        types = [d["type"] for d in data]
+        checksums = [
+            get_checksum_feature(d["text"], d["type"], d["start"], d["end"])
+            for d in data
+        ]
+        X = self._build_features(texts, types, checksums, fit=False)
+        return self.clf.predict_proba(X)[:, 1]
 
     def predict_proba(self, text: str, risk_type: str, start: int, end: int) -> float:
         """진짜(label=1)일 확률. Finding.confidence에 그대로 넣는다.
@@ -176,26 +184,91 @@ class FalsePositiveFilter:
             return pickle.load(f)
 
 
+def evaluate_group_cv(
+    data: list[dict], *, c: float, folds: int = 5, threshold: float = 0.5
+) -> dict:
+    """같은 문장 템플릿(group_id)이 학습/평가에 갈라지지 않게 평가한다."""
+    labels = np.array([int(d["label"]) for d in data])
+    groups = np.array([d.get("group_id", f"row_{i}") for i, d in enumerate(data)])
+    splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=42)
+    probabilities = np.zeros(len(data), dtype=float)
+
+    for train_index, test_index in splitter.split(np.zeros(len(data)), labels, groups):
+        model = FalsePositiveFilter(c=c).fit_final([data[i] for i in train_index])
+        probabilities[test_index] = model.predict_proba_many([data[i] for i in test_index])
+
+    predictions = (probabilities >= threshold).astype(int)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, predictions, average="binary", zero_division=0
+    )
+    report = classification_report(
+        labels,
+        predictions,
+        target_names=["오탐(0)", "진짜(1)"],
+        output_dict=True,
+        zero_division=0,
+    )
+    return {
+        "evaluation": f"{folds}-fold stratified group cross-validation",
+        "c": c,
+        "threshold": threshold,
+        "rows": len(data),
+        "groups": len(set(groups)),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "roc_auc": float(roc_auc_score(labels, probabilities)),
+        "average_precision": float(average_precision_score(labels, probabilities)),
+        "confusion_matrix": {
+            "labels": [0, 1],
+            "values": confusion_matrix(labels, predictions, labels=[0, 1]).tolist(),
+        },
+        "classification_report": report,
+    }
+
+
 # ---------------------------------------------------------------------------
 # 실행 스크립트
 # ---------------------------------------------------------------------------
 
+def train_and_save() -> dict:
+    """데이터 로드, 교차검증, 전체 재학습, 산출물 저장을 실행한다."""
+    data_paths = sorted(Path("sample_data/false_positive").glob("false_positive_*.json"))
+    if not data_paths:
+        raise FileNotFoundError("sample_data/false_positive에 학습 JSON이 없습니다.")
+
+    data = merge_json_files([str(path) for path in data_paths])
+    print(f"학습 데이터 {len(data)}건 / 파일 {len(data_paths)}개 로드")
+
+    candidates = [0.25, 0.5, 1.0, 2.0, 4.0]
+    results = [evaluate_group_cv(data, c=c) for c in candidates]
+    best = max(results, key=lambda result: (result["f1"], result["recall"]))
+    print("C 탐색 결과:")
+    for result in results:
+        print(
+            f"  C={result['c']:<4} precision={result['precision']:.4f} "
+            f"recall={result['recall']:.4f} f1={result['f1']:.4f}"
+        )
+
+    model = FalsePositiveFilter(c=best["c"]).fit_final(data)
+    model_path = Path("ml/models/fp_filter_v1.pkl")
+    metrics_path = Path("ml/eval/false_positive_eval/fp_filter_v1_metrics.json")
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    model.save(str(model_path))
+
+    payload = {"selected": best, "candidates": results}
+    with metrics_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False, indent=2)
+
+    print(f"\nbest C={best['c']} / F1={best['f1']:.4f}")
+    print(f"모델 저장: {model_path}")
+    print(f"평가 저장: {metrics_path}")
+    return payload
+
+
 if __name__ == "__main__":
-    DATA_PATHS = [
-        # "sample_data/false_positive/false_positive_B_0909.json",
-        # B가 데이터 보낼 때마다 여기에 파일 경로 추가
-    ]
-
-    if not DATA_PATHS:
-        print("아직 학습 데이터가 없습니다. DATA_PATHS에 B가 보낸 파일 경로를 추가하세요.")
-    else:
-        data = merge_json_files(DATA_PATHS)
-        print(f"학습 데이터 {len(data)}건 로드")
-
-        model = FalsePositiveFilter()
-        metrics = model.fit(data)
-        print(f"\n최종 성능: {metrics}")
-
-        Path("ml/models").mkdir(parents=True, exist_ok=True)
-        model.save("ml/models/fp_filter_v1.pkl")
-        print("모델 저장 완료: ml/models/fp_filter_v1.pkl")
+    raise SystemExit(
+        "pickle 모델의 패키지 경로를 보존하려면 "
+        "`python -m ml.training.false_positive_classifier.train`으로 실행하세요."
+    )

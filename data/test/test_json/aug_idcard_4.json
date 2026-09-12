@@ -1,100 +1,100 @@
 {
   "ground_truth": {
-    "name": "이정남(金京洪)",
-    "resident_number": "710528-2709525",
-    "address": "충청남도 과천시 강남대거리 979",
-    "issue_date": "2021.12.10.",
-    "issuing_authority": "대구광역시 목포시장"
+    "name": "정상현(孫圭錫)",
+    "resident_number": "910717-1547126",
+    "address": "경상북도 시흥시 잠실거리 383-7",
+    "issue_date": "2021.09.09.",
+    "issuing_authority": "대구광역시 포항시장"
   },
   "detected": [
     {
-      "label": "name",
-      "confidence": 0.98,
+      "label": "resident_number",
+      "confidence": 0.987,
       "bbox": [
-        154.1,
-        316.2,
-        638.5,
-        414.5
+        160.4,
+        434.7,
+        782.7,
+        504.6
+      ]
+    },
+    {
+      "label": "name",
+      "confidence": 0.987,
+      "bbox": [
+        206.2,
+        292.8,
+        649.4,
+        364.1
       ]
     },
     {
       "label": "face",
-      "confidence": 0.98,
+      "confidence": 0.985,
       "bbox": [
-        977.0,
-        4.0,
-        1569.0,
-        632.2
-      ]
-    },
-    {
-      "label": "resident_number",
-      "confidence": 0.97,
-      "bbox": [
-        119.6,
-        483.6,
-        802.2,
-        578.1
-      ]
-    },
-    {
-      "label": "resident_number",
-      "confidence": 0.955,
-      "bbox": [
-        100.3,
-        461.6,
-        808.8,
-        549.9
+        977.7,
+        64.3,
+        1482.3,
+        618.6
       ]
     },
     {
       "label": "issue_date",
-      "confidence": 0.942,
+      "confidence": 0.982,
       "bbox": [
-        711.8,
-        833.7,
-        1059.2,
-        903.4
+        648.9,
+        780.8,
+        957.2,
+        832.0
       ]
     },
     {
       "label": "address",
-      "confidence": 0.939,
+      "confidence": 0.928,
       "bbox": [
-        128.6,
-        622.9,
-        829.9,
-        706.3
+        150.9,
+        564.9,
+        800.1,
+        617.1
       ]
     },
     {
       "label": "name",
-      "confidence": 0.809,
+      "confidence": 0.901,
       "bbox": [
-        150.7,
-        336.9,
-        641.6,
-        427.4
+        204.6,
+        305.1,
+        648.2,
+        378.7
       ]
     },
     {
       "label": "address",
-      "confidence": 0.618,
+      "confidence": 0.732,
       "bbox": [
-        112.9,
-        593.3,
-        843.0,
-        664.4
+        143.6,
+        546.7,
+        804.0,
+        595.9
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.545,
+      "bbox": [
+        157.8,
+        449.7,
+        788.2,
+        516.9
       ]
     },
     {
       "label": "address",
-      "confidence": 0.387,
+      "confidence": 0.495,
       "bbox": [
-        128.1,
-        590.6,
-        847.7,
-        704.8
+        154.1,
+        555.6,
+        802.9,
+        607.2
       ]
     }
   ]
