@@ -1,7 +1,71 @@
 from src.training.defender import generate_defender_report
 
 from backend.db.session import SessionLocal
-from backend.db.tables import TrainingProgress, TrainingEvent
+from backend.db.tables import (
+    User,
+    TrainingProgress,
+    TrainingEvent,
+)
+
+
+def create_test_training_data(db):
+    print("테스트용 TrainingProgress 생성 중...")
+
+    # 1. 기존 사용자 확인
+    user = db.query(User).first()
+
+    # 2. 사용자가 한 명도 없으면 테스트 사용자 생성
+    if user is None:
+        print("기존 User가 없어 테스트용 User를 생성합니다.")
+
+        user = User(
+            role="individual"
+        )
+
+        db.add(user)
+        db.flush()
+
+        print(f"테스트 User 생성 완료: user_id = {user.id}")
+
+    else:
+        print(f"기존 User 사용: user_id = {user.id}")
+
+    # 3. TrainingProgress 생성
+    progress = TrainingProgress(
+        user_id=user.id,
+        level=2,
+        status="완료",
+        score=78,
+    )
+
+    db.add(progress)
+    db.flush()
+
+    # 4. 턴별 이벤트 생성
+    events = [
+        TrainingEvent(
+            training_progress_id=progress.id,
+            turn_no=1,
+            detected_field="email",
+            action="경고표시",
+        ),
+        TrainingEvent(
+            training_progress_id=progress.id,
+            turn_no=2,
+            detected_field="phone",
+            action="전송강행",
+        ),
+    ]
+
+    db.add_all(events)
+    db.commit()
+
+    print(
+        f"테스트 데이터 생성 완료: "
+        f"TrainingProgress ID = {progress.id}"
+    )
+
+    return progress
 
 
 def main():
@@ -10,25 +74,24 @@ def main():
     try:
         print("DB 연결 확인 중...")
 
-        # 가장 최근 TrainingProgress 가져오기
+        # 가장 최근 TrainingProgress 조회
         progress = (
             db.query(TrainingProgress)
             .order_by(TrainingProgress.id.desc())
             .first()
         )
 
-        # 훈련 기록이 아직 없는 경우
+        # 데이터가 없으면 테스트 데이터 생성
         if progress is None:
             print("TrainingProgress 데이터가 없습니다.")
-            print("테스트용 훈련 데이터를 먼저 만들어야 합니다.")
-            return
+            progress = create_test_training_data(db)
 
-        print(f"TrainingProgress ID: {progress.id}")
+        print(f"\nTrainingProgress ID: {progress.id}")
         print(f"Level: {progress.level}")
         print(f"Status: {progress.status}")
         print(f"Score: {progress.score}")
 
-        # 해당 훈련의 이벤트 조회
+        # DB에 저장된 TrainingEvent 조회
         events = (
             db.query(TrainingEvent)
             .filter_by(training_progress_id=progress.id)
@@ -36,7 +99,7 @@ def main():
             .all()
         )
 
-        print(f"TrainingEvent 개수: {len(events)}")
+        print(f"\nTrainingEvent 개수: {len(events)}")
 
         for event in events:
             print(
@@ -45,12 +108,7 @@ def main():
                 f"Detected: {event.detected_field}"
             )
 
-        if not events:
-            print("TrainingEvent가 없습니다.")
-            print("테스트용 이벤트를 먼저 만들어야 합니다.")
-            return
-
-        # Defender AI 실행
+        # Defender AI 호출
         print("\nDefender AI 리포트 생성 시작...")
 
         report = generate_defender_report(
@@ -62,6 +120,8 @@ def main():
         print(report)
 
     except Exception as e:
+        db.rollback()
+
         print("\n[ERROR]")
         print(type(e).__name__)
         print(e)
