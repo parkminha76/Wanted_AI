@@ -20,6 +20,8 @@
     DOCX        python-docx run 단위 치환 (서식 유지)     offset -> span.start로 되짚는다
     XLSX        zip 안 셀 XML만 교체                      span.origin이 셀 주소를 들고 있다
     PDF         PyMuPDF 리댁션                            좌표가 필요하다
+    이미지       Pillow로 bbox를 검게 칠한다               CNN이 준 좌표를 쓴다
+    스캔본 PDF   PyMuPDF로 그림 픽셀을 지운다              CNN 좌표를 pt로 되돌린다
 
 PDF만 문자열 치환이 불가능하다. PDF 안의 글자는 "몇 번째 문자"로 들어있는 게 아니라
 페이지 위 좌표에 하나씩 박혀 있어서, 바꿔치기가 아니라 좌표로 지우는 수밖에 없다.
@@ -46,7 +48,9 @@ PDF 리댁션의 한글 폰트 (해결됨 — `_PDF_FONT`)
 
 from __future__ import annotations
 
+import io
 import os
+import shutil
 import tempfile
 
 # 지금 문자열 치환으로 처리할 수 있는 형식. 나머지는 아직 사본을 만들지 않는다.
@@ -54,6 +58,17 @@ _TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log"}
 
 # 사본 파일 이름에 붙이는 꼬리표. 원본과 헷갈리지 않게 한다.
 _SUFFIX = "_masked"
+
+# 이미지 형식. parse.IMAGE_EXTENSIONS와 같은 목록이다 (그쪽이 kind="image"를 정한다).
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff"}
+
+# 칠하는 색. 검정으로 덮는 이유는 PDF 리댁션과 같다 — 흐리게(blur) 처리하면
+# 원본을 되살리는 복원 공격이 알려져 있다. 불투명하게 덮어야 실제로 사라진다.
+_IMAGE_FILL = (0, 0, 0)
+_IMAGE_LABEL_COLOR = (255, 255, 255)
+
+# 상자 안에 유형 이름을 적을 때 쓰는 한글 폰트. 없으면 상자만 칠한다.
+_IMAGE_FONT_PATH = os.path.join("ml", "data_generation", "assets", "fonts", "NanumGothic.otf")
 
 # xml:space="preserve". 이게 없으면 워드가 run의 앞뒤 공백을 버린다.
 _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -686,6 +701,333 @@ def _leaks_pdf(out_path: str, raw_text: str, plan) -> bool:
     return False
 
 
+def _image_box(finding, width: int, height: int):
+    """finding의 bbox를 이 이미지 안의 정수 사각형으로. 쓸 수 없으면 None.
+
+    CNN이 주는 좌표는 원본 이미지의 픽셀 좌표다(YOLO xyxy). 문서 형식과 달리
+    offset은 아예 없다 — `id_detector`가 start/end를 0으로 두고 bbox만 채운다.
+    """
+    box = getattr(finding, "bbox", None)
+    if not box or len(box) != 4:
+        return None
+    x0, y0, x1, y1 = (float(v) for v in box)
+    # 좌표가 뒤집혀 와도 상자로 만든다. 기울어진 사진에서 가끔 나온다.
+    left, right = sorted((x0, x1))
+    top, bottom = sorted((y0, y1))
+    # 이미지 밖으로 나간 좌표는 잘라낸다. 그대로 그리면 Pillow가 조용히 무시해서
+    # 가려야 할 자리가 안 가려진 채로 사본이 나간다.
+    left, top = max(0, int(left)), max(0, int(top))
+    right, bottom = min(width, int(right + 0.5)), min(height, int(bottom + 0.5))
+    if right <= left or bottom <= top:
+        return None
+    return (left, top, right, bottom)
+
+
+def _image_label_font(box_height: int):
+    """상자 높이에 맞는 한글 폰트. 못 불러오면 None (상자만 칠한다)."""
+    from PIL import ImageFont
+
+    size = int(box_height * 0.5)
+    if size < 9:
+        return None                       # 이 크기 아래로는 읽을 수 없다
+    try:
+        return ImageFont.truetype(_IMAGE_FONT_PATH, min(size, 28))
+    except OSError:
+        return None
+
+
+def _draw_image_label(draw, box, text: str) -> None:
+    """칠한 상자 안에 유형 이름을 적는다. 안 들어가면 적지 않는다.
+
+    `****`로 뭉개지 않고 유형을 남기는 원칙은 이미지에서도 같다. 검은 사각형만
+    있으면 사본을 받은 사람이 무엇이 가려졌는지 알 수 없다.
+    """
+    left, top, right, bottom = box
+    font = _image_label_font(bottom - top)
+    if font is None:
+        return
+    try:
+        x0, y0, x1, y1 = draw.textbbox((0, 0), text, font=font)
+    except Exception:      # noqa: BLE001
+        return
+    text_width, text_height = x1 - x0, y1 - y0
+    if text_width > (right - left) - 4 or text_height > (bottom - top) - 2:
+        return                            # 상자가 좁다. 글자 대신 검정만 남긴다.
+    draw.text(
+        (left + ((right - left) - text_width) / 2 - x0,
+         top + ((bottom - top) - text_height) / 2 - y0),
+        text,
+        fill=_IMAGE_LABEL_COLOR,
+        font=font,
+    )
+
+
+def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
+    """이미지 — CNN이 찾은 영역을 검게 칠한다.
+
+    좌표는 여기서 구하지 않는다
+    ---------------------------
+    `finding.bbox`를 **읽기만** 한다. 신분증 CNN(`detectors/id_detector.py`)이 이미
+    픽셀 좌표로 채워서 넘겨준다. 문서 형식과 달리 `doc.spans`는 비어 있고
+    (`parse._load_image`가 `raw_text=""`, `spans=[]`로 만든다) offset도 전부 0이라,
+    offset을 쓰는 `_plan()` 경로로는 한 건도 처리되지 않는다.
+
+    EXIF를 들고 가지 않는다
+    -----------------------
+    JPEG의 EXIF에는 촬영 위치(GPS)·기기 정보와 함께 **원본 축소본(썸네일)**이 들어
+    있다. 그림만 칠하고 EXIF를 그대로 옮기면, 가린 자리가 썸네일에 그대로 남아
+    사본에서 원본을 되살릴 수 있다. Pillow는 `exif=`를 넘기지 않으면 EXIF를 떨어뜨리므로
+    여기서는 일부러 넘기지 않는다.
+    """
+    from PIL import Image, ImageDraw
+
+    boxed = [f for f in findings if getattr(f, "bbox", None)]
+    if len(boxed) != len(findings):
+        # 좌표 없는 탐지 결과가 섞여 있다 = 가릴 곳을 모르는 항목이 있다.
+        # 반만 가린 사본은 "마스킹 사본"이라는 이름의 원본이나 다름없다.
+        return None
+
+    out_path = None
+    try:
+        with Image.open(path) as source:
+            original_format = source.format
+            frames = getattr(source, "n_frames", 1)
+            # 팔레트·CMYK 같은 모드는 ImageDraw가 색을 그대로 못 받는다. 흑백(L)은
+            # 그대로 둔다 — RGB로 올리면 스캔 문서 사본이 세 배로 커진다.
+            if source.mode in ("RGB", "RGBA", "L"):
+                image = source.copy()
+            else:
+                image = source.convert("RGB")
+
+        fill = 0 if image.mode == "L" else (
+            _IMAGE_FILL + (255,) if image.mode == "RGBA" else _IMAGE_FILL
+        )
+        draw = ImageDraw.Draw(image)
+        width, height = image.size
+
+        painted: list = []
+        for finding in boxed:
+            box = _image_box(finding, width, height)
+            if box is None:
+                return None               # 좌표가 이미지 밖이다. 가릴 수 없다.
+            draw.rectangle(box, fill=fill)
+            if image.mode != "L":
+                _draw_image_label(draw, box, finding.placeholder)
+            painted.append(box)
+
+        out_path = _out_path(path, out_dir)
+        save_options = {}
+        if original_format == "JPEG":
+            # JPEG은 다시 인코딩할 수밖에 없다(그림을 고쳤으므로). 품질을 높게 잡아
+            # 눈에 띄는 열화를 막는다. subsampling="keep"은 쓸 수 없다 - 원본에서
+            # 복사해 온 이미지라 Pillow가 "원본이 JPEG이 아니다"로 거절한다.
+            save_options = {"quality": 95}
+        # exif=를 넘기지 않는다 (위 주석 참고). 애니메이션 GIF는 첫 장만 남는다.
+        image.save(out_path, format=original_format, **save_options)
+    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다
+        _discard(out_path)
+        return None
+
+    if frames > 1:
+        # 여러 장짜리(애니메이션 GIF/다중 TIFF)는 첫 장만 저장된다. 나머지 장에
+        # 원본이 그대로 남을 수 있어 사본을 내보내지 않는다.
+        _discard(out_path)
+        return None
+
+    try:
+        leaked = _leaks_image(out_path, image, painted)
+    finally:
+        image.close()
+    if leaked:
+        _discard(out_path)
+        return None
+    return out_path
+
+
+def _leaks_image(out_path: str, painted_image, boxes) -> bool:
+    """저장된 사본의 칠한 자리가 **칠한 그대로**인가.
+
+    "상자 안이 몇 퍼센트나 어두운가"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로
+    적기 때문에 작은 상자는 절반 넘게 밝을 수 있고, 그걸 "덜 지웠다"와 구분할 방법이
+    없다. 대신 메모리에서 칠한 그림과 파일에 쓰인 그림을 그 자리끼리 비교한다.
+
+    평균 차이로 보는 이유: PNG는 그대로 저장되지만 JPEG은 다시 인코딩하면서 값이
+    조금 흔들린다. 칠하기가 어긋났다면 차이가 그 정도로 작을 수 없다.
+    """
+    from PIL import Image, ImageChops
+
+    if not boxes:
+        return False
+    try:
+        with Image.open(out_path) as saved:
+            saved.load()
+            if saved.size != painted_image.size:
+                return True
+            saved_grey = saved.convert("L")
+            painted_grey = painted_image.convert("L")
+            for box in boxes:
+                difference = ImageChops.difference(saved_grey.crop(box), painted_grey.crop(box))
+                pixels = difference.width * difference.height
+                if not pixels:
+                    return True
+                total = sum(value * count for value, count in enumerate(difference.histogram()))
+                if total / pixels > 8:      # 평균 8단계(256 중) 이상 어긋나면 다른 그림이다
+                    return True
+    except Exception:      # noqa: BLE001
+        return True        # 확인하지 못한 사본은 내보내지 않는다
+    return False
+
+
+# 스캔본 페이지를 다시 담을 때 쓰는 형식.
+#
+# JPEG가 3~5배 작지만 쓰지 않는다. 손실 압축이라 검은 상자 경계의 8x8 블록이 가린
+# 색과 섞여서, 지운 자리 테두리에 원래 색의 옅은 띠가 남는다(실측: 붉은 영역을
+# 가렸더니 경계에 (133,91,92)가 나왔다). 가린 내용의 색이 새어 나오는 셈이라
+# "파일에서 지웠다"는 말이 흐려진다. PNG는 상자 안이 정확히 (0,0,0)이다.
+_SCANNED_PAGE_FORMAT = "PNG"
+
+# 칠할 상자를 이만큼 넓힌다(픽셀).
+#
+# 페이지를 확대해 굽는 과정에서 경계가 번져(안티앨리어싱) 상자 바로 바깥에 가린
+# 내용의 색이 한두 픽셀 남는다(실측: 붉은 영역 바깥에 (172,75,75)). 얼굴 한 줄이
+# 새는 정도지만, 우리가 만든 번짐을 우리가 덮지 않을 이유가 없다. CNN 상자가
+# 값에 딱 붙게 잡히는 경향도 이 여유로 같이 덮인다.
+_SCANNED_PAD_PX = 2
+
+
+def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | None:
+    """스캔본 PDF — 페이지 그림에 직접 칠하고, 그 그림으로 페이지를 다시 만든다.
+
+    왜 PyMuPDF 리댁션을 쓰지 않나
+    -----------------------------
+    `apply_redactions(images=PDF_REDACT_IMAGE_PIXELS)`는 **믿을 수 없다.** 실측하면
+    같은 옵션으로도 어떤 파일에서는 박힌 그림의 픽셀을 지우고, 어떤 파일에서는
+    검은 사각형만 얹고 그림은 그대로 둔다(PyMuPDF 1.28.2). 얹기만 한 경우 사본에서
+    그림을 추출하면 가린 자리가 원본 그대로 나온다 — 마스킹 사본으로 쓸 수 없다.
+
+    그래서 라이브러리 내부 동작에 기대지 않는다. 스캔본 페이지는 어차피 그림
+    한 장이므로, `parse.py`가 이미 구워 둔 페이지 그림에 직접 칠한 뒤 그 그림으로
+    페이지를 다시 만든다. 사본 안에는 칠해진 그림 하나뿐이라 되살릴 원본이 없다.
+
+    좌표 환산이 없다
+    ----------------
+    CNN이 본 그림이 곧 여기서 칠하는 그림이다. bbox를 그대로 쓰므로 배율을 잘못
+    나눠 엉뚱한 자리를 지우는 실수가 origin부터 없다.
+
+    잃는 것
+    -------
+    페이지가 그림 한 장으로 바뀐다. 스캔본은 원래 그림 한 장이라 보이는 것은 같지만,
+    텍스트 레이어가 조금이라도 있었다면(20자 미만 — 그래서 스캔본으로 분류됐다)
+    사본에는 남지 않는다.
+    """
+    import pymupdf
+    from PIL import Image, ImageDraw
+
+    boxed = [f for f in findings if getattr(f, "bbox", None)]
+    if len(boxed) != len(findings):
+        return None            # 좌표 없는 항목이 섞였다 = 가릴 곳을 모른다
+
+    baked = list(getattr(doc, "image_paths", None) or [])
+    if not baked:
+        return None            # 구워 둔 페이지 그림이 없다 (parse.py가 못 구웠다)
+
+    # 지금은 CNN이 첫 장만 본다(scan.py의 _scan_image가 doc.path 하나만 넘긴다).
+    # 2쪽부터는 검사되지 않았으므로 사본을 만들면 "안 본 페이지가 그대로 들어간
+    # 마스킹 사본"이 된다. _scan_image가 doc.image_paths를 돌게 되면 이 빗장을 푼다.
+    if len(baked) > 1:
+        return None
+
+    out_path = None
+    work_dir = tempfile.mkdtemp(prefix="infoguard_page_")
+    try:
+        with pymupdf.open(path) as source:
+            page_rects = [page.rect for page in source]
+        if len(page_rects) != len(baked):
+            return None
+
+        painted: list[str] = []
+        for index, image_path in enumerate(baked):
+            with Image.open(image_path) as page_image:
+                image = page_image.convert("RGB")
+
+            draw = ImageDraw.Draw(image)
+            for finding in boxed:
+                if (finding.page or 1) - 1 != index:
+                    continue
+                box = _image_box(finding, image.width, image.height)
+                if box is None:
+                    return None        # 좌표가 페이지 밖이다. 가릴 수 없다.
+                box = (max(0, box[0] - _SCANNED_PAD_PX), max(0, box[1] - _SCANNED_PAD_PX),
+                       min(image.width, box[2] + _SCANNED_PAD_PX),
+                       min(image.height, box[3] + _SCANNED_PAD_PX))
+                draw.rectangle(box, fill=_IMAGE_FILL)
+                _draw_image_label(draw, box, finding.placeholder)
+
+            target = os.path.join(work_dir, f"page{index:03d}.png")
+            image.save(target, format=_SCANNED_PAGE_FORMAT)
+            image.close()
+            painted.append(target)
+
+        out_path = _out_path(path, out_dir)
+        document = pymupdf.open()
+        try:
+            for rect, image_path in zip(page_rects, painted):
+                page = document.new_page(width=rect.width, height=rect.height)
+                page.insert_image(page.rect, filename=image_path)
+            document.save(out_path, garbage=3, deflate=True)
+        finally:
+            document.close()
+    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다
+        _discard(out_path)
+        return None
+    else:
+        if _leaks_scanned_pdf(out_path, painted):
+            _discard(out_path)
+            return None
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+    return out_path
+
+
+def _leaks_scanned_pdf(out_path: str, painted: list) -> bool:
+    """사본의 페이지 그림이 **우리가 칠한 그림 그대로**인가.
+
+    "검은 픽셀이 몇 퍼센트냐"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로 적기
+    때문에 작은 상자는 밝은 픽셀이 15%까지 나오고(실측), 그걸 "덜 지웠다"와 구분할
+    방법이 없다.
+
+    대신 더 정확한 것을 본다: 칠하기는 PDF에 넣기 **전에** 끝났으므로, 사본에 박힌
+    그림이 칠한 그림과 픽셀까지 같으면 지운 것이 그대로 들어간 것이 확실하다.
+    PyMuPDF는 PNG를 무손실로 다시 담으므로 같아야 정상이다(실측 확인).
+    """
+    import pymupdf
+    from PIL import Image
+
+    try:
+        document = pymupdf.open(out_path)
+    except Exception:      # noqa: BLE001
+        return True        # 확인하지 못한 사본은 내보내지 않는다
+
+    try:
+        if document.page_count != len(painted):
+            return True
+        for index, source_path in enumerate(painted):
+            images = document[index].get_images()
+            if len(images) != 1:
+                return True                 # 페이지에 그림이 하나여야 한다
+            blob = document.extract_image(images[0][0])["image"]
+            with Image.open(io.BytesIO(blob)) as embedded, Image.open(source_path) as source:
+                if embedded.size != source.size:
+                    return True
+                if embedded.convert("RGB").tobytes() != source.convert("RGB").tobytes():
+                    return True
+    except Exception:      # noqa: BLE001
+        return True
+    finally:
+        document.close()
+    return False
+
+
 def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | None:
     """마스킹 사본 파일을 만들고 그 경로를 돌려준다. `ScanResult.masked_path`에 들어간다.
 
@@ -698,13 +1040,23 @@ def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | No
     if doc is None:
         return None
 
-    # 이미지 파이프라인으로 간 파일(사진, 텍스트 층이 없는 스캔본 PDF)은 값이 글자가
-    # 아니라 그림 안에 있다. 텍스트 치환도 좌표 리댁션도 닿지 않으므로 사본을 만들지
-    # 않는다 - 만들면 "마스킹 사본"이라는 이름의 원본이 된다.
-    if getattr(doc, "kind", "text") != "text":
-        return None
-
     ext = os.path.splitext(path)[1].lower()
+
+    # 이미지 파이프라인으로 간 파일(신분증 사진, 텍스트 층이 없는 스캔본 PDF)은 값이
+    # 글자가 아니라 그림 안에 있다. 문자 치환도 PDF 리댁션도 닿지 않으므로 CNN이 준
+    # bbox를 칠하는 쪽으로 보낸다.
+    #
+    # 스캔본 PDF(kind="image"인데 확장자가 .pdf)는 PDF인 채로 그림 픽셀을 지운다 —
+    # 원본 형식을 유지해야 하므로 PNG로 바꿔 내보내지 않는다.
+    if getattr(doc, "kind", "text") != "text":
+        try:
+            if ext in _IMAGE_EXTENSIONS:
+                return _mask_image(path, doc, findings, out_dir)
+            if ext == ".pdf":
+                return _mask_scanned_pdf(path, doc, findings, out_dir)
+        except Exception:      # noqa: BLE001
+            return None
+        return None
 
     try:
         if ext in _TEXT_EXTENSIONS:

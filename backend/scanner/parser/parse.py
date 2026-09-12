@@ -24,6 +24,8 @@ from __future__ import annotations
 import colorsys
 import os
 import re
+import shutil
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
@@ -114,8 +116,24 @@ class ParsedDoc:
     page_map: list[int] = field(default_factory=list)   # 문자 1개당 페이지 번호 1개
 
     # --- 추가 필드 ---
-    path: str = ""              # 원본 경로. 이미지 파이프라인(ml/의 CNN)이 이걸 받는다.
+    # 이미지 파이프라인(ml/의 CNN)이 받아갈 경로. 사진 파일이면 원본 경로 그대로이고,
+    # 스캔본 PDF면 **구워 낸 첫 페이지 그림**의 경로다 — ultralytics는 PDF를 열지
+    # 못해서 원본 경로를 그대로 넘기면 FileNotFoundError로 검사가 통째로 실패한다.
+    path: str = ""
     file_type: str = ""         # ScanResult.file_type에 그대로 들어간다.
+
+    # 스캔본 PDF를 페이지마다 그림으로 구운 경로들. 사진 파일이면 빈 목록이다.
+    #
+    # `path`는 그중 첫 장이라 지금은 1쪽만 검사된다. scan.py의 _scan_image가 이
+    # 목록을 돌면 여러 쪽짜리도 전부 검사된다.
+    image_paths: list[str] = field(default_factory=list)
+
+    # 구울 때 쓴 배율 = 그림 1픽셀당 PDF 좌표 몇 pt인지의 역수.
+    #
+    # CNN이 돌려주는 bbox는 **구워 낸 그림의 픽셀 좌표**라서, 그 PDF에 마스킹하려면
+    # 이 값으로 나눠 PDF 좌표(pt)로 되돌려야 한다. 이 숫자가 없으면 마스킹이 배율만큼
+    # 어긋난 자리를 지운다. masking/mask.py가 읽는다.
+    image_scale: float = 1.0
 
 
 class ParseError(Exception):
@@ -148,6 +166,19 @@ _LEGACY_EXTENSIONS = {".doc": "docx", ".xls": "xlsx", ".ppt": "pptx"}
 
 # 텍스트 레이어가 이만큼도 안 나오는 PDF는 스캔본으로 보고 이미지 파이프라인에 넘긴다.
 _PDF_SCANNED_TEXT_THRESHOLD = 20
+
+# 스캔본 PDF를 그림으로 구울 때의 배율. 1.0 = 72dpi, 2.0 = 144dpi.
+#
+# 2.0인 이유: YOLO는 입력을 640px로 줄여서 본다. 72dpi로 구우면 A4가 595px라 이미
+# 그보다 작아서, 신분증처럼 페이지 일부만 차지하는 대상은 글자 영역이 뭉개진다.
+# 배율을 더 올리면 탐지가 나아지기보다 메모리와 시간만 늘어난다(어차피 640으로 줄인다).
+_PDF_SCANNED_RENDER_ZOOM = 2.0
+
+# 구워 낸 페이지 그림을 담는 임시 폴더의 이름 앞머리.
+#
+# cleanup()이 **이 이름으로 시작하는 폴더만** 지운다. 폴더를 통째로 지우는 코드라,
+# 우리가 만든 것이 확실한 경우로 범위를 좁혀 둔다.
+_SCANNED_DIR_PREFIX = "infoguard_pdfimg_"
 
 
 def load(path: str) -> ParsedDoc:
@@ -579,7 +610,82 @@ def _load_pdf(path: str) -> ParsedDoc:
     # 텍스트 레이어가 없는 PDF = 스캔본이다. 이미지 파이프라인으로 보낸다.
     if len(doc.raw_text.strip()) < _PDF_SCANNED_TEXT_THRESHOLD:
         doc.kind = "image"
+        _render_scanned_pdf(doc, path)
     return doc
+
+
+def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
+    """스캔본 PDF를 페이지마다 PNG로 구워서 `doc.image_paths`에 담는다.
+
+    왜 필요한가: 신분증 CNN(ultralytics)은 그림 파일만 읽는다. PDF 경로를 그대로
+    넘기면 파일을 못 찾았다는 오류로 검사가 통째로 실패한다 — 스캔해서 올린
+    신분증이 "검사 실패"로 지나가 버린다.
+
+    구운 그림은 임시 폴더에 남는다. `ScanResult.masked_path`와 같은 성격이라
+    응답을 보낸 뒤 API가 지워야 한다. 여기서 지우면 CNN이 읽기도 전에 사라진다.
+
+    구워 내지 못해도 예외를 던지지 않는다. 그림이 없으면 CNN이 검사하지 못할 뿐이고
+    (scan.py가 error로 표시한다), 파싱 자체를 실패시킬 일은 아니다.
+    """
+    try:
+        import pymupdf
+
+        out_dir = tempfile.mkdtemp(prefix=_SCANNED_DIR_PREFIX)
+        matrix = pymupdf.Matrix(_PDF_SCANNED_RENDER_ZOOM, _PDF_SCANNED_RENDER_ZOOM)
+        rendered: list[str] = []
+        with pymupdf.open(path) as document:
+            for number, page in enumerate(document, start=1):
+                target = os.path.join(out_dir, f"page{number:03d}.png")
+                page.get_pixmap(matrix=matrix).save(target)
+                rendered.append(target)
+    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다
+        return
+
+    if not rendered:
+        return
+    doc.image_paths = rendered
+    doc.image_scale = _PDF_SCANNED_RENDER_ZOOM
+    # CNN은 경로 하나만 받는다. 첫 장을 넘긴다 (scan.py가 image_paths를 돌기 전까지).
+    doc.path = rendered[0]
+
+
+def cleanup(doc) -> int:
+    """스캔본 PDF를 구우면서 만든 임시 그림을 지운다. 지운 폴더 수를 돌려준다.
+
+    언제 부르나
+    -----------
+    `scan.py`의 `scan_file()`이 끝나기 직전. 구운 그림을 보는 곳은 신분증 CNN
+    (`_scan_image`)과 스캔본 마스킹(`mask.build_file`) 둘뿐이고, 둘 다 그 함수 안에서
+    끝난다. 그 뒤로는 아무도 보지 않으므로 응답을 기다릴 필요가 없다.
+
+    마스킹 **사본**(`ScanResult.masked_path`)과 혼동하지 말 것 — 그쪽은 사용자가
+    내려받을 파일이라 응답이 나간 뒤에 API가 지워야 한다. 여기서 지우는 것은
+    사용자에게 가지 않는 중간 산물이다.
+
+    왜 여기서 지워야 하나
+    ---------------------
+    구운 그림은 **마스킹하기 전의 원본 신분증 사진**이다. 놔두면 서버 임시 폴더에
+    원본이 그대로 쌓인다(실측: 테스트만 돌렸는데 74개 폴더 74MB).
+
+    두 번 불러도, 구운 그림이 없는 문서(사진·글자 PDF·DOCX)에 불러도 안전하다.
+    """
+    paths = list(getattr(doc, "image_paths", None) or [])
+    if not paths:
+        return 0
+
+    removed = 0
+    for directory in {os.path.dirname(path) for path in paths}:
+        # 우리가 만든 폴더가 확실할 때만 지운다. rmtree는 되돌릴 수 없다.
+        if not os.path.basename(directory).startswith(_SCANNED_DIR_PREFIX):
+            continue
+        if not os.path.isdir(directory):
+            continue
+        shutil.rmtree(directory, ignore_errors=True)
+        removed += 1
+
+    doc.image_paths = []
+    doc.path = ""      # 지운 파일을 가리킨 채로 두지 않는다
+    return removed
 
 
 # ---------------------------------------------------------------------------

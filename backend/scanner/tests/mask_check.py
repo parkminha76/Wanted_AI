@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import zipfile
 import shutil
@@ -629,23 +630,334 @@ def case_pdf_long_placeholder(tmp: str) -> None:
           text.strip().replace(chr(10), " | "))
 
 
-def case_scanned_pdf(tmp: str) -> None:
-    """텍스트 층이 거의 없는 PDF는 이미지 파이프라인으로 간다 - 사본을 만들지 않는다."""
-    print("\n[13] 스캔본 PDF")
+def _make_scanned_pdf(tmp: str, name: str, pages: int = 1):
+    """텍스트 층이 없고 그림만 있는 PDF. 스캔해서 올린 신분증이 이 모양이다.
 
+    그림 안에 붉은 덩어리를 한 군데만 넣는다. 그 부분만 지우게 해야 "덮은 게 아니라
+    지웠는가"를 볼 수 있다 - 그림 전체를 덮으면 PyMuPDF가 그림 객체를 통째로
+    빼버려서, 안에 뭐가 남았는지 확인할 대상 자체가 사라진다.
+    """
     import pymupdf
+    from PIL import Image, ImageDraw
 
-    src = os.path.join(tmp, "스캔본.pdf")
+    photo = os.path.join(tmp, "스캔면.png")
+    if not os.path.exists(photo):
+        image = Image.new("RGB", (400, 250), (240, 240, 240))
+        ImageDraw.Draw(image).rectangle((40, 30, 200, 150), fill=(150, 20, 20))
+        image.save(photo)
+
+    src = os.path.join(tmp, name)
     document = pymupdf.open()
-    page = document.new_page()
-    page.insert_image(pymupdf.Rect(50, 50, 300, 300), filename=os.path.join(tmp, "dot.png"))
+    placed = pymupdf.Rect(50, 50, 450, 300)          # 400x250pt = 그림 1px당 1pt
+    for _ in range(pages):
+        document.new_page().insert_image(placed, filename=photo)
     document.save(src)
     document.close()
 
+    # 붉은 덩어리의 PDF 좌표
+    target = pymupdf.Rect(placed.x0 + 40, placed.y0 + 30, placed.x0 + 200, placed.y0 + 150)
+    return src, placed, target
+
+
+def case_scanned_pdf(tmp: str) -> None:
+    """스캔본 PDF - 글자가 없으니 그림 픽셀을 지운다."""
+    print("\n[13] 스캔본 PDF")
+
+    import pymupdf
+    from PIL import Image
+
+    src, placed, target = _make_scanned_pdf(tmp, "스캔본.pdf")
+    before = _digest(src)
+
     doc = parse.load(src)
     check(doc.kind == "image", "스캔본으로 분류된다", f"kind={doc.kind}")
-    check(mask.build_file(src, doc, [], out_dir=os.path.join(tmp, "out")) is None,
-          "사본을 만들지 않는다 (그림 속 값은 가릴 수 없다)")
+    check(len(doc.image_paths) == 1, "페이지를 그림으로 구웠다", f"{len(doc.image_paths)}장")
+    check(doc.path.endswith(".png"), "CNN에 넘길 경로가 그림이다 (ultralytics는 PDF를 못 연다)",
+          os.path.basename(doc.path))
+    check(doc.image_scale == 2.0, "배율을 기록한다", str(doc.image_scale))
+
+    with Image.open(doc.path) as baked:
+        check(baked.size == (595 * 2, 842 * 2), "배율만큼 크게 구웠다", str(baked.size))
+
+    # CNN이 내놓는 모양: 구워 낸 그림의 픽셀 좌표
+    scale = doc.image_scale
+    findings = [_box_finding("id_photo", (target.x0 * scale, target.y0 * scale,
+                                          target.x1 * scale, target.y1 * scale))]
+
+    out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
+    check(bool(out) and os.path.isfile(out), "사본 파일이 생성됐다", os.path.basename(out or ""))
+    if not out:
+        return
+
+    masked = pymupdf.open(out)
+    page = masked[0]
+    check(masked.page_count == 1, "페이지 수가 같다")
+
+    # 1) 화면에 보이는 결과: 그 자리가 검다
+    pixmap = page.get_pixmap(clip=target, dpi=72)
+    samples = pixmap.samples
+    dark = sum(1 for i in range(0, len(samples), pixmap.n) if samples[i] < 16)
+    ratio = dark / (pixmap.width * pixmap.height)
+    check(ratio > 0.95, "그 자리가 검게 덮였다", f"{ratio:.0%}")
+
+    # 2) 덮은 게 아니라 지웠는가 - 파일에 박힌 그림을 꺼내서 직접 본다.
+    #    덮기만 했다면 여기서 원래 붉은색이 그대로 나온다.
+    images = page.get_images()
+    check(len(images) == 1, "그림이 사본에 남아 있다", f"{len(images)}개")
+    if images:
+        blob = masked.extract_image(images[0][0])["image"]
+        with Image.open(io.BytesIO(blob)) as embedded:
+            rgb = embedded.convert("RGB")
+            colors = {c for _, c in (rgb.getcolors(maxcolors=200000) or [])}
+            reds = {c for c in colors if c[0] > c[1] + 40}
+            check(not reds, "박힌 그림에서 원본 픽셀이 지워졌다", str(sorted(reds)[:3]))
+            # 사본의 페이지는 "칠해진 페이지 그림" 한 장이다. 칠하지 않은 자리는
+            # 원래 스캔면이 그대로 있어야 한다 - 그림 안이지만 상자 밖인 점을 본다.
+            check(rgb.getpixel((800, 550)) == (240, 240, 240),
+                  "지우지 않은 부분은 그림에 그대로 있다", str(rgb.getpixel((800, 550))))
+    masked.close()
+
+    check(_digest(src) == before, "원본 파일이 변하지 않았다")
+
+
+def case_scanned_pdf_guard(tmp: str) -> None:
+    """검사되지 않은 페이지가 있으면 사본을 만들지 않는다."""
+    print("\n[18] 스캔본 PDF 안전장치")
+
+    out_dir = os.path.join(tmp, "out")
+
+    two, placed, target = _make_scanned_pdf(tmp, "두장.pdf", pages=2)
+    doc = parse.load(two)
+    check(len(doc.image_paths) == 2, "두 장 모두 구웠다", f"{len(doc.image_paths)}장")
+    findings = [_box_finding("id_photo", (target.x0 * 2, target.y0 * 2,
+                                          target.x1 * 2, target.y1 * 2))]
+    check(mask.build_file(two, doc, findings, out_dir=out_dir) is None,
+          "여러 쪽짜리는 None (지금은 CNN이 1쪽만 본다)")
+
+    src, placed, target = _make_scanned_pdf(tmp, "스캔본.pdf")
+    doc = parse.load(src)
+    no_box = Finding(id="f_x", type="rrn", text="x", start=0, end=0,
+                     confidence=0.9, source="cnn", reason="테스트용", page=1)
+    check(mask.build_file(src, doc, [no_box], out_dir=out_dir) is None,
+          "좌표 없는 항목이 섞이면 None")
+
+    check(bool(mask.build_file(src, doc, [], out_dir=out_dir)),
+          "findings가 0건이어도 사본은 만든다")
+
+
+# ---------------------------------------------------------------------------
+# 이미지 - CNN이 준 bbox를 칠한다
+# ---------------------------------------------------------------------------
+#
+# 이미지에는 문자 오프셋이 없다. id_detector.py가 start/end를 0으로 두고 bbox만
+# 채우므로, offset을 쓰는 경로(_plan)로는 한 건도 처리되지 않는다. 그래서 여기서도
+# 오프셋이 아니라 좌표로만 만든 finding을 넣는다.
+
+
+def _box_finding(risk_type: str, box) -> Finding:
+    """CNN이 내놓는 모양의 finding. start/end는 0이고 bbox만 있다."""
+    return Finding(
+        id="f_img", type=risk_type, text="얼굴 사진", start=0, end=0,
+        confidence=0.95, source="cnn", reason="테스트용", page=1, bbox=tuple(box),
+    )
+
+
+def _make_photo(path: str, mode: str = "RGB", size=(400, 300)):
+    """자리마다 색이 다른 사진. 칠한 뒤 원래 색이 남았는지 보기 쉽다."""
+    from PIL import Image, ImageDraw
+
+    image = Image.new(mode, size, 255 if mode == "L" else (240, 240, 240))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 20, 140, 160), fill=64 if mode == "L" else (220, 30, 30))
+    draw.rectangle((200, 40, 380, 80), fill=32 if mode == "L" else (30, 120, 220))
+    image.save(path)
+    return image.size
+
+
+def case_image(tmp: str) -> None:
+    print("\n[14] 이미지 사본 - bbox 칠하기")
+
+    from PIL import Image
+
+    src = os.path.join(tmp, "신분증.png")
+    _make_photo(src)
+    before = _digest(src)
+
+    doc = parse.load(src)
+    check(doc.kind == "image", "이미지로 분류된다", f"kind={doc.kind}")
+
+    findings = [_box_finding("id_photo", (20, 20, 140, 160)),
+                _box_finding("rrn", (200, 40, 380, 80))]
+
+    out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
+    check(bool(out) and os.path.isfile(out), "사본 파일이 생성됐다", os.path.basename(out or ""))
+    if not out:
+        return
+
+    with Image.open(out) as masked:
+        masked.load()
+        check(masked.size == (400, 300), "크기가 같다", str(masked.size))
+        check(masked.format == "PNG", "형식이 같다", str(masked.format))
+
+        # 원본 색은 빨강·파랑처럼 채도가 있다. 상자 안에 남아도 되는 것은 검정과,
+        # 유형 이름을 적으면서 생기는 회색 경계(r=g=b)뿐이다.
+        for label, box in [("얼굴", (20, 20, 140, 160)), ("주민번호", (200, 40, 380, 80))]:
+            patch = masked.crop(box).convert("RGB")
+            colors = {color for _, color in (patch.getcolors(maxcolors=100000) or [])}
+            leftover = {c for c in colors if len(set(c)) != 1}
+            check(not leftover, f"{label} 자리에 원본 색이 남지 않았다", str(sorted(leftover)[:3]))
+
+        check(masked.getpixel((390, 290))[:3] == (240, 240, 240), "가리지 않은 자리는 그대로다")
+
+        # 유형 이름을 흰 글자로 적는다 (****로 뭉개지 않는다).
+        # 얼굴 상자는 세로로 길어서 "[얼굴 사진]"이 가로로 안 들어가고, 그때는
+        # 글자를 생략하고 검정만 남긴다 - 그 동작도 여기서 같이 본다.
+        narrow = masked.crop((20, 20, 140, 160)).convert("L")
+        wide = masked.crop((200, 40, 380, 80)).convert("L")
+        check(wide.getextrema()[1] > 200, "상자 안에 유형 이름이 적힌다",
+              f"가장 밝은 값 {wide.getextrema()[1]}")
+        check(narrow.getextrema() == (0, 0), "글자가 안 들어가는 상자는 검정만 남는다")
+
+    check(_digest(src) == before, "원본 파일이 변하지 않았다")
+
+
+def case_image_exif(tmp: str) -> None:
+    """EXIF를 옮기지 않는다 - 썸네일에 가린 자리가 그대로 남는다."""
+    print("\n[15] 이미지 EXIF")
+
+    from PIL import Image
+
+    src = os.path.join(tmp, "사진.jpg")
+    image = Image.new("RGB", (300, 200), (240, 240, 240))
+    exif = image.getexif()
+    exif[271] = "TestCam"                        # Make
+    exif[305] = "InfoGuard"                      # Software
+    image.save(src, exif=exif)
+
+    with Image.open(src) as original:
+        check(bool(original.getexif()), "원본에는 EXIF가 있다")
+
+    doc = parse.load(src)
+    out = mask.build_file(src, doc, [_box_finding("id_photo", (10, 10, 120, 120))],
+                          out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "사본 파일이 생성됐다")
+    if not out:
+        return
+    with Image.open(out) as masked:
+        check(not masked.getexif(), "사본에는 EXIF가 없다 (썸네일·GPS까지 같이 사라진다)")
+        check(masked.format == "JPEG", "JPEG로 저장된다", str(masked.format))
+
+
+def case_image_modes(tmp: str) -> None:
+    """흑백·팔레트 이미지에서도 칠해진다."""
+    print("\n[16] 이미지 모드")
+
+    from PIL import Image
+
+    grey = os.path.join(tmp, "스캔.png")
+    _make_photo(grey, mode="L")
+    doc = parse.load(grey)
+    out = mask.build_file(grey, doc, [_box_finding("rrn", (20, 20, 140, 160))],
+                          out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "흑백 사본이 생성됐다")
+    if out:
+        with Image.open(out) as masked:
+            check(masked.mode == "L", "흑백 그대로 저장된다 (RGB로 부풀리지 않는다)",
+                  masked.mode)
+            check(masked.crop((20, 20, 140, 160)).getextrema() == (0, 0), "자리가 검게 칠해졌다")
+
+    palette = os.path.join(tmp, "팔레트.png")
+    image = Image.new("P", (200, 150))
+    image.putpalette([0, 0, 0] + [200, 40, 40] * 255)
+    image.paste(1, (10, 10, 100, 100))
+    image.save(palette)
+    doc = parse.load(palette)
+    out = mask.build_file(palette, doc, [_box_finding("signature", (10, 10, 100, 100))],
+                          out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "팔레트 사본이 생성됐다")
+    if out:
+        with Image.open(out) as masked:
+            check(masked.crop((10, 10, 100, 100)).convert("L").getextrema()[0] == 0,
+                  "팔레트 이미지도 칠해진다")
+
+
+def case_image_guard(tmp: str) -> None:
+    """가릴 곳을 모르면 사본을 만들지 않는다."""
+    print("\n[17] 이미지 안전장치")
+
+    from PIL import Image
+
+    src = os.path.join(tmp, "신분증.png")
+    doc = parse.load(src)
+    out_dir = os.path.join(tmp, "out")
+
+    no_box = Finding(id="f_x", type="rrn", text="x", start=0, end=0,
+                     confidence=0.9, source="cnn", reason="테스트용", page=1)
+    check(mask.build_file(src, doc, [_box_finding("id_photo", (20, 20, 140, 160)), no_box],
+                          out_dir=out_dir) is None,
+          "좌표 없는 항목이 섞이면 None (반만 가린 사본을 만들지 않는다)")
+
+    check(mask.build_file(src, doc, [_box_finding("rrn", (900, 900, 950, 950))],
+                          out_dir=out_dir) is None,
+          "좌표가 이미지 밖이면 None")
+
+    check(bool(mask.build_file(src, doc, [], out_dir=out_dir)),
+          "findings가 0건이어도 사본은 만든다")
+
+    animated = os.path.join(tmp, "움직임.gif")
+    first = Image.new("RGB", (120, 90), (240, 240, 240))
+    second = Image.new("RGB", (120, 90), (30, 30, 200))
+    first.save(animated, save_all=True, append_images=[second], duration=100, loop=0)
+    doc = parse.load(animated)
+    check(mask.build_file(animated, doc, [_box_finding("id_photo", (10, 10, 60, 60))],
+                          out_dir=out_dir) is None,
+          "여러 장짜리 이미지는 None (뒷장에 원본이 남는다)")
+
+
+# ---------------------------------------------------------------------------
+# 임시 파일 정리
+# ---------------------------------------------------------------------------
+
+
+def case_cleanup(tmp: str) -> None:
+    """구워 낸 페이지 그림은 scan_file이 끝나면 지운다 - 마스킹 전 원본이 남으면 안 된다."""
+    print("\n[19] 임시 파일 정리")
+
+    src, placed, target = _make_scanned_pdf(tmp, "정리.pdf")
+    doc = parse.load(src)
+
+    baked_dir = os.path.dirname(doc.image_paths[0])
+    check(os.path.isdir(baked_dir), "구운 그림 폴더가 생겼다", os.path.basename(baked_dir))
+    check(os.path.basename(baked_dir).startswith("infoguard_pdfimg_"),
+          "이름으로 우리 폴더임을 알 수 있다")
+
+    # 사본을 만든 뒤에 지운다 - 사본은 그림을 다 쓰고 난 결과물이라 영향이 없어야 한다
+    findings = [_box_finding("id_photo", (target.x0 * 2, target.y0 * 2,
+                                          target.x1 * 2, target.y1 * 2))]
+    out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "사본이 먼저 만들어진다")
+
+    removed = parse.cleanup(doc)
+    check(removed == 1, "폴더 1개를 지웠다", f"{removed}개")
+    check(not os.path.isdir(baked_dir), "구운 그림이 사라졌다")
+    check(doc.image_paths == [], "경로 목록도 비웠다")
+    check(bool(out) and os.path.isfile(out), "마스킹 사본은 그대로 남아 있다 (사용자가 받을 파일)")
+
+    check(parse.cleanup(doc) == 0, "두 번 불러도 안전하다")
+
+    # 구운 그림이 없는 형식에서도 안전해야 한다
+    plain = os.path.join(tmp, "연락처.txt")
+    check(parse.cleanup(parse.load(plain)) == 0, "TXT처럼 구운 그림이 없으면 할 일이 없다")
+
+    # 우리가 만들지 않은 폴더는 건드리지 않는다
+    outsider = os.path.join(tmp, "남의폴더")
+    os.makedirs(outsider, exist_ok=True)
+    open(os.path.join(outsider, "소중한파일.txt"), "w").close()
+    fake = parse.load(src)
+    fake.image_paths = [os.path.join(outsider, "page001.png")]
+    check(parse.cleanup(fake) == 0, "이름이 다른 폴더는 지우지 않는다")
+    check(os.path.isdir(outsider), "남의 폴더는 그대로다")
+    parse.cleanup(parse.load(src))      # 방금 다시 구운 것 정리
 
 
 def main() -> int:
@@ -664,6 +976,12 @@ def main() -> int:
         case_pdf_guard(tmp)
         case_pdf_long_placeholder(tmp)
         case_scanned_pdf(tmp)
+        case_image(tmp)
+        case_image_exif(tmp)
+        case_image_modes(tmp)
+        case_image_guard(tmp)
+        case_scanned_pdf_guard(tmp)
+        case_cleanup(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
