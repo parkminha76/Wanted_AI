@@ -1,4 +1,4 @@
-from src.training.defender import generate_defender_report
+from backend.training.defender import generate_defender_report
 
 from backend.db.session import SessionLocal
 from backend.db.tables import TrainingProgress, TrainingEvent

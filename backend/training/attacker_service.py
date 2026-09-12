@@ -1,5 +1,5 @@
-from src.training.anthropic_client import AnthropicClient
-from src.training.prompts import build_attacker_prompt
+from backend.training.anthropic_client import AnthropicClient
+from backend.training.prompts import build_attacker_prompt
 
 
 class AttackerService:

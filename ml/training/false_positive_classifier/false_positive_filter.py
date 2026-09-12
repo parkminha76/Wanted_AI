@@ -6,7 +6,7 @@
 (오탐)인지"를 문맥으로 판별한다. 체크섬이 없는 필드(계좌번호, 운전면허번호)에서
 특히 중요하고, 체크섬이 있는 필드에서도 이중 방어선 역할을 한다.
 
-입력: 문장 + type(RiskType) + checksum_passed(체크섬 결과, 없으면 -1)
+입력: 문장 + type(RiskType) + start/end(문장 안 값 위치, 필수)
 출력: 0(오탐) / 1(진짜) 확률
 
 담당: A. 학습 데이터는 B가 Faker로 생성해서 전달.
@@ -43,12 +43,19 @@ def tokenize(text: str) -> list[str]:
 def load_training_data(path: str) -> list[dict]:
     """B가 넘긴 JSON 로드. 요청 스펙(학습데이터_요청스펙_B_C.md) 형식 그대로.
 
-    각 항목: {"text": ..., "type": ..., "label": 0/1, "start": int?, "end": int?}
+    각 항목: {"text": ..., "type": ..., "label": 0/1, "start": int, "end": int}
+    start/end는 요청 스펙 개정으로 필수가 됐다 — 문장에 후보가 여러 개 있을
+    수 있어서, 값 위치를 명시하지 않으면 어떤 후보를 두고 하는 라벨인지
+    알 수 없다.
     """
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     for item in data:
         assert "text" in item and "type" in item and "label" in item, f"필수 키 누락: {item}"
+        assert "start" in item and "end" in item, (
+            f"start/end 누락 (필수 키): {item}. "
+            "문장 안에서 값의 위치를 알아야 실제 체크섬 검증을 할 수 있다."
+        )
     return data
 
 
@@ -64,8 +71,15 @@ def merge_json_files(paths: list[str]) -> list[dict]:
 # 체크섬 feature — validators.py 결과를 그대로 가져다 쓴다
 # ---------------------------------------------------------------------------
 
-def get_checksum_feature(text: str, risk_type: str) -> int:
-    """체크섬 검증 가능한 타입이면 pass=1/fail=0, 검증 불가능한 타입이면 -1."""
+def get_checksum_feature(text: str, risk_type: str, start: int, end: int) -> int:
+    """체크섬 검증 가능한 타입이면 pass=1/fail=0, 검증 불가능한 타입이면 -1.
+
+    text 전체가 아니라 text[start:end]로 잘라낸 실제 값만 validator에
+    넘긴다. 문장 전체를 넘기면(예: "계좌번호 123-45-6789로 입금해주세요")
+    validator가 하이픈/숫자 이외의 문자(공백, 한글) 때문에 자릿수 검증부터
+    실패해서 항상 False가 나온다 — 체크섬 feature가 사실상 죽어있는
+    상태였다.
+    """
     from ml.data_generation.validators import (
         validate_biz_reg, validate_foreign_reg, validate_rrn, validate_card_luhn,
     )
@@ -83,9 +97,8 @@ def get_checksum_feature(text: str, risk_type: str) -> int:
     if validator is None:
         return -1  # 체크섬 없는 필드 (account, driver_license, emp_no, passport 등)
 
-    # text 안에서 실제 값만 뽑아야 하는데, 여기서는 값이 text 전체라고 가정.
-    # 실제 파이프라인에서는 start/end로 잘라낸 값을 넘겨야 한다.
-    return 1 if validator(text) else 0
+    value = text[start:end]
+    return 1 if validator(value) else 0
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +132,10 @@ class FalsePositiveFilter:
         texts = [d["text"] for d in data]
         types = [d["type"] for d in data]
         labels = [d["label"] for d in data]
-        checksums = [get_checksum_feature(d["text"], d["type"]) for d in data]
+        checksums = [
+            get_checksum_feature(d["text"], d["type"], d["start"], d["end"])
+            for d in data
+        ]
 
         X = self._build_features(texts, types, checksums, fit=True)
         y = np.array(labels)
@@ -138,8 +154,15 @@ class FalsePositiveFilter:
         )
         return {"precision": precision, "recall": recall, "f1": f1}
 
-    def predict_proba(self, text: str, risk_type: str, checksum: int = -1) -> float:
-        """진짜(label=1)일 확률. Finding.confidence에 그대로 넣는다."""
+    def predict_proba(self, text: str, risk_type: str, start: int, end: int) -> float:
+        """진짜(label=1)일 확률. Finding.confidence에 그대로 넣는다.
+
+        start/end는 스캐너 엔진(B)이 정규식으로 후보를 찾을 때 이미 알고
+        있는 값이다 — Finding.start/end와 동일한 걸 그대로 넘기면 된다.
+        체크섬 feature를 이 함수 내부에서 직접 계산하므로, 호출부가 미리
+        pass/fail을 계산해서 넘길 필요가 없다(이전 버전과 달라진 점).
+        """
+        checksum = get_checksum_feature(text, risk_type, start, end)
         X = self._build_features([text], [risk_type], [checksum], fit=False)
         return float(self.clf.predict_proba(X)[0][1])
 
