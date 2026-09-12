@@ -1,4 +1,4 @@
-from src.training.state_machine import get_next_state
+from backend.training.state_machine import get_next_state
 
 
 state = "S1_APPROACH"

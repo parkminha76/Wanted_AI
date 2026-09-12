@@ -3,8 +3,8 @@ import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from src.training.prompts import build_attacker_prompt
-from src.training.state_machine import get_next_state
+from backend.training.prompts import build_attacker_prompt
+from backend.training.state_machine import get_next_state
 
 
 load_dotenv()

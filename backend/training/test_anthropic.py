@@ -3,7 +3,7 @@ import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from src.training.prompts import build_attacker_prompt
+from backend.training.prompts import build_attacker_prompt
 
 
 load_dotenv()
