@@ -1,110 +1,100 @@
 {
   "ground_truth": {
-    "name": "최영수(金禹相)",
-    "resident_number": "170113-1976553",
-    "address": "대전광역시 영등포구 삼성95로 30",
-    "issue_date": "2024.06.14.",
-    "issuing_authority": "대구광역시 전주시장"
+    "name": "이영식(廷宋泰)",
+    "resident_number": "950919-1085116",
+    "address": "세종특별자치시 마포구 역삼753로 602",
+    "issue_date": "2016.11.02.",
+    "issuing_authority": "전라남도 안동시장"
   },
   "detected": [
     {
+      "label": "name",
+      "confidence": 0.982,
+      "bbox": [
+        150.1,
+        319.5,
+        628.4,
+        409.8
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.977,
+      "bbox": [
+        101.9,
+        445.5,
+        800.7,
+        539.2
+      ]
+    },
+    {
       "label": "face",
-      "confidence": 0.987,
+      "confidence": 0.973,
       "bbox": [
-        1072.8,
-        179.0,
-        1569.0,
-        805.4
-      ]
-    },
-    {
-      "label": "resident_number",
-      "confidence": 0.986,
-      "bbox": [
-        151.2,
-        403.3,
-        845.3,
-        490.8
-      ]
-    },
-    {
-      "label": "issue_date",
-      "confidence": 0.981,
-      "bbox": [
-        611.5,
-        862.2,
-        955.6,
-        929.8
-      ]
-    },
-    {
-      "label": "resident_number",
-      "confidence": 0.961,
-      "bbox": [
-        162.0,
-        383.6,
-        842.2,
-        468.1
+        957.0,
+        5.4,
+        1565.8,
+        584.8
       ]
     },
     {
       "label": "name",
-      "confidence": 0.96,
+      "confidence": 0.953,
       "bbox": [
-        243.9,
-        229.3,
-        727.1,
-        319.5
-      ]
-    },
-    {
-      "label": "name",
-      "confidence": 0.956,
-      "bbox": [
-        241.5,
-        246.2,
-        726.6,
-        338.1
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.865,
-      "bbox": [
-        126.7,
-        540.7,
-        871.7,
-        624.8
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.79,
-      "bbox": [
-        129.1,
-        521.3,
-        883.8,
-        584.3
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.649,
-      "bbox": [
-        131.1,
-        533.9,
-        877.7,
-        596.4
+        146.9,
+        337.2,
+        632.6,
+        427.0
       ]
     },
     {
       "label": "issue_date",
-      "confidence": 0.629,
+      "confidence": 0.927,
       "bbox": [
-        611.3,
-        848.8,
-        954.5,
-        916.9
+        703.7,
+        773.7,
+        1034.5,
+        840.8
+      ]
+    },
+    {
+      "label": "resident_number",
+      "confidence": 0.903,
+      "bbox": [
+        117.1,
+        478.8,
+        825.6,
+        562.6
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.87,
+      "bbox": [
+        120.8,
+        594.8,
+        970.5,
+        685.1
+      ]
+    },
+    {
+      "label": "issue_date",
+      "confidence": 0.864,
+      "bbox": [
+        701.1,
+        785.8,
+        1034.1,
+        856.1
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.766,
+      "bbox": [
+        117.2,
+        585.7,
+        965.5,
+        657.5
       ]
     }
   ]

@@ -35,6 +35,7 @@ import tempfile
 import time
 import uuid
 import zipfile
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -46,7 +47,26 @@ from starlette.background import BackgroundTask
 from backend.scanner import scan
 from backend.shared import schema
 
-app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION)
+MASKED_DIR_PREFIX = "infoguard_mask_"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """서버가 뜰 때 이전 프로세스가 남긴 사본을 한 번 훑어 지운다.
+
+    사본 경로는 메모리(_masked_files)에만 있어서 재시작하면 레지스트리는 비는데
+    **파일은 디스크에 그대로 남는다.** 그 뒤로는 아무도 존재를 모르니 _sweep_expired의
+    TTL 청소에도 걸리지 않고 영영 쌓인다(실측으로 확인했다 — 개발 중에만 527개가
+    쌓여 있었다).
+
+    남는 것이 마스킹된 사본이라 원본만큼 위험하진 않지만, 개인정보가 일부라도
+    담긴 파일이 서버에 무기한 남아서는 안 된다.
+    """
+    _sweep_orphan_dirs()
+    yield
+
+
+app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
 
 # 프론트(D)가 다른 포트에서 부른다. 배포 도메인이 정해지면 그 도메인만 남긴다.
 app.add_middleware(
@@ -71,8 +91,9 @@ MASKED_FILE_TTL_SECONDS = 30 * 60
 # ---------------------------------------------------------------------------
 #
 # 스캔과 다운로드는 별개 요청이라 사본 경로를 기억해야 한다. 프로세스 메모리에
-# 두므로 서버를 재시작하면 사라진다 — 2주 스코프에서는 그게 오히려 안전하다
-# (남은 사본이 디스크에 쌓이지 않는다).
+# 두므로 서버를 재시작하면 레지스트리가 비는데, **파일은 디스크에 그대로 남는다.**
+# 그래서 재시작 직후 한 번 훑어 지운다(_sweep_orphan_dirs). 그 청소가 없으면
+# 고아 파일이 TTL 청소에도 안 걸려 영영 쌓인다.
 
 
 @dataclass
@@ -96,6 +117,33 @@ def _sweep_expired() -> None:
     for batch_id, file_ids in list(_batches.items()):
         if not any(fid in _masked_files for fid in file_ids):
             _batches.pop(batch_id, None)
+
+
+def _sweep_orphan_dirs() -> int:
+    """이전 프로세스가 남긴 사본 폴더를 지운다. 지운 개수를 돌려준다.
+
+    TTL이 지난 것만 건드린다. 같은 머신에서 다른 인스턴스가 돌고 있을 수 있는데,
+    그쪽이 방금 만든 사본을 지우면 사용자가 다운로드 버튼을 눌렀을 때 404가 난다.
+    """
+    removed = 0
+    deadline = time.time() - MASKED_FILE_TTL_SECONDS
+    root = tempfile.gettempdir()
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return 0
+    for name in names:
+        if not name.startswith(MASKED_DIR_PREFIX):
+            continue
+        target = os.path.join(root, name)
+        try:
+            if os.path.getmtime(target) >= deadline:
+                continue
+            shutil.rmtree(target, ignore_errors=True)
+            removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def _remove_quietly(path: str) -> None:
@@ -194,6 +242,18 @@ async def scan_upload(files: list[UploadFile]) -> dict:
     finally:
         # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
         shutil.rmtree(upload_dir, ignore_errors=True)
+
+    # scan_file은 자기가 받은 경로를 filename에 넣는데, 여기서 넘긴 것은 업로드
+    # 임시 경로다(…/Temp/infoguard_upload_xxxx/연락처.pdf). 그대로 내보내면
+    # **서버 디렉터리 구조가 응답에 실려 나가고**, 화면에는 파일명 대신 그 경로가
+    # 뜬다. 사용자가 올린 이름으로 돌려놓는다 — 경로 성분은 _safe_basename이
+    # 이미 떼어냈다(클라이언트가 "../../etc/passwd"를 보낼 수 있다).
+    #
+    # 순서로 맞추지 않고 경로를 키로 쓴다. 결과 목록의 순서가 입력 순서와
+    # 달라져도(정렬·건너뜀) 엉뚱한 파일에 이름이 붙지 않는다.
+    display_name = {path: _safe_basename(f.filename) for path, f in zip(paths, files)}
+    for result in batch.results:
+        result.filename = display_name.get(result.filename, os.path.basename(result.filename))
 
     batch.batch_id = uuid.uuid4().hex
     for result in batch.results:
@@ -312,6 +372,9 @@ def samples() -> dict:
         }
 
     batch = scan.scan_files(paths)
+    # /scan과 같은 이유로 경로가 아니라 파일명만 내보낸다.
+    for result in batch.results:
+        result.filename = os.path.basename(result.filename)
     batch.batch_id = uuid.uuid4().hex
     for result in batch.results:
         _register_masked(result)

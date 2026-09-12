@@ -1,90 +1,60 @@
 {
   "ground_truth": {
-    "name": "김지후(州宋曺)",
-    "resident_number": "300720-2649338",
-    "address": "부산광역시 성북구 오금3로 779",
-    "issue_date": "2022.08.14.",
-    "issuing_authority": "대전광역시 춘천시장"
+    "name": "박승현(泳池柳)",
+    "resident_number": "080816-2063261",
+    "address": "세종특별자치시 광진구 압구정7길 916-52",
+    "issue_date": "2019.04.03.",
+    "issuing_authority": "전북특별자치도 경주시장"
   },
   "detected": [
     {
-      "label": "resident_number",
-      "confidence": 0.988,
+      "label": "issue_date",
+      "confidence": 0.991,
       "bbox": [
-        165.3,
-        389.3,
-        788.0,
-        458.7
+        630.2,
+        781.8,
+        939.8,
+        831.3
       ]
     },
     {
       "label": "face",
-      "confidence": 0.986,
+      "confidence": 0.989,
       "bbox": [
-        1007.7,
-        132.4,
-        1507.6,
-        681.9
-      ]
-    },
-    {
-      "label": "issue_date",
-      "confidence": 0.978,
-      "bbox": [
-        606.6,
-        782.3,
-        916.3,
-        832.9
+        1002.9,
+        99.6,
+        1492.2,
+        644.8
       ]
     },
     {
       "label": "name",
-      "confidence": 0.957,
+      "confidence": 0.987,
       "bbox": [
-        229.9,
-        258.5,
-        674.7,
-        329.9
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.938,
-      "bbox": [
-        142.9,
-        513.9,
-        780.4,
-        561.7
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.786,
-      "bbox": [
-        140.7,
-        505.6,
-        796.6,
-        552.8
-      ]
-    },
-    {
-      "label": "address",
-      "confidence": 0.74,
-      "bbox": [
-        131.9,
-        523.3,
-        780.3,
-        569.1
+        215.1,
+        279.7,
+        659.4,
+        349.5
       ]
     },
     {
       "label": "resident_number",
-      "confidence": 0.602,
+      "confidence": 0.985,
       "bbox": [
-        159.8,
-        403.8,
-        790.7,
-        471.5
+        161.7,
+        414.9,
+        782.8,
+        481.6
+      ]
+    },
+    {
+      "label": "address",
+      "confidence": 0.98,
+      "bbox": [
+        145.5,
+        539.8,
+        954.6,
+        634.1
       ]
     }
   ]

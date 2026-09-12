@@ -400,7 +400,22 @@ def _scan_image(doc) -> ScanResult:
     """
     result = ScanResult(raw_text="")
     if id_detector is not None and hasattr(id_detector, "detect"):
-        result.findings = [_raw_to_finding(d, "cnn") for d in id_detector.detect(doc.path)]
+        # 스캔본 PDF는 페이지마다 그림이 하나씩 구워져 image_paths에 담겨 온다.
+        # doc.path는 그중 첫 장이라, 그것만 넘기면 2쪽부터는 검사가 통째로 빠진다
+        # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
+        # 비어 있으므로 doc.path로 떨어진다.
+        findings = []
+        for page_number, image_path in enumerate(
+            getattr(doc, "image_paths", None) or [doc.path], start=1
+        ):
+            for raw in id_detector.detect(image_path):
+                # id_detector는 그림 한 장만 받아서 자기가 몇 쪽인지 모른다.
+                # page를 1로 고정해 돌려주므로 여기서 실제 쪽 번호로 덮어쓴다 —
+                # 안 그러면 3쪽의 주민번호가 화면에서 1쪽으로 표시되고, 마스킹도
+                # 엉뚱한 페이지를 지운다.
+                raw["page"] = page_number
+                findings.append(_raw_to_finding(raw, "cnn"))
+        result.findings = findings
         _reassign_ids(result.findings)
     else:
         result.error = "이미지 파일은 아직 검사할 수 없습니다 (신분증 검사기 연결 전)"
@@ -417,49 +432,73 @@ def scan_file(path: str) -> ScanResult:
     """
     doc = None
     try:
-        if parse is not None and hasattr(parse, "load"):
-            doc = parse.load(path)
-            # 파서가 이미지로 판정한 파일(사진, 텍스트 레이어 없는 스캔본 PDF)은
-            # 글자가 없어서 텍스트 탐지기를 돌릴 것이 없다. 이미지 파이프라인으로 보낸다.
-            if getattr(doc, "kind", "text") == "image":
-                result = _scan_image(doc)
+        try:
+            if parse is not None and hasattr(parse, "load"):
+                doc = parse.load(path)
+                # 파서가 이미지로 판정한 파일(사진, 텍스트 레이어 없는 스캔본 PDF)은
+                # 글자가 없어서 텍스트 탐지기를 돌릴 것이 없다. 이미지 파이프라인으로 보낸다.
+                if getattr(doc, "kind", "text") == "image":
+                    result = _scan_image(doc)
+                else:
+                    result = scan_text(
+                        doc.raw_text, meta={"filename": path, "spans": doc.spans}
+                    )
             else:
-                result = scan_text(doc.raw_text, meta={"filename": path, "spans": doc.spans})
-        else:
-            with open(path, encoding="utf-8") as fh:
-                raw_text = fh.read()
-            result = scan_text(raw_text, meta={"filename": path})
-    except _FILE_ERRORS as exc:
-        # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계라, 못 읽는 파일은
-        # 예외가 아니라 결과로 돌려준다(schema.ScanResult.error가 그 자리다).
-        # parse.ParseError의 메시지는 파일 내용을 담지 않기로 계약돼 있어서
-        # 그대로 내보내고, 그 외 예외는 메시지에 원문 조각이 섞일 수 있으니
-        # 종류만 남긴다.
-        detail = str(exc) if _ParseError and isinstance(exc, _ParseError) else type(exc).__name__
-        result = ScanResult(filename=path, error=f"파일을 읽지 못했습니다: {detail}")
-        result.file_type = _guess_file_type(path)
-        return result.finalize()
+                with open(path, encoding="utf-8") as fh:
+                    raw_text = fh.read()
+                result = scan_text(raw_text, meta={"filename": path})
+        except _FILE_ERRORS as exc:
+            # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계라, 못 읽는 파일은
+            # 예외가 아니라 결과로 돌려준다(schema.ScanResult.error가 그 자리다).
+            # parse.ParseError의 메시지는 파일 내용을 담지 않기로 계약돼 있어서
+            # 그대로 내보내고, 그 외 예외는 메시지에 원문 조각이 섞일 수 있으니
+            # 종류만 남긴다.
+            detail = (
+                str(exc) if _ParseError and isinstance(exc, _ParseError) else type(exc).__name__
+            )
+            result = ScanResult(filename=path, error=f"파일을 읽지 못했습니다: {detail}")
+            result.file_type = _guess_file_type(path)
+            return result.finalize()
 
-    result.filename = path
-    # 파서가 판단한 형식이 우선이다(스캔본 PDF를 image로 넘기는 등의 판단이 들어있다).
-    result.file_type = getattr(doc, "file_type", "") or _guess_file_type(path)
+        result.filename = path
+        # 파서가 판단한 형식이 우선이다(스캔본 PDF를 image로 넘기는 등의 판단이 들어있다).
+        result.file_type = getattr(doc, "file_type", "") or _guess_file_type(path)
 
-    # 오프셋 -> 페이지 좌표. 이걸 빼먹으면 Finding.bbox가 영원히 null로 남아
-    # PDF 마스킹 사본이 아예 만들어지지 않고, 화면도 미리보기에 하이라이트 박스를
-    # 그릴 수 없다. mask.py는 여기서 채운 좌표를 **읽기만** 한다 — 좌표를 두 군데서
-    # 따로 구하면 같은 값이 여러 번 나올 때 엉뚱한 자리를 지운다.
-    #
-    # 좌표가 없는 형식(DOCX/XLSX/TXT)과 이미지는 그냥 지나간다. 이미지는 CNN이
-    # 이미 bbox를 채워뒀고 doc.spans가 비어 있어서 덮어쓰이지 않는다.
-    if doc is not None and locate is not None and hasattr(locate, "fill_coords"):
-        locate.fill_coords(doc, result.findings)
+        # 오프셋 -> 페이지 좌표. 이걸 빼먹으면 Finding.bbox가 영원히 null로 남아
+        # PDF 마스킹 사본이 아예 만들어지지 않고, 화면도 미리보기에 하이라이트 박스를
+        # 그릴 수 없다. mask.py는 여기서 채운 좌표를 **읽기만** 한다 — 좌표를 두 군데서
+        # 따로 구하면 같은 값이 여러 번 나올 때 엉뚱한 자리를 지운다.
+        #
+        # 좌표가 없는 형식(DOCX/XLSX/TXT)과 이미지는 그냥 지나간다. 이미지는 CNN이
+        # 이미 bbox를 채워뒀고 doc.spans가 비어 있어서 덮어쓰이지 않는다.
+        if doc is not None and locate is not None and hasattr(locate, "fill_coords"):
+            locate.fill_coords(doc, result.findings)
 
-    # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
-    # 제품의 주 동작은 "마스킹된 파일 다운로드"다.
-    if doc is not None and mask is not None and hasattr(mask, "build_file"):
-        result.masked_path = mask.build_file(path, doc, result.findings)
+        # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
+        # 제품의 주 동작은 "마스킹된 파일 다운로드"다.
+        if doc is not None and mask is not None and hasattr(mask, "build_file"):
+            result.masked_path = mask.build_file(path, doc, result.findings)
 
-    return result
+        return result
+    finally:
+        # 스캔본 PDF를 검사하려고 구워 낸 페이지 그림을 지운다. 그 그림을 보는 곳은
+        # 신분증 CNN(_scan_image)과 스캔본 마스킹(mask.build_file) 둘뿐이고, 둘 다
+        # 이 함수 안에서 끝난다.
+        #
+        # 놔두면 안 되는 이유: 그 그림은 **마스킹하기 전의 원본 신분증 사진**이다.
+        # 스캔 1회당 폴더 하나씩 서버 임시 폴더에 쌓이는 것을 실측으로 확인했다.
+        # "업로드 파일은 처리 후 즉시 폐기"라는 제품 원칙이 이 중간 산물에도 똑같이
+        # 적용된다.
+        #
+        # finally인 이유: 파싱이나 마스킹 도중 예외가 나도 원본 그림은 반드시
+        # 지워야 한다. except 블록이 중간에 return하는 경로가 있어서, 정상 종료
+        # 자리에만 두면 그 경로에서 남는다.
+        #
+        # masked_path(사용자가 내려받을 사본)와 혼동하지 말 것 — 그쪽은 응답이 나간 뒤
+        # main.py가 TTL로 지운다. 여기서 지우는 것은 사용자에게 가지 않는 중간 산물이라
+        # 응답을 기다릴 필요가 없다.
+        if doc is not None and parse is not None and hasattr(parse, "cleanup"):
+            parse.cleanup(doc)
 
 
 def scan_files(paths: list[str]) -> ScanBatch:

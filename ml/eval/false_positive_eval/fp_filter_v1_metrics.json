@@ -1,0 +1,334 @@
+{
+  "selected": {
+    "evaluation": "5-fold stratified group cross-validation",
+    "c": 4.0,
+    "threshold": 0.5,
+    "rows": 298,
+    "groups": 149,
+    "precision": 0.831081081081081,
+    "recall": 0.82,
+    "f1": 0.825503355704698,
+    "roc_auc": 0.879009009009009,
+    "average_precision": 0.8741033596217893,
+    "confusion_matrix": {
+      "labels": [
+        0,
+        1
+      ],
+      "values": [
+        [
+          123,
+          25
+        ],
+        [
+          27,
+          123
+        ]
+      ]
+    },
+    "classification_report": {
+      "오탐(0)": {
+        "precision": 0.82,
+        "recall": 0.831081081081081,
+        "f1-score": 0.825503355704698,
+        "support": 148.0
+      },
+      "진짜(1)": {
+        "precision": 0.831081081081081,
+        "recall": 0.82,
+        "f1-score": 0.825503355704698,
+        "support": 150.0
+      },
+      "accuracy": 0.825503355704698,
+      "macro avg": {
+        "precision": 0.8255405405405405,
+        "recall": 0.8255405405405405,
+        "f1-score": 0.825503355704698,
+        "support": 298.0
+      },
+      "weighted avg": {
+        "precision": 0.8255777253763831,
+        "recall": 0.8255033557046979,
+        "f1-score": 0.825503355704698,
+        "support": 298.0
+      }
+    }
+  },
+  "candidates": [
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 0.25,
+      "threshold": 0.5,
+      "rows": 298,
+      "groups": 149,
+      "precision": 0.782608695652174,
+      "recall": 0.6,
+      "f1": 0.6792452830188679,
+      "roc_auc": 0.8168018018018017,
+      "average_precision": 0.778721432770572,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            123,
+            25
+          ],
+          [
+            60,
+            90
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.6721311475409836,
+          "recall": 0.831081081081081,
+          "f1-score": 0.743202416918429,
+          "support": 148.0
+        },
+        "진짜(1)": {
+          "precision": 0.782608695652174,
+          "recall": 0.6,
+          "f1-score": 0.6792452830188679,
+          "support": 150.0
+        },
+        "accuracy": 0.714765100671141,
+        "macro avg": {
+          "precision": 0.7273699215965788,
+          "recall": 0.7155405405405405,
+          "f1-score": 0.7112238499686485,
+          "support": 298.0
+        },
+        "weighted avg": {
+          "precision": 0.7277406516237974,
+          "recall": 0.714765100671141,
+          "f1-score": 0.7110092287139519,
+          "support": 298.0
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 0.5,
+      "threshold": 0.5,
+      "rows": 298,
+      "groups": 149,
+      "precision": 0.8015267175572519,
+      "recall": 0.7,
+      "f1": 0.7473309608540926,
+      "roc_auc": 0.8531981981981982,
+      "average_precision": 0.814443104319282,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            122,
+            26
+          ],
+          [
+            45,
+            105
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.7305389221556886,
+          "recall": 0.8243243243243243,
+          "f1-score": 0.7746031746031746,
+          "support": 148.0
+        },
+        "진짜(1)": {
+          "precision": 0.8015267175572519,
+          "recall": 0.7,
+          "f1-score": 0.7473309608540926,
+          "support": 150.0
+        },
+        "accuracy": 0.761744966442953,
+        "macro avg": {
+          "precision": 0.7660328198564703,
+          "recall": 0.7621621621621621,
+          "f1-score": 0.7609670677286335,
+          "support": 298.0
+        },
+        "weighted avg": {
+          "precision": 0.766271033934999,
+          "recall": 0.761744966442953,
+          "f1-score": 0.7608755502328313,
+          "support": 298.0
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 1.0,
+      "threshold": 0.5,
+      "rows": 298,
+      "groups": 149,
+      "precision": 0.8014184397163121,
+      "recall": 0.7533333333333333,
+      "f1": 0.7766323024054983,
+      "roc_auc": 0.8691891891891892,
+      "average_precision": 0.8426312073267384,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            120,
+            28
+          ],
+          [
+            37,
+            113
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.7643312101910829,
+          "recall": 0.8108108108108109,
+          "f1-score": 0.7868852459016393,
+          "support": 148.0
+        },
+        "진짜(1)": {
+          "precision": 0.8014184397163121,
+          "recall": 0.7533333333333333,
+          "f1-score": 0.7766323024054983,
+          "support": 150.0
+        },
+        "accuracy": 0.7818791946308725,
+        "macro avg": {
+          "precision": 0.7828748249536974,
+          "recall": 0.7820720720720721,
+          "f1-score": 0.7817587741535688,
+          "support": 298.0
+        },
+        "weighted avg": {
+          "precision": 0.7829992787440506,
+          "recall": 0.7818791946308725,
+          "f1-score": 0.7817243683029106,
+          "support": 298.0
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 2.0,
+      "threshold": 0.5,
+      "rows": 298,
+      "groups": 149,
+      "precision": 0.8013698630136986,
+      "recall": 0.78,
+      "f1": 0.7905405405405406,
+      "roc_auc": 0.8740990990990991,
+      "average_precision": 0.8601695788698324,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            119,
+            29
+          ],
+          [
+            33,
+            117
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.7828947368421053,
+          "recall": 0.8040540540540541,
+          "f1-score": 0.7933333333333333,
+          "support": 148.0
+        },
+        "진짜(1)": {
+          "precision": 0.8013698630136986,
+          "recall": 0.78,
+          "f1-score": 0.7905405405405406,
+          "support": 150.0
+        },
+        "accuracy": 0.7919463087248322,
+        "macro avg": {
+          "precision": 0.7921322999279019,
+          "recall": 0.7920270270270271,
+          "f1-score": 0.7919369369369369,
+          "support": 298.0
+        },
+        "weighted avg": {
+          "precision": 0.7921942969955919,
+          "recall": 0.7919463087248322,
+          "f1-score": 0.7919275651490416,
+          "support": 298.0
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 4.0,
+      "threshold": 0.5,
+      "rows": 298,
+      "groups": 149,
+      "precision": 0.831081081081081,
+      "recall": 0.82,
+      "f1": 0.825503355704698,
+      "roc_auc": 0.879009009009009,
+      "average_precision": 0.8741033596217893,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            123,
+            25
+          ],
+          [
+            27,
+            123
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.82,
+          "recall": 0.831081081081081,
+          "f1-score": 0.825503355704698,
+          "support": 148.0
+        },
+        "진짜(1)": {
+          "precision": 0.831081081081081,
+          "recall": 0.82,
+          "f1-score": 0.825503355704698,
+          "support": 150.0
+        },
+        "accuracy": 0.825503355704698,
+        "macro avg": {
+          "precision": 0.8255405405405405,
+          "recall": 0.8255405405405405,
+          "f1-score": 0.825503355704698,
+          "support": 298.0
+        },
+        "weighted avg": {
+          "precision": 0.8255777253763831,
+          "recall": 0.8255033557046979,
+          "f1-score": 0.825503355704698,
+          "support": 298.0
+        }
+      }
+    }
+  ]
+}
