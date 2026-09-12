@@ -1,0 +1,2706 @@
+[
+  {
+    "text": "입금 계좌는 9174-924-135637입니다. 확인 후 송금 부탁드립니다",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 1,
+    "group_id": "account_true_01"
+  },
+  {
+    "text": "입금 계좌는 563-2718-538789입니다. 확인 후 송금 부탁드립니다",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 1,
+    "group_id": "account_true_01"
+  },
+  {
+    "text": "환불 계좌 984-066-989833로 3영업일 이내 처리됩니다",
+    "type": "account",
+    "start": 6,
+    "end": 20,
+    "label": 1,
+    "group_id": "account_true_02"
+  },
+  {
+    "text": "환불 계좌 2788-354-322244로 3영업일 이내 처리됩니다",
+    "type": "account",
+    "start": 6,
+    "end": 21,
+    "label": 1,
+    "group_id": "account_true_02"
+  },
+  {
+    "text": "급여 이체 계좌를 143-351-787552로 변경 신청합니다",
+    "type": "account",
+    "start": 10,
+    "end": 24,
+    "label": 1,
+    "group_id": "account_true_03"
+  },
+  {
+    "text": "급여 이체 계좌를 188-888105-05335로 변경 신청합니다",
+    "type": "account",
+    "start": 10,
+    "end": 26,
+    "label": 1,
+    "group_id": "account_true_03"
+  },
+  {
+    "text": "대금은 하나은행 831-7399-533259 계좌로 입금해 주세요",
+    "type": "account",
+    "start": 9,
+    "end": 24,
+    "label": 1,
+    "group_id": "account_true_04"
+  },
+  {
+    "text": "대금은 하나은행 696-2964-240056 계좌로 입금해 주세요",
+    "type": "account",
+    "start": 9,
+    "end": 24,
+    "label": 1,
+    "group_id": "account_true_04"
+  },
+  {
+    "text": "보증금 반환 계좌: 274-12-9537-24144 (예금주 본인 확인 필요)",
+    "type": "account",
+    "start": 11,
+    "end": 28,
+    "label": 1,
+    "group_id": "account_true_05"
+  },
+  {
+    "text": "보증금 반환 계좌: 5948-144-103506 (예금주 본인 확인 필요)",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 1,
+    "group_id": "account_true_05"
+  },
+  {
+    "text": "자동이체 등록 계좌 380-216-764158 승인되었습니다",
+    "type": "account",
+    "start": 11,
+    "end": 25,
+    "label": 1,
+    "group_id": "account_true_06"
+  },
+  {
+    "text": "자동이체 등록 계좌 354-507-196822 승인되었습니다",
+    "type": "account",
+    "start": 11,
+    "end": 25,
+    "label": 1,
+    "group_id": "account_true_06"
+  },
+  {
+    "text": "646-850249-59352로 잔금 이체를 완료했습니다",
+    "type": "account",
+    "start": 0,
+    "end": 16,
+    "label": 1,
+    "group_id": "account_true_07"
+  },
+  {
+    "text": "7620-6702-84530로 잔금 이체를 완료했습니다",
+    "type": "account",
+    "start": 0,
+    "end": 15,
+    "label": 1,
+    "group_id": "account_true_07"
+  },
+  {
+    "text": "정산 대금 수령 계좌를 603-596742-54446로 등록해 주십시오",
+    "type": "account",
+    "start": 13,
+    "end": 29,
+    "label": 1,
+    "group_id": "account_true_08"
+  },
+  {
+    "text": "정산 대금 수령 계좌를 946-8210-142225로 등록해 주십시오",
+    "type": "account",
+    "start": 13,
+    "end": 28,
+    "label": 1,
+    "group_id": "account_true_08"
+  },
+  {
+    "text": "국민은행 109-287166-63610 예금주명이 일치하지 않습니다",
+    "type": "account",
+    "start": 5,
+    "end": 21,
+    "label": 1,
+    "group_id": "account_true_09"
+  },
+  {
+    "text": "국민은행 4501-631-443426 예금주명이 일치하지 않습니다",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 1,
+    "group_id": "account_true_09"
+  },
+  {
+    "text": "계약금은 아래 계좌로 송금 바랍니다 — 7106-540-786525",
+    "type": "account",
+    "start": 22,
+    "end": 37,
+    "label": 1,
+    "group_id": "account_true_10"
+  },
+  {
+    "text": "계약금은 아래 계좌로 송금 바랍니다 — 488-6693-411261",
+    "type": "account",
+    "start": 22,
+    "end": 37,
+    "label": 1,
+    "group_id": "account_true_10"
+  },
+  {
+    "text": "월세는 매월 이십오일에 5182-7701-77954로 자동 출금됩니다",
+    "type": "account",
+    "start": 13,
+    "end": 28,
+    "label": 1,
+    "group_id": "account_true_11"
+  },
+  {
+    "text": "월세는 매월 이십오일에 2224-759-621076로 자동 출금됩니다",
+    "type": "account",
+    "start": 13,
+    "end": 28,
+    "label": 1,
+    "group_id": "account_true_11"
+  },
+  {
+    "text": "출금 계좌 672-99-2009-34810의 잔액이 부족합니다",
+    "type": "account",
+    "start": 6,
+    "end": 23,
+    "label": 1,
+    "group_id": "account_true_12"
+  },
+  {
+    "text": "출금 계좌 292-75-1820-26427의 잔액이 부족합니다",
+    "type": "account",
+    "start": 6,
+    "end": 23,
+    "label": 1,
+    "group_id": "account_true_12"
+  },
+  {
+    "text": "지급 계좌 정보가 416-59-5497-44887로 확인되었습니다",
+    "type": "account",
+    "start": 10,
+    "end": 27,
+    "label": 1,
+    "group_id": "account_true_13"
+  },
+  {
+    "text": "지급 계좌 정보가 104-927-060284로 확인되었습니다",
+    "type": "account",
+    "start": 10,
+    "end": 24,
+    "label": 1,
+    "group_id": "account_true_13"
+  },
+  {
+    "text": "후원금은 797-1905-891908(농협)로 보내주시면 됩니다",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 1,
+    "group_id": "account_true_14"
+  },
+  {
+    "text": "후원금은 264-743822-70240(농협)로 보내주시면 됩니다",
+    "type": "account",
+    "start": 5,
+    "end": 21,
+    "label": 1,
+    "group_id": "account_true_14"
+  },
+  {
+    "text": "기존 입금계좌 2687-769-127479는 폐업으로 사용이 중지되었습니다",
+    "type": "account",
+    "start": 8,
+    "end": 23,
+    "label": 1,
+    "group_id": "account_true_15"
+  },
+  {
+    "text": "기존 입금계좌 7706-3457-47991는 폐업으로 사용이 중지되었습니다",
+    "type": "account",
+    "start": 8,
+    "end": 23,
+    "label": 1,
+    "group_id": "account_true_15"
+  },
+  {
+    "text": "주문번호 328-748-739598 배송 조회 부탁드립니다",
+    "type": "account",
+    "start": 5,
+    "end": 19,
+    "label": 0,
+    "group_id": "account_false_01",
+    "note": "주문번호"
+  },
+  {
+    "text": "주문번호 7901-143-998121 배송 조회 부탁드립니다",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 0,
+    "group_id": "account_false_01",
+    "note": "주문번호"
+  },
+  {
+    "text": "송장번호 2787-9264-67418로 택배 추적이 가능합니다",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 0,
+    "group_id": "account_false_02",
+    "note": "송장번호"
+  },
+  {
+    "text": "송장번호 7275-9934-61067로 택배 추적이 가능합니다",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 0,
+    "group_id": "account_false_02",
+    "note": "송장번호"
+  },
+  {
+    "text": "계약 관리번호 745-448-463599 문서를 첨부합니다",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_03",
+    "note": "문서 관리번호"
+  },
+  {
+    "text": "계약 관리번호 856-093371-21179 문서를 첨부합니다",
+    "type": "account",
+    "start": 8,
+    "end": 24,
+    "label": 0,
+    "group_id": "account_false_03",
+    "note": "문서 관리번호"
+  },
+  {
+    "text": "상담 접수번호 5848-4116-62778로 진행 상황을 확인하세요",
+    "type": "account",
+    "start": 8,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_04",
+    "note": "접수번호"
+  },
+  {
+    "text": "상담 접수번호 690-997-410736로 진행 상황을 확인하세요",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_04",
+    "note": "접수번호"
+  },
+  {
+    "text": "재고 관리 코드 607-025250-66174 품목은 단종되었습니다",
+    "type": "account",
+    "start": 9,
+    "end": 25,
+    "label": 0,
+    "group_id": "account_false_05",
+    "note": "재고 코드"
+  },
+  {
+    "text": "재고 관리 코드 567-542-805653 품목은 단종되었습니다",
+    "type": "account",
+    "start": 9,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_05",
+    "note": "재고 코드"
+  },
+  {
+    "text": "회의실 예약번호 370-9175-129138 확인 부탁드립니다",
+    "type": "account",
+    "start": 9,
+    "end": 24,
+    "label": 0,
+    "group_id": "account_false_06",
+    "note": "예약번호"
+  },
+  {
+    "text": "회의실 예약번호 9696-8287-33575 확인 부탁드립니다",
+    "type": "account",
+    "start": 9,
+    "end": 24,
+    "label": 0,
+    "group_id": "account_false_06",
+    "note": "예약번호"
+  },
+  {
+    "text": "청구서 번호 515-164819-47799 기준으로 재발행했습니다",
+    "type": "account",
+    "start": 7,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_07",
+    "note": "청구서 번호"
+  },
+  {
+    "text": "청구서 번호 5560-374-949501 기준으로 재발행했습니다",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_07",
+    "note": "청구서 번호"
+  },
+  {
+    "text": "견적서 9912-072-465750 유효기간은 발행일로부터 보름입니다",
+    "type": "account",
+    "start": 4,
+    "end": 19,
+    "label": 0,
+    "group_id": "account_false_08",
+    "note": "견적서 번호"
+  },
+  {
+    "text": "견적서 2271-5557-37123 유효기간은 발행일로부터 보름입니다",
+    "type": "account",
+    "start": 4,
+    "end": 19,
+    "label": 0,
+    "group_id": "account_false_08",
+    "note": "견적서 번호"
+  },
+  {
+    "text": "등기번호 422-321-567439로 우편물 조회가 가능합니다",
+    "type": "account",
+    "start": 5,
+    "end": 19,
+    "label": 0,
+    "group_id": "account_false_09",
+    "note": "등기번호"
+  },
+  {
+    "text": "등기번호 165-61-0548-07688로 우편물 조회가 가능합니다",
+    "type": "account",
+    "start": 5,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_09",
+    "note": "등기번호"
+  },
+  {
+    "text": "작업지시서 155-56-2405-10060 공정이 완료되었습니다",
+    "type": "account",
+    "start": 6,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_10",
+    "note": "작업지시번호"
+  },
+  {
+    "text": "작업지시서 2728-0916-80591 공정이 완료되었습니다",
+    "type": "account",
+    "start": 6,
+    "end": 21,
+    "label": 0,
+    "group_id": "account_false_10",
+    "note": "작업지시번호"
+  },
+  {
+    "text": "차량 배차번호 2861-2989-35767 기사님께 전달했습니다",
+    "type": "account",
+    "start": 8,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_11",
+    "note": "배차번호"
+  },
+  {
+    "text": "차량 배차번호 680-7889-728262 기사님께 전달했습니다",
+    "type": "account",
+    "start": 8,
+    "end": 23,
+    "label": 0,
+    "group_id": "account_false_11",
+    "note": "배차번호"
+  },
+  {
+    "text": "바코드 107-269-649685 스캔 오류가 발생했습니다",
+    "type": "account",
+    "start": 4,
+    "end": 18,
+    "label": 0,
+    "group_id": "account_false_12",
+    "note": "바코드"
+  },
+  {
+    "text": "바코드 4695-3244-41125 스캔 오류가 발생했습니다",
+    "type": "account",
+    "start": 4,
+    "end": 19,
+    "label": 0,
+    "group_id": "account_false_12",
+    "note": "바코드"
+  },
+  {
+    "text": "A/S 접수번호는 303-55-7228-17490이며 방문은 사흘 내 예정입니다",
+    "type": "account",
+    "start": 10,
+    "end": 27,
+    "label": 0,
+    "group_id": "account_false_13",
+    "note": "A/S 접수번호"
+  },
+  {
+    "text": "A/S 접수번호는 974-237087-73582이며 방문은 사흘 내 예정입니다",
+    "type": "account",
+    "start": 10,
+    "end": 26,
+    "label": 0,
+    "group_id": "account_false_13",
+    "note": "A/S 접수번호"
+  },
+  {
+    "text": "정기점검 이력번호 5075-311-860324 조회 결과입니다",
+    "type": "account",
+    "start": 10,
+    "end": 25,
+    "label": 0,
+    "group_id": "account_false_14",
+    "note": "이력번호"
+  },
+  {
+    "text": "정기점검 이력번호 521-970145-02360 조회 결과입니다",
+    "type": "account",
+    "start": 10,
+    "end": 26,
+    "label": 0,
+    "group_id": "account_false_14",
+    "note": "이력번호"
+  },
+  {
+    "text": "입찰 공고번호 901-382-855372 마감이 연장되었습니다",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_15",
+    "note": "공고번호"
+  },
+  {
+    "text": "입찰 공고번호 645-743-113620 마감이 연장되었습니다",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_15",
+    "note": "공고번호"
+  },
+  {
+    "text": "사업자등록번호 570-74-39489로 세금계산서 발행 부탁드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 1,
+    "group_id": "biz_reg_true_01"
+  },
+  {
+    "text": "사업자등록번호 779-78-61247로 세금계산서 발행 부탁드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 1,
+    "group_id": "biz_reg_true_01"
+  },
+  {
+    "text": "당사 사업자등록번호는 264-56-00071입니다",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 1,
+    "group_id": "biz_reg_true_02"
+  },
+  {
+    "text": "당사 사업자등록번호는 352-97-42158입니다",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 1,
+    "group_id": "biz_reg_true_02"
+  },
+  {
+    "text": "거래처 등록을 위해 사업자등록번호 482-28-36683를 제출합니다",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "biz_reg_true_03"
+  },
+  {
+    "text": "거래처 등록을 위해 사업자등록번호 667-00-50185를 제출합니다",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "biz_reg_true_03"
+  },
+  {
+    "text": "세금계산서에 기재된 사업자번호 784-21-23163가 맞는지 확인해 주세요",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_04"
+  },
+  {
+    "text": "세금계산서에 기재된 사업자번호 114-00-72900가 맞는지 확인해 주세요",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_04"
+  },
+  {
+    "text": "폐업 조회 결과 사업자등록번호 575-40-74303는 정상 사업자입니다",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_05"
+  },
+  {
+    "text": "폐업 조회 결과 사업자등록번호 762-65-03536는 정상 사업자입니다",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_05"
+  },
+  {
+    "text": "부가세 신고 시 사업자등록번호 325-38-53734를 입력하세요",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_06"
+  },
+  {
+    "text": "부가세 신고 시 사업자등록번호 777-48-18903를 입력하세요",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_06"
+  },
+  {
+    "text": "466-51-82688 사업자로 등록된 상호가 변경되었습니다",
+    "type": "biz_reg",
+    "start": 0,
+    "end": 12,
+    "label": 1,
+    "group_id": "biz_reg_true_07"
+  },
+  {
+    "text": "102-14-42225 사업자로 등록된 상호가 변경되었습니다",
+    "type": "biz_reg",
+    "start": 0,
+    "end": 12,
+    "label": 1,
+    "group_id": "biz_reg_true_07"
+  },
+  {
+    "text": "계산서 발행처 사업자번호: 518-20-04728",
+    "type": "biz_reg",
+    "start": 15,
+    "end": 27,
+    "label": 1,
+    "group_id": "biz_reg_true_08"
+  },
+  {
+    "text": "계산서 발행처 사업자번호: 855-16-70232",
+    "type": "biz_reg",
+    "start": 15,
+    "end": 27,
+    "label": 1,
+    "group_id": "biz_reg_true_08"
+  },
+  {
+    "text": "홈택스에서 708-22-16966 사업자 상태를 조회했습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_09"
+  },
+  {
+    "text": "홈택스에서 946-33-91511 사업자 상태를 조회했습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_09"
+  },
+  {
+    "text": "면세사업자 949-31-07508는 계산서만 발행 가능합니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_10"
+  },
+  {
+    "text": "면세사업자 849-57-56354는 계산서만 발행 가능합니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_10"
+  },
+  {
+    "text": "사업자등록증 사본과 함께 355-28-62797 확인 부탁드립니다",
+    "type": "biz_reg",
+    "start": 14,
+    "end": 26,
+    "label": 1,
+    "group_id": "biz_reg_true_11"
+  },
+  {
+    "text": "사업자등록증 사본과 함께 254-14-68434 확인 부탁드립니다",
+    "type": "biz_reg",
+    "start": 14,
+    "end": 26,
+    "label": 1,
+    "group_id": "biz_reg_true_11"
+  },
+  {
+    "text": "본 계약의 갑은 사업자등록번호 724-01-35112의 법인입니다",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_12"
+  },
+  {
+    "text": "본 계약의 갑은 사업자등록번호 443-97-43206의 법인입니다",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "biz_reg_true_12"
+  },
+  {
+    "text": "간이과세자 414-71-47669로 등록 변경을 신청했습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_13"
+  },
+  {
+    "text": "간이과세자 770-07-65756로 등록 변경을 신청했습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 1,
+    "group_id": "biz_reg_true_13"
+  },
+  {
+    "text": "공급자 등록번호 514-25-76564 오기재로 계산서를 수정합니다",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 1,
+    "group_id": "biz_reg_true_14"
+  },
+  {
+    "text": "공급자 등록번호 584-10-07039 오기재로 계산서를 수정합니다",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 1,
+    "group_id": "biz_reg_true_14"
+  },
+  {
+    "text": "입점 심사에 필요한 사업자번호는 756-17-48314입니다",
+    "type": "biz_reg",
+    "start": 18,
+    "end": 30,
+    "label": 1,
+    "group_id": "biz_reg_true_15"
+  },
+  {
+    "text": "입점 심사에 필요한 사업자번호는 335-54-63734입니다",
+    "type": "biz_reg",
+    "start": 18,
+    "end": 30,
+    "label": 1,
+    "group_id": "biz_reg_true_15"
+  },
+  {
+    "text": "발주서 번호 148-30-28229 기준으로 처리하겠습니다",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_01",
+    "note": "발주번호"
+  },
+  {
+    "text": "발주서 번호 928-99-63221 기준으로 처리하겠습니다",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_01",
+    "note": "발주번호"
+  },
+  {
+    "text": "자산 관리번호 615-74-76434 장비는 폐기 예정입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_02",
+    "note": "자산번호"
+  },
+  {
+    "text": "자산 관리번호 301-27-70293 장비는 폐기 예정입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_02",
+    "note": "자산번호"
+  },
+  {
+    "text": "민원 접수번호 379-87-17581 처리 결과를 안내드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_03",
+    "note": "접수번호"
+  },
+  {
+    "text": "민원 접수번호 756-17-08383 처리 결과를 안내드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_03",
+    "note": "접수번호"
+  },
+  {
+    "text": "쿠폰 코드 745-33-03637는 이번 달까지 사용 가능합니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 0,
+    "group_id": "biz_reg_false_04",
+    "note": "쿠폰코드"
+  },
+  {
+    "text": "쿠폰 코드 816-90-46886는 이번 달까지 사용 가능합니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 0,
+    "group_id": "biz_reg_false_04",
+    "note": "쿠폰코드"
+  },
+  {
+    "text": "설비 일련번호 606-34-43044 점검이 완료되었습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_05",
+    "note": "일련번호"
+  },
+  {
+    "text": "설비 일련번호 571-24-09474 점검이 완료되었습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_05",
+    "note": "일련번호"
+  },
+  {
+    "text": "교육 수강번호 584-24-97329로 출석이 등록되었습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_06",
+    "note": "수강번호"
+  },
+  {
+    "text": "교육 수강번호 954-18-83907로 출석이 등록되었습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_06",
+    "note": "수강번호"
+  },
+  {
+    "text": "도서 관리번호 857-15-30302 현재 대출 중입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_07",
+    "note": "도서 관리번호"
+  },
+  {
+    "text": "도서 관리번호 956-10-81516 현재 대출 중입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_07",
+    "note": "도서 관리번호"
+  },
+  {
+    "text": "품목 코드 982-02-59906 단가가 인상되었습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 0,
+    "group_id": "biz_reg_false_08",
+    "note": "품목 코드"
+  },
+  {
+    "text": "품목 코드 747-37-57364 단가가 인상되었습니다",
+    "type": "biz_reg",
+    "start": 6,
+    "end": 18,
+    "label": 0,
+    "group_id": "biz_reg_false_08",
+    "note": "품목 코드"
+  },
+  {
+    "text": "보증서 번호 365-66-95147를 분실했습니다",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_09",
+    "note": "보증서 번호"
+  },
+  {
+    "text": "보증서 번호 586-40-10901를 분실했습니다",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_09",
+    "note": "보증서 번호"
+  },
+  {
+    "text": "전표번호 139-43-97213 승인 대기 상태입니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_10",
+    "note": "전표번호"
+  },
+  {
+    "text": "전표번호 453-99-96422 승인 대기 상태입니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_10",
+    "note": "전표번호"
+  },
+  {
+    "text": "공사 현장코드 716-17-42933 안전점검 일정입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_11",
+    "note": "현장코드"
+  },
+  {
+    "text": "공사 현장코드 105-16-43829 안전점검 일정입니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_11",
+    "note": "현장코드"
+  },
+  {
+    "text": "배송 예약번호 163-51-78612로 변경 가능합니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_12",
+    "note": "예약번호"
+  },
+  {
+    "text": "배송 예약번호 741-35-81182로 변경 가능합니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_12",
+    "note": "예약번호"
+  },
+  {
+    "text": "설문 응답번호 497-61-20268 데이터를 집계했습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_13",
+    "note": "응답번호"
+  },
+  {
+    "text": "설문 응답번호 937-70-70894 데이터를 집계했습니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_13",
+    "note": "응답번호"
+  },
+  {
+    "text": "증빙자료 일련번호 472-30-20440 첨부합니다",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "biz_reg_false_14",
+    "note": "일련번호"
+  },
+  {
+    "text": "증빙자료 일련번호 448-06-64284 첨부합니다",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "biz_reg_false_14",
+    "note": "일련번호"
+  },
+  {
+    "text": "정기구독 번호 441-44-47175 갱신 안내드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_15",
+    "note": "구독번호"
+  },
+  {
+    "text": "정기구독 번호 672-87-45138 갱신 안내드립니다",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_15",
+    "note": "구독번호"
+  },
+  {
+    "text": "사번 427-19-06685 직원의 재직증명서를 발급했습니다",
+    "type": "biz_reg",
+    "start": 3,
+    "end": 15,
+    "label": 0,
+    "group_id": "biz_reg_false_16",
+    "note": "사번"
+  },
+  {
+    "text": "사번 569-47-33650 직원의 재직증명서를 발급했습니다",
+    "type": "biz_reg",
+    "start": 3,
+    "end": 15,
+    "label": 0,
+    "group_id": "biz_reg_false_16",
+    "note": "사번"
+  },
+  {
+    "text": "직원번호 339-55-96893로 사내 시스템에 접속했습니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_17",
+    "note": "사번"
+  },
+  {
+    "text": "직원번호 497-88-34584로 사내 시스템에 접속했습니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_17",
+    "note": "사번"
+  },
+  {
+    "text": "사원번호 729-66-65930 부서 이동 내역입니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_18",
+    "note": "사번"
+  },
+  {
+    "text": "사원번호 735-20-35511 부서 이동 내역입니다",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_18",
+    "note": "사번"
+  },
+  {
+    "text": "퇴직 처리된 사번 461-70-66874를 명단에서 제외했습니다",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "biz_reg_false_19",
+    "note": "사번"
+  },
+  {
+    "text": "퇴직 처리된 사번 639-44-90186를 명단에서 제외했습니다",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "biz_reg_false_19",
+    "note": "사번"
+  },
+  {
+    "text": "사번 283-94-97225 님의 교육 이수 현황입니다",
+    "type": "biz_reg",
+    "start": 3,
+    "end": 15,
+    "label": 0,
+    "group_id": "biz_reg_false_20",
+    "note": "사번"
+  },
+  {
+    "text": "사번 807-89-71798 님의 교육 이수 현황입니다",
+    "type": "biz_reg",
+    "start": 3,
+    "end": 15,
+    "label": 0,
+    "group_id": "biz_reg_false_20",
+    "note": "사번"
+  },
+  {
+    "text": "사번 R6080 직원의 근태 기록입니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 1,
+    "group_id": "emp_no_true_01"
+  },
+  {
+    "text": "사번 A9428 직원의 근태 기록입니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 1,
+    "group_id": "emp_no_true_01"
+  },
+  {
+    "text": "입사 시 부여된 사번 37-73163로 로그인하세요",
+    "type": "emp_no",
+    "start": 12,
+    "end": 20,
+    "label": 1,
+    "group_id": "emp_no_true_02"
+  },
+  {
+    "text": "입사 시 부여된 사번 2021-8506로 로그인하세요",
+    "type": "emp_no",
+    "start": 12,
+    "end": 21,
+    "label": 1,
+    "group_id": "emp_no_true_02"
+  },
+  {
+    "text": "인사 시스템에 사번 EMP-72934가 등록되어 있습니다",
+    "type": "emp_no",
+    "start": 11,
+    "end": 20,
+    "label": 1,
+    "group_id": "emp_no_true_03"
+  },
+  {
+    "text": "인사 시스템에 사번 66-06422가 등록되어 있습니다",
+    "type": "emp_no",
+    "start": 11,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_03"
+  },
+  {
+    "text": "사번 EMP-06049 직원의 연차 잔여일수를 확인합니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 1,
+    "group_id": "emp_no_true_04"
+  },
+  {
+    "text": "사번 65-75727 직원의 연차 잔여일수를 확인합니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 11,
+    "label": 1,
+    "group_id": "emp_no_true_04"
+  },
+  {
+    "text": "퇴사 처리된 사번 50-91572 계정을 비활성화합니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 18,
+    "label": 1,
+    "group_id": "emp_no_true_05"
+  },
+  {
+    "text": "퇴사 처리된 사번 2026-2216 계정을 비활성화합니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_05"
+  },
+  {
+    "text": "급여명세서는 사번 K6371 기준으로 발급됩니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 15,
+    "label": 1,
+    "group_id": "emp_no_true_06"
+  },
+  {
+    "text": "급여명세서는 사번 EMP-03250 기준으로 발급됩니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_06"
+  },
+  {
+    "text": "사원번호 2021-9102 직원의 부서 이동을 승인합니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 1,
+    "group_id": "emp_no_true_07"
+  },
+  {
+    "text": "사원번호 2016-1033 직원의 부서 이동을 승인합니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 1,
+    "group_id": "emp_no_true_07"
+  },
+  {
+    "text": "교육 이수 현황 — 사번 B7102 미이수",
+    "type": "emp_no",
+    "start": 14,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_08"
+  },
+  {
+    "text": "교육 이수 현황 — 사번 K8929 미이수",
+    "type": "emp_no",
+    "start": 14,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_08"
+  },
+  {
+    "text": "출입카드 재발급 대상 사번은 2018-3426입니다",
+    "type": "emp_no",
+    "start": 16,
+    "end": 25,
+    "label": 1,
+    "group_id": "emp_no_true_09"
+  },
+  {
+    "text": "출입카드 재발급 대상 사번은 2016-3495입니다",
+    "type": "emp_no",
+    "start": 16,
+    "end": 25,
+    "label": 1,
+    "group_id": "emp_no_true_09"
+  },
+  {
+    "text": "사번 10-81380로 사내 시스템 권한을 신청했습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 11,
+    "label": 1,
+    "group_id": "emp_no_true_10"
+  },
+  {
+    "text": "사번 61-98589로 사내 시스템 권한을 신청했습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 11,
+    "label": 1,
+    "group_id": "emp_no_true_10"
+  },
+  {
+    "text": "평가 대상자 사번 EMP-66986의 면담 일정입니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 19,
+    "label": 1,
+    "group_id": "emp_no_true_11"
+  },
+  {
+    "text": "평가 대상자 사번 T3722의 면담 일정입니다",
+    "type": "emp_no",
+    "start": 10,
+    "end": 15,
+    "label": 1,
+    "group_id": "emp_no_true_11"
+  },
+  {
+    "text": "직원번호 2020-7790 경력 증명서를 발급했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 1,
+    "group_id": "emp_no_true_12"
+  },
+  {
+    "text": "직원번호 2015-3865 경력 증명서를 발급했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 1,
+    "group_id": "emp_no_true_12"
+  },
+  {
+    "text": "사번 EMP-34581 계정의 비밀번호가 초기화되었습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 1,
+    "group_id": "emp_no_true_13"
+  },
+  {
+    "text": "사번 F3853 계정의 비밀번호가 초기화되었습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 1,
+    "group_id": "emp_no_true_13"
+  },
+  {
+    "text": "신규 입사자에게 사번 76-33404를 부여했습니다",
+    "type": "emp_no",
+    "start": 12,
+    "end": 20,
+    "label": 1,
+    "group_id": "emp_no_true_14"
+  },
+  {
+    "text": "신규 입사자에게 사번 T7839를 부여했습니다",
+    "type": "emp_no",
+    "start": 12,
+    "end": 17,
+    "label": 1,
+    "group_id": "emp_no_true_14"
+  },
+  {
+    "text": "사번 E1679 님의 건강검진 예약이 완료되었습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 1,
+    "group_id": "emp_no_true_15"
+  },
+  {
+    "text": "사번 97-83140 님의 건강검진 예약이 완료되었습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 11,
+    "label": 1,
+    "group_id": "emp_no_true_15"
+  },
+  {
+    "text": "사번 E1514 형식으로 자동 부여됩니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 0,
+    "group_id": "emp_no_false_01",
+    "note": "사번 형식 설명"
+  },
+  {
+    "text": "사번 EMP-68311 형식으로 자동 부여됩니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 0,
+    "group_id": "emp_no_false_01",
+    "note": "사번 형식 설명"
+  },
+  {
+    "text": "직원번호 91-80919 형태는 2020년부터 쓰지 않습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 13,
+    "label": 0,
+    "group_id": "emp_no_false_02",
+    "note": "폐기된 형식"
+  },
+  {
+    "text": "직원번호 2021-9509 형태는 2020년부터 쓰지 않습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_02",
+    "note": "폐기된 형식"
+  },
+  {
+    "text": "사원번호 2016-2496 규칙을 이번에 개정했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_03",
+    "note": "부여 규칙"
+  },
+  {
+    "text": "사원번호 EMP-57657 규칙을 이번에 개정했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_03",
+    "note": "부여 규칙"
+  },
+  {
+    "text": "사번 S8905 이후 입사자부터 새 체계를 적용합니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 0,
+    "group_id": "emp_no_false_04",
+    "note": "기준점"
+  },
+  {
+    "text": "사번 T1125 이후 입사자부터 새 체계를 적용합니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 0,
+    "group_id": "emp_no_false_04",
+    "note": "기준점"
+  },
+  {
+    "text": "직원번호 2025-9892 예시를 참고해 작성해 주세요",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_05",
+    "note": "작성 예시"
+  },
+  {
+    "text": "직원번호 EMP-06351 예시를 참고해 작성해 주세요",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_05",
+    "note": "작성 예시"
+  },
+  {
+    "text": "사번 D9662 는 샘플이며 실제 직원이 아닙니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 8,
+    "label": 0,
+    "group_id": "emp_no_false_06",
+    "note": "샘플값"
+  },
+  {
+    "text": "사번 EMP-88090 는 샘플이며 실제 직원이 아닙니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 0,
+    "group_id": "emp_no_false_06",
+    "note": "샘플값"
+  },
+  {
+    "text": "사원번호 2018-5792 대역은 아직 사용하지 않습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_07",
+    "note": "미사용 번호대역"
+  },
+  {
+    "text": "사원번호 2015-8632 대역은 아직 사용하지 않습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_07",
+    "note": "미사용 번호대역"
+  },
+  {
+    "text": "사번 37-87146 번대는 퇴사자에게 재사용하지 않습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 11,
+    "label": 0,
+    "group_id": "emp_no_false_08",
+    "note": "번호대역 정책"
+  },
+  {
+    "text": "사번 2022-7990 번대는 퇴사자에게 재사용하지 않습니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 0,
+    "group_id": "emp_no_false_08",
+    "note": "번호대역 정책"
+  },
+  {
+    "text": "직원번호 A1599 컬럼은 테스트 값으로 채워져 있습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 10,
+    "label": 0,
+    "group_id": "emp_no_false_09",
+    "note": "테스트 데이터"
+  },
+  {
+    "text": "직원번호 T7389 컬럼은 테스트 값으로 채워져 있습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 10,
+    "label": 0,
+    "group_id": "emp_no_false_09",
+    "note": "테스트 데이터"
+  },
+  {
+    "text": "사번 2015-5898 마스킹 처리 예시 화면입니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 0,
+    "group_id": "emp_no_false_10",
+    "note": "마스킹 예시"
+  },
+  {
+    "text": "사번 2019-3061 마스킹 처리 예시 화면입니다",
+    "type": "emp_no",
+    "start": 3,
+    "end": 12,
+    "label": 0,
+    "group_id": "emp_no_false_10",
+    "note": "마스킹 예시"
+  },
+  {
+    "text": "사원번호 2025-2714 템플릿을 내려받아 작성하세요",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_11",
+    "note": "양식 템플릿"
+  },
+  {
+    "text": "사원번호 EMP-32302 템플릿을 내려받아 작성하세요",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_11",
+    "note": "양식 템플릿"
+  },
+  {
+    "text": "직원번호 EMP-36995 더미값으로 이관 테스트를 진행했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 14,
+    "label": 0,
+    "group_id": "emp_no_false_12",
+    "note": "더미값"
+  },
+  {
+    "text": "직원번호 D2480 더미값으로 이관 테스트를 진행했습니다",
+    "type": "emp_no",
+    "start": 5,
+    "end": 10,
+    "label": 0,
+    "group_id": "emp_no_false_12",
+    "note": "더미값"
+  },
+  {
+    "text": "담당자 직통번호는 017-8082-6691입니다",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "group_id": "phone_true_01"
+  },
+  {
+    "text": "담당자 직통번호는 010-3149-2892입니다",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "group_id": "phone_true_01"
+  },
+  {
+    "text": "재택근무 중이라 자택 전화 010-9679-2597로 연락 부탁드립니다",
+    "type": "phone",
+    "start": 15,
+    "end": 28,
+    "label": 1,
+    "group_id": "phone_true_02"
+  },
+  {
+    "text": "재택근무 중이라 자택 전화 02-4650-4370로 연락 부탁드립니다",
+    "type": "phone",
+    "start": 15,
+    "end": 27,
+    "label": 1,
+    "group_id": "phone_true_02"
+  },
+  {
+    "text": "휴대폰 번호 010-7006-6539로 인증번호를 발송했습니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_03"
+  },
+  {
+    "text": "휴대폰 번호 018-3201-9254로 인증번호를 발송했습니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_03"
+  },
+  {
+    "text": "긴급 시 담당자 개인 번호 016-2290-3636로 전화 부탁드립니다",
+    "type": "phone",
+    "start": 15,
+    "end": 28,
+    "label": 1,
+    "group_id": "phone_true_04"
+  },
+  {
+    "text": "긴급 시 담당자 개인 번호 018-4427-1627로 전화 부탁드립니다",
+    "type": "phone",
+    "start": 15,
+    "end": 28,
+    "label": 1,
+    "group_id": "phone_true_04"
+  },
+  {
+    "text": "배송 기사 연락처 011-4111-9239 안내드립니다",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "group_id": "phone_true_05"
+  },
+  {
+    "text": "배송 기사 연락처 010-5283-9372 안내드립니다",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "group_id": "phone_true_05"
+  },
+  {
+    "text": "예약 확인을 위해 고객님 번호 010-1273-7044로 연락드리겠습니다",
+    "type": "phone",
+    "start": 17,
+    "end": 30,
+    "label": 1,
+    "group_id": "phone_true_06"
+  },
+  {
+    "text": "예약 확인을 위해 고객님 번호 063-824-1139로 연락드리겠습니다",
+    "type": "phone",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "phone_true_06"
+  },
+  {
+    "text": "018-1517-7287로 부재중 전화가 왔습니다",
+    "type": "phone",
+    "start": 0,
+    "end": 13,
+    "label": 1,
+    "group_id": "phone_true_07"
+  },
+  {
+    "text": "011-5001-8637로 부재중 전화가 왔습니다",
+    "type": "phone",
+    "start": 0,
+    "end": 13,
+    "label": 1,
+    "group_id": "phone_true_07"
+  },
+  {
+    "text": "비상연락망에 본인 연락처 010-2088-7632를 등록했습니다",
+    "type": "phone",
+    "start": 14,
+    "end": 27,
+    "label": 1,
+    "group_id": "phone_true_08"
+  },
+  {
+    "text": "비상연락망에 본인 연락처 052-233-7568를 등록했습니다",
+    "type": "phone",
+    "start": 14,
+    "end": 26,
+    "label": 1,
+    "group_id": "phone_true_08"
+  },
+  {
+    "text": "수신자 번호 010-2351-1317가 결번입니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_09"
+  },
+  {
+    "text": "수신자 번호 017-6449-2604가 결번입니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_09"
+  },
+  {
+    "text": "본인 명의 휴대전화 017-2779-4353로 본인확인을 진행합니다",
+    "type": "phone",
+    "start": 11,
+    "end": 24,
+    "label": 1,
+    "group_id": "phone_true_10"
+  },
+  {
+    "text": "본인 명의 휴대전화 018-6023-3567로 본인확인을 진행합니다",
+    "type": "phone",
+    "start": 11,
+    "end": 24,
+    "label": 1,
+    "group_id": "phone_true_10"
+  },
+  {
+    "text": "가입 시 입력하신 번호 010-9271-9134가 맞습니까",
+    "type": "phone",
+    "start": 13,
+    "end": 26,
+    "label": 1,
+    "group_id": "phone_true_11"
+  },
+  {
+    "text": "가입 시 입력하신 번호 019-5544-7765가 맞습니까",
+    "type": "phone",
+    "start": 13,
+    "end": 26,
+    "label": 1,
+    "group_id": "phone_true_11"
+  },
+  {
+    "text": "택배 수령인 연락처: 011-7198-3844",
+    "type": "phone",
+    "start": 12,
+    "end": 25,
+    "label": 1,
+    "group_id": "phone_true_12"
+  },
+  {
+    "text": "택배 수령인 연락처: 011-6236-1369",
+    "type": "phone",
+    "start": 12,
+    "end": 25,
+    "label": 1,
+    "group_id": "phone_true_12"
+  },
+  {
+    "text": "면접 안내는 018-6262-7802로 문자 발송됩니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_13"
+  },
+  {
+    "text": "면접 안내는 018-5344-5428로 문자 발송됩니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_13"
+  },
+  {
+    "text": "010-2956-7209 번호로 알림톡이 전송되었습니다",
+    "type": "phone",
+    "start": 0,
+    "end": 13,
+    "label": 1,
+    "group_id": "phone_true_14"
+  },
+  {
+    "text": "018-9538-5798 번호로 알림톡이 전송되었습니다",
+    "type": "phone",
+    "start": 0,
+    "end": 13,
+    "label": 1,
+    "group_id": "phone_true_14"
+  },
+  {
+    "text": "보호자 연락처 011-1716-2466를 기재해 주세요",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 1,
+    "group_id": "phone_true_15"
+  },
+  {
+    "text": "보호자 연락처 032-784-8629를 기재해 주세요",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_15"
+  },
+  {
+    "text": "퇴사 후에도 017-4076-8271로 연락 주셔도 괜찮습니다",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "group_id": "phone_true_16"
+  },
+  {
+    "text": "퇴사 후에도 041-859-8638로 연락 주셔도 괜찮습니다",
+    "type": "phone",
+    "start": 7,
+    "end": 19,
+    "label": 1,
+    "group_id": "phone_true_16"
+  },
+  {
+    "text": "제 명의로 되어 있는 번호는 0505-590-9792입니다",
+    "type": "phone",
+    "start": 16,
+    "end": 29,
+    "label": 1,
+    "group_id": "phone_true_17"
+  },
+  {
+    "text": "제 명의로 되어 있는 번호는 052-630-6402입니다",
+    "type": "phone",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "group_id": "phone_true_17"
+  },
+  {
+    "text": "02-601-7444는 제가 십 년 넘게 쓰고 있는 번호입니다",
+    "type": "phone",
+    "start": 0,
+    "end": 11,
+    "label": 1,
+    "group_id": "phone_true_18"
+  },
+  {
+    "text": "043-908-6927는 제가 십 년 넘게 쓰고 있는 번호입니다",
+    "type": "phone",
+    "start": 0,
+    "end": 12,
+    "label": 1,
+    "group_id": "phone_true_18"
+  },
+  {
+    "text": "이사하면서 번호가 010-9634-7775로 바뀌었습니다",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "group_id": "phone_true_19"
+  },
+  {
+    "text": "이사하면서 번호가 062-306-2990로 바뀌었습니다",
+    "type": "phone",
+    "start": 10,
+    "end": 22,
+    "label": 1,
+    "group_id": "phone_true_19"
+  },
+  {
+    "text": "양식의 연락처란에는 0505-446-6988 형태로 입력하세요",
+    "type": "phone",
+    "start": 11,
+    "end": 24,
+    "label": 0,
+    "group_id": "phone_false_01",
+    "note": "입력 서식 예시"
+  },
+  {
+    "text": "양식의 연락처란에는 011-8747-1454 형태로 입력하세요",
+    "type": "phone",
+    "start": 11,
+    "end": 24,
+    "label": 0,
+    "group_id": "phone_false_01",
+    "note": "입력 서식 예시"
+  },
+  {
+    "text": "아래 070-168-1809는 예시 번호이며 실제 번호가 아닙니다",
+    "type": "phone",
+    "start": 3,
+    "end": 15,
+    "label": 0,
+    "group_id": "phone_false_02",
+    "note": "문서 내 예시"
+  },
+  {
+    "text": "아래 010-7515-5728는 예시 번호이며 실제 번호가 아닙니다",
+    "type": "phone",
+    "start": 3,
+    "end": 16,
+    "label": 0,
+    "group_id": "phone_false_02",
+    "note": "문서 내 예시"
+  },
+  {
+    "text": "테스트 계정의 더미 번호 042-560-3388는 발송 대상에서 제외됩니다",
+    "type": "phone",
+    "start": 14,
+    "end": 26,
+    "label": 0,
+    "group_id": "phone_false_03",
+    "note": "테스트 더미값"
+  },
+  {
+    "text": "테스트 계정의 더미 번호 010-4315-9966는 발송 대상에서 제외됩니다",
+    "type": "phone",
+    "start": 14,
+    "end": 27,
+    "label": 0,
+    "group_id": "phone_false_03",
+    "note": "테스트 더미값"
+  },
+  {
+    "text": "매뉴얼 캡처에 쓰인 010-2107-4599는 가상의 번호입니다",
+    "type": "phone",
+    "start": 11,
+    "end": 24,
+    "label": 0,
+    "group_id": "phone_false_04",
+    "note": "매뉴얼 예시"
+  },
+  {
+    "text": "매뉴얼 캡처에 쓰인 02-9104-8741는 가상의 번호입니다",
+    "type": "phone",
+    "start": 11,
+    "end": 23,
+    "label": 0,
+    "group_id": "phone_false_04",
+    "note": "매뉴얼 예시"
+  },
+  {
+    "text": "고객센터 032-136-3814로 문의해 주시기 바랍니다",
+    "type": "phone",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "phone_false_05",
+    "note": "회사 고객센터"
+  },
+  {
+    "text": "고객센터 061-763-1471로 문의해 주시기 바랍니다",
+    "type": "phone",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "phone_false_05",
+    "note": "회사 고객센터"
+  },
+  {
+    "text": "본사 대표번호는 031-816-7402입니다",
+    "type": "phone",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "phone_false_06",
+    "note": "회사 대표번호"
+  },
+  {
+    "text": "본사 대표번호는 0505-346-9937입니다",
+    "type": "phone",
+    "start": 9,
+    "end": 22,
+    "label": 0,
+    "group_id": "phone_false_06",
+    "note": "회사 대표번호"
+  },
+  {
+    "text": "기술지원 직통 051-464-6180 (평일 09시~18시)",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_07",
+    "note": "부서 직통번호"
+  },
+  {
+    "text": "기술지원 직통 02-156-2827 (평일 09시~18시)",
+    "type": "phone",
+    "start": 8,
+    "end": 19,
+    "label": 0,
+    "group_id": "phone_false_07",
+    "note": "부서 직통번호"
+  },
+  {
+    "text": "A/S 접수는 061-879-6816로 전화 주세요",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_08",
+    "note": "회사 접수번호"
+  },
+  {
+    "text": "A/S 접수는 070-235-2767로 전화 주세요",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_08",
+    "note": "회사 접수번호"
+  },
+  {
+    "text": "지점 대표번호 061-563-3204 안내드립니다",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_09",
+    "note": "지점 대표번호"
+  },
+  {
+    "text": "지점 대표번호 043-625-5134 안내드립니다",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_09",
+    "note": "지점 대표번호"
+  },
+  {
+    "text": "예약 문의: 063-659-2369 (자동응답 운영)",
+    "type": "phone",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "phone_false_10",
+    "note": "예약 대표번호"
+  },
+  {
+    "text": "예약 문의: 032-135-8189 (자동응답 운영)",
+    "type": "phone",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "phone_false_10",
+    "note": "예약 대표번호"
+  },
+  {
+    "text": "민원실 대표전화 044-499-4589로 연결됩니다",
+    "type": "phone",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "phone_false_11",
+    "note": "기관 대표번호"
+  },
+  {
+    "text": "민원실 대표전화 055-367-3155로 연결됩니다",
+    "type": "phone",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "phone_false_11",
+    "note": "기관 대표번호"
+  },
+  {
+    "text": "회사 대표번호가 031-810-7809로 변경되었습니다",
+    "type": "phone",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "phone_false_12",
+    "note": "회사 대표번호"
+  },
+  {
+    "text": "회사 대표번호가 070-430-5277로 변경되었습니다",
+    "type": "phone",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "phone_false_12",
+    "note": "회사 대표번호"
+  },
+  {
+    "text": "콜센터 0504-990-4307 운영시간은 평일만입니다",
+    "type": "phone",
+    "start": 4,
+    "end": 17,
+    "label": 0,
+    "group_id": "phone_false_13",
+    "note": "콜센터"
+  },
+  {
+    "text": "콜센터 032-236-1343 운영시간은 평일만입니다",
+    "type": "phone",
+    "start": 4,
+    "end": 16,
+    "label": 0,
+    "group_id": "phone_false_13",
+    "note": "콜센터"
+  },
+  {
+    "text": "매장 전화번호 061-291-6953는 홈페이지에 공개되어 있습니다",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_14",
+    "note": "공개된 매장번호"
+  },
+  {
+    "text": "매장 전화번호 063-979-3970는 홈페이지에 공개되어 있습니다",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "phone_false_14",
+    "note": "공개된 매장번호"
+  },
+  {
+    "text": "총무팀 사무실 번호 02-3136-7450로 문의 바랍니다",
+    "type": "phone",
+    "start": 11,
+    "end": 23,
+    "label": 0,
+    "group_id": "phone_false_15",
+    "note": "부서 사무실번호"
+  },
+  {
+    "text": "총무팀 사무실 번호 055-379-5544로 문의 바랍니다",
+    "type": "phone",
+    "start": 11,
+    "end": 23,
+    "label": 0,
+    "group_id": "phone_false_15",
+    "note": "부서 사무실번호"
+  },
+  {
+    "text": "044-969-5538로 전화하시면 상담원이 연결됩니다",
+    "type": "phone",
+    "start": 0,
+    "end": 12,
+    "label": 0,
+    "group_id": "phone_false_16",
+    "note": "상담원 연결 = 조직"
+  },
+  {
+    "text": "070-347-2005로 전화하시면 상담원이 연결됩니다",
+    "type": "phone",
+    "start": 0,
+    "end": 12,
+    "label": 0,
+    "group_id": "phone_false_16",
+    "note": "상담원 연결 = 조직"
+  },
+  {
+    "text": "홈페이지 하단에 안내된 번호 0505-946-3318로 문의해 주세요",
+    "type": "phone",
+    "start": 16,
+    "end": 29,
+    "label": 0,
+    "group_id": "phone_false_17",
+    "note": "공개 안내 번호"
+  },
+  {
+    "text": "홈페이지 하단에 안내된 번호 02-9469-6614로 문의해 주세요",
+    "type": "phone",
+    "start": 16,
+    "end": 28,
+    "label": 0,
+    "group_id": "phone_false_17",
+    "note": "공개 안내 번호"
+  },
+  {
+    "text": "02-3902-4765는 24시간 자동응답으로 운영됩니다",
+    "type": "phone",
+    "start": 0,
+    "end": 12,
+    "label": 0,
+    "group_id": "phone_false_18",
+    "note": "자동응답 운영 = 조직"
+  },
+  {
+    "text": "032-942-2820는 24시간 자동응답으로 운영됩니다",
+    "type": "phone",
+    "start": 0,
+    "end": 12,
+    "label": 0,
+    "group_id": "phone_false_18",
+    "note": "자동응답 운영 = 조직"
+  },
+  {
+    "text": "결제 카드번호 3587-1638-7676-7162 승인 완료되었습니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_01"
+  },
+  {
+    "text": "결제 카드번호 3240-9656-3555-9451 승인 완료되었습니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_01"
+  },
+  {
+    "text": "등록하신 카드 3225-9740-3807-8035의 유효기간을 확인해 주세요",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_02"
+  },
+  {
+    "text": "등록하신 카드 4376-9345-4852-4360의 유효기간을 확인해 주세요",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_02"
+  },
+  {
+    "text": "카드번호 3301-1880-8281-7233로 자동결제가 등록되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_03"
+  },
+  {
+    "text": "카드번호 5416-5787-7478-2892로 자동결제가 등록되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_03"
+  },
+  {
+    "text": "환불은 결제하신 카드 4505-9382-3113-7301로 처리됩니다",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "card_true_04"
+  },
+  {
+    "text": "환불은 결제하신 카드 3030-9816-2816-5408로 처리됩니다",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "card_true_04"
+  },
+  {
+    "text": "법인카드 4068-4088-0146-3510 사용 내역을 첨부합니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_05"
+  },
+  {
+    "text": "법인카드 3981-6222-3190-0182 사용 내역을 첨부합니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_05"
+  },
+  {
+    "text": "카드 4783-0777-6660-5607 분실 신고가 접수되었습니다",
+    "type": "card",
+    "start": 3,
+    "end": 22,
+    "label": 1,
+    "group_id": "card_true_06"
+  },
+  {
+    "text": "카드 5499-9978-7190-0001 분실 신고가 접수되었습니다",
+    "type": "card",
+    "start": 3,
+    "end": 22,
+    "label": 1,
+    "group_id": "card_true_06"
+  },
+  {
+    "text": "5411-6588-1825-0166 카드로 할부 결제했습니다",
+    "type": "card",
+    "start": 0,
+    "end": 19,
+    "label": 1,
+    "group_id": "card_true_07"
+  },
+  {
+    "text": "4056-9528-1645-7839 카드로 할부 결제했습니다",
+    "type": "card",
+    "start": 0,
+    "end": 19,
+    "label": 1,
+    "group_id": "card_true_07"
+  },
+  {
+    "text": "체크카드 5055-7872-3090-0925 한도가 초과되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_08"
+  },
+  {
+    "text": "체크카드 5235-2325-1376-2919 한도가 초과되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_08"
+  },
+  {
+    "text": "정기결제 수단을 카드 4953-4322-5066-3758로 변경했습니다",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "card_true_09"
+  },
+  {
+    "text": "정기결제 수단을 카드 5383-9336-1483-0709로 변경했습니다",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "card_true_09"
+  },
+  {
+    "text": "해외 결제가 차단된 카드 3441-5090-5902-9380 해제를 요청드립니다",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 1,
+    "group_id": "card_true_10"
+  },
+  {
+    "text": "해외 결제가 차단된 카드 4489-1124-9950-5803 해제를 요청드립니다",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 1,
+    "group_id": "card_true_10"
+  },
+  {
+    "text": "카드번호 4958-2987-9384-0699 건의 승인이 취소되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_11"
+  },
+  {
+    "text": "카드번호 4040-5329-2305-2654 건의 승인이 취소되었습니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "group_id": "card_true_11"
+  },
+  {
+    "text": "재발급된 카드 3666-4385-2805-3672를 등록해 주세요",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_12"
+  },
+  {
+    "text": "재발급된 카드 3336-2569-2705-8781를 등록해 주세요",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "card_true_12"
+  },
+  {
+    "text": "가맹점 매출전표의 카드번호는 4651-3321-4388-4733입니다",
+    "type": "card",
+    "start": 16,
+    "end": 35,
+    "label": 1,
+    "group_id": "card_true_13"
+  },
+  {
+    "text": "가맹점 매출전표의 카드번호는 5032-7325-4607-9095입니다",
+    "type": "card",
+    "start": 16,
+    "end": 35,
+    "label": 1,
+    "group_id": "card_true_13"
+  },
+  {
+    "text": "3247-6733-4182-0752 카드의 청구 내역을 조회했습니다",
+    "type": "card",
+    "start": 0,
+    "end": 19,
+    "label": 1,
+    "group_id": "card_true_14"
+  },
+  {
+    "text": "5249-4978-0903-2947 카드의 청구 내역을 조회했습니다",
+    "type": "card",
+    "start": 0,
+    "end": 19,
+    "label": 1,
+    "group_id": "card_true_14"
+  },
+  {
+    "text": "결제수단으로 등록된 신용카드 5529-7136-2134-5601가 만료되었습니다",
+    "type": "card",
+    "start": 16,
+    "end": 35,
+    "label": 1,
+    "group_id": "card_true_15"
+  },
+  {
+    "text": "결제수단으로 등록된 신용카드 3275-6702-3227-8335가 만료되었습니다",
+    "type": "card",
+    "start": 16,
+    "end": 35,
+    "label": 1,
+    "group_id": "card_true_15"
+  },
+  {
+    "text": "상품권 번호 3038-0105-2375-8687를 입력하시면 사용 가능합니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_01",
+    "note": "상품권 번호"
+  },
+  {
+    "text": "상품권 번호 5329-4164-1256-1657를 입력하시면 사용 가능합니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_01",
+    "note": "상품권 번호"
+  },
+  {
+    "text": "기프트카드 일련번호 5165-9315-4598-0282 잔액을 조회합니다",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "card_false_02",
+    "note": "기프트카드 일련번호"
+  },
+  {
+    "text": "기프트카드 일련번호 3844-8034-1485-7020 잔액을 조회합니다",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "card_false_02",
+    "note": "기프트카드 일련번호"
+  },
+  {
+    "text": "쿠폰번호 5315-0289-2871-7743는 중복 사용이 불가합니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "group_id": "card_false_03",
+    "note": "쿠폰번호"
+  },
+  {
+    "text": "쿠폰번호 3228-5359-7052-0016는 중복 사용이 불가합니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "group_id": "card_false_03",
+    "note": "쿠폰번호"
+  },
+  {
+    "text": "장비 시리얼 5484-1314-5246-7456 보증기간이 만료되었습니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_04",
+    "note": "장비 시리얼"
+  },
+  {
+    "text": "장비 시리얼 4610-6749-0293-5838 보증기간이 만료되었습니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_04",
+    "note": "장비 시리얼"
+  },
+  {
+    "text": "멤버십 카드번호 4050-1512-6189-6205 포인트 적립 내역입니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_05",
+    "note": "멤버십 번호"
+  },
+  {
+    "text": "멤버십 카드번호 3037-6134-5553-2623 포인트 적립 내역입니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_05",
+    "note": "멤버십 번호"
+  },
+  {
+    "text": "회원번호 5872-0875-4569-5257로 조회하시면 됩니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "group_id": "card_false_06",
+    "note": "회원번호"
+  },
+  {
+    "text": "회원번호 4448-8810-3397-4994로 조회하시면 됩니다",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "group_id": "card_false_06",
+    "note": "회원번호"
+  },
+  {
+    "text": "도서 바코드 3663-1962-0506-3181 반납 처리되었습니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_07",
+    "note": "바코드"
+  },
+  {
+    "text": "도서 바코드 4880-0344-7083-0775 반납 처리되었습니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_07",
+    "note": "바코드"
+  },
+  {
+    "text": "제품 등록번호 5180-2164-4036-8903 보증 서비스 안내입니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_08",
+    "note": "제품 등록번호"
+  },
+  {
+    "text": "제품 등록번호 3594-0274-7207-4243 보증 서비스 안내입니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_08",
+    "note": "제품 등록번호"
+  },
+  {
+    "text": "주차권 번호 3688-7228-2270-5358는 당일에만 유효합니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_09",
+    "note": "주차권 번호"
+  },
+  {
+    "text": "주차권 번호 5327-9623-5945-2063는 당일에만 유효합니다",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "group_id": "card_false_09",
+    "note": "주차권 번호"
+  },
+  {
+    "text": "사원증 일련번호 5672-9508-3300-4627 재발급 신청서입니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_10",
+    "note": "사원증 일련번호"
+  },
+  {
+    "text": "사원증 일련번호 4645-5126-7666-6529 재발급 신청서입니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_10",
+    "note": "사원증 일련번호"
+  },
+  {
+    "text": "소프트웨어 인증번호 5715-0567-9800-2355를 입력하세요",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "card_false_11",
+    "note": "인증번호"
+  },
+  {
+    "text": "소프트웨어 인증번호 4900-7769-0642-3338를 입력하세요",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "card_false_11",
+    "note": "인증번호"
+  },
+  {
+    "text": "교통카드 충전 이력번호 4733-0783-1926-7870 확인 바랍니다",
+    "type": "card",
+    "start": 13,
+    "end": 32,
+    "label": 0,
+    "group_id": "card_false_12",
+    "note": "이력번호"
+  },
+  {
+    "text": "교통카드 충전 이력번호 5182-5626-9067-7396 확인 바랍니다",
+    "type": "card",
+    "start": 13,
+    "end": 32,
+    "label": 0,
+    "group_id": "card_false_12",
+    "note": "이력번호"
+  },
+  {
+    "text": "경품 응모번호 3273-1733-8427-3628 당첨자 발표입니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_13",
+    "note": "응모번호"
+  },
+  {
+    "text": "경품 응모번호 5077-5714-4023-9215 당첨자 발표입니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_13",
+    "note": "응모번호"
+  },
+  {
+    "text": "설비 자산태그 4629-1685-9768-5591 위치가 변경되었습니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_14",
+    "note": "자산태그"
+  },
+  {
+    "text": "설비 자산태그 4005-2049-7406-4284 위치가 변경되었습니다",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "card_false_14",
+    "note": "자산태그"
+  },
+  {
+    "text": "택배 운송장번호 3069-7496-9595-3293 배송 완료되었습니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_15",
+    "note": "운송장번호"
+  },
+  {
+    "text": "택배 운송장번호 3178-1816-6220-9988 배송 완료되었습니다",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 0,
+    "group_id": "card_false_15",
+    "note": "운송장번호"
+  }
+]
