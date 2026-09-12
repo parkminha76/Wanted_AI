@@ -931,17 +931,27 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
     if not baked:
         return None            # 구워 둔 페이지 그림이 없다 (parse.py가 못 구웠다)
 
-    # 지금은 CNN이 첫 장만 본다(scan.py의 _scan_image가 doc.path 하나만 넘긴다).
-    # 2쪽부터는 검사되지 않았으므로 사본을 만들면 "안 본 페이지가 그대로 들어간
-    # 마스킹 사본"이 된다. _scan_image가 doc.image_paths를 돌게 되면 이 빗장을 푼다.
-    if len(baked) > 1:
-        return None
+    # 여러 쪽짜리 빗장은 2026-09-12에 풀었다.
+    #
+    # 이 자리에 "2쪽부터는 검사가 안 됐으니 사본을 만들지 않는다"는 빗장이 있었다.
+    # 그때는 `scan.py`의 `_scan_image`가 `doc.path`(첫 장) 하나만 CNN에 넘겼기
+    # 때문이다. 지금은 `_scan_image`가 `doc.image_paths`를 전부 돌면서 쪽 번호까지
+    # 찍어 주므로 그 전제가 사라졌다 — 빗장만 남으면 **여러 쪽짜리 스캔본은 사본을
+    # 아예 못 받는다.** 실측(2026-09-12, 합성 신분증 3쪽): 19건을 1·2·3쪽에서 모두
+    # 찾아 위험점수 100이 나오는데 `masked_path`는 None이었다.
+    #
+    # 빠진 페이지가 없다는 보장은 아래 두 가지가 같은 목록(`baked`)을 쓰는 데서 온다.
+    #   - `_scan_image`가 검사하는 것도 `doc.image_paths`
+    #   - 여기서 칠하고 다시 담는 것도 `doc.image_paths`
+    # 그 목록이 PDF의 쪽 수와 다르면 바로 아래에서 사본을 만들지 않는다.
 
     out_path = None
     work_dir = tempfile.mkdtemp(prefix="infoguard_page_")
     try:
         with pymupdf.open(path) as source:
             page_rects = [page.rect for page in source]
+        # 구운 그림이 쪽 수와 다르면 검사되지 않은 페이지가 있다는 뜻이다.
+        # 빗장을 푼 지금은 이 줄이 "빠진 페이지 없음"을 지키는 유일한 장치다.
         if len(page_rects) != len(baked):
             return None
 

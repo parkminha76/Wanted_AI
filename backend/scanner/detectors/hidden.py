@@ -16,7 +16,7 @@ AI 모델이 전혀 필요 없는 규칙 검사인데, 데모에서 가장 임�
 
 임계값을 정한 방법
 ------------------
-`backend/scanner/tests/`의 숨긴 문서 22개 + 정상 문서 8개를 돌려서 맞췄다.
+`backend/scanner/tests/`의 숨긴 문서 24개 + 정상 문서 9개를 돌려서 맞췄다.
 놓치면 내리고, 정상 문서가 걸리면 올렸다. 확인은 아래 한 줄로 다시 돌릴 수 있다.
 
     uv run python backend/scanner/tests/check_thresholds.py
@@ -32,20 +32,46 @@ from backend.scanner.detectors import models, rules
 
 
 # ---------------------------------------------------------------------------
-# 임계값 — 2026-09-11 6회차까지 돌려서 맞춘 값
+# 임계값 — 2026-09-12 7회차까지 돌려서 맞춘 값
 # ---------------------------------------------------------------------------
 
-# A급: 정상 문서에 나올 이유가 없는 문자 (Bidi 재정의·isolate, 태그 문자).
+# A급: 정상 문서에 나올 이유가 없는 문자 (Bidi **재정의**, 태그 문자).
 #
 # 3개 -> 1개로 내렸다. 글자 순서를 뒤집는 공격은 여는 문자와 닫는 문자 2개면 성립하고,
 # 그 2개가 긴 문단에 들어가면 밀도까지 빠져나간다(100자 문단이면 정확히 2.0%).
-# 대조군 5개의 A급은 전부 0개라서, 1개로 내려도 오탐이 늘지 않는다.
+# 대조군의 A급은 전부 0개라서, 1개로 내려도 오탐이 늘지 않는다.
 INVISIBLE_A_MIN_COUNT = 1
+
+# Bidi급: 글자 순서를 바꾸지만 **정상 문서에도 쓰이는** 제어 문자
+# (임베딩 LRE/RLE/PDF, isolate LRI/RLI/FSI/PDI).
+#
+# 7회차(2026-09-12)에 A급에서 분리했다. 이 일곱 개는 아랍어·히브리어를 인용한 문서라면
+# 워드·InDesign·웹 CMS가 그냥 내보내는 값이다. 특히 isolate 네 개는 유니코드가
+# 임베딩 대신 쓰라고 **권장**하는 최신 표기라 앞으로 더 흔해진다.
+# A급에 두면 아랍 거래처 상호를 인용한 정상 계약서가 확신도 0.9로 걸린다
+# (실측: 위험점수 38.1 = 노란불).
+#
+# 그렇다고 빼면 임베딩으로 순서를 뒤집는 Trojan Source를 통째로 놓친다. 그래서
+# **개수는 1개부터 보되(A급과 같다) 복원 검사를 통과해야 신고한다**(B급과 같다).
+# 정상 인용문은 되돌려봐야 뒤집힌 글자만 나오고, 공격은 지시문이 통째로 나온다.
+INVISIBLE_BIDI_MIN_COUNT = 1
 
 # B급: 정상 문서에 흔한 문자 (제로폭, BOM, soft hyphen, 방향 표시).
 # 개수·밀도를 넘겨도 여기서 바로 신고하지 않는다. 아래 복원 검사를 통과해야 한다.
 INVISIBLE_B_MIN_COUNT = 3
 INVISIBLE_B_MAX_DENSITY = 0.02
+
+# 복원 검사를 통과하지 못해도 이 밀도를 넘으면 그것만으로 신고한다.
+#
+# 복원 검사는 오탐을 막는 좋은 장치지만 `models.is_injection()`에 전적으로 기댄다.
+# 지금 그 함수는 한국어 키워드 6개짜리 임시 구현이라, 글자마다 제로폭을 끼운
+# 영어 지시문이 **위험점수 0점(초록불)**으로 통과한다(실측 2026-09-12).
+# 판정 근거를 한 군데에만 걸어두면 그 한 군데가 비어 있을 때 통째로 새는 셈이다.
+#
+# 그래서 "어떤 정상 문서도 이만큼은 아니다"라는 선을 하나 더 둔다. 대조군 9개의
+# span별 최대 밀도는 13.8%(clean/05 아랍어)이고, 글자마다 제로폭을 끼운 공격은
+# 49.6%다. 25%는 그 사이에서 양쪽 모두에 넉넉한 자리다.
+INVISIBLE_B_EXTREME_DENSITY = 0.25
 
 # 밀도의 분모는 span 하나(문단·줄·셀 하나)다. 문서 전체로 잡으면 5만 자짜리 계약서에
 # 200개를 심어도 0.4%로 통과한다.
@@ -67,10 +93,21 @@ MIN_READABLE_FONT_SIZE = 2.0
 # ---------------------------------------------------------------------------
 
 # A급 — 정상 문서에 나올 이유가 없다.
+#
+# **재정의(override) 둘만 남겼다.** 유니코드는 LRO/RLO를 쓰지 말라고 못박았고, 지금
+# 이 둘을 내보내는 정상 편집기는 없다. Trojan Source 논문이 예제로 쓰는 것도 이 둘이다.
+# 임베딩·isolate는 겉모습이 비슷하지만 정상 문서에 쓰이므로 아래 INVISIBLE_BIDI로
+# 뺐다 (7회차, 2026-09-12).
 INVISIBLE_A = re.compile(
-    "[\u202a-\u202e"          # Bidi 재정의 (Trojan Source)
-    "\u2066-\u2069"           # Bidi isolate
+    "[\u202d\u202e"           # LRO, RLO — Bidi 재정의 (Trojan Source)
     "\U000e0000-\U000e007f"   # 태그 문자 (ASCII smuggling)
+    "]"
+)
+
+# Bidi급 — 글자 순서를 바꾸지만 정상 문서에도 쓰인다. 복원 검사를 통과해야 신고한다.
+INVISIBLE_BIDI = re.compile(
+    "[\u202a-\u202c"          # LRE, RLE, PDF — 임베딩 (구식이지만 아직 현역)
+    "\u2066-\u2069"           # LRI, RLI, FSI, PDI — isolate (유니코드 권장 표기)
     "]"
 )
 
@@ -118,7 +155,9 @@ _REASONS = {
     "outside_used_range": "엑셀이 기록한 사용 범위 밖의 셀 — Ctrl+End로도 찾을 수 없다",
     "deleted_command": "변경내용 추적으로 지운 자리에 AI를 향한 명령이 남아 있다",
     "invisible_a": "보이지 않는 제어 문자 — 정상 문서에 쓰일 이유가 없다",
+    "invisible_bidi": "글자 순서를 뒤집는 Bidi 제어 문자 — 되돌리자 숨은 문장이 드러났다",
     "invisible_b": "보이지 않는 문자를 걷어내자 숨어 있던 문장이 드러났다",
+    "invisible_density": "한 문단의 4분의 1 이상이 보이지 않는 문자다 — 정상 문서에 없는 밀도",
 }
 
 # 근거별 의도성 점수 (0.0 ~ 1.0) — "이게 얼마나 일부러 숨긴 것으로 보이나".
@@ -147,7 +186,13 @@ _INTENT = {
     "outside_used_range": 0.85,
     "deleted_command": 0.9,
     "invisible_a": 0.9,
+    # 임베딩·isolate 자체는 정상 표기다. 신고까지 왔다는 것은 복원 검사를 통과했다는
+    # 뜻이라, 그 시점에는 의도성을 A급과 같게 본다.
+    "invisible_bidi": 0.9,
     "invisible_b": 0.8,
+    # 복원 검사를 통과하지 못했다 = 안에 무엇이 들었는지는 아직 모른다. 밀도만으로
+    # "일부러 심었다"까지는 말할 수 있어도 내용은 모르므로 B급보다 낮게 둔다.
+    "invisible_density": 0.7,
 }
 
 # 서식 값을 **제대로 읽었는지**에 대한 확신도. 의도성과는 다른 축이다.
@@ -163,8 +208,8 @@ _READ_CERTAINTY = {
 def _confidence(reason: str) -> float:
     """위험 점수에 곱해질 확신도 = 의도성 x 판독 확신도.
 
-    schema.compute_risk_score()가 (가중치 x 확신도 x log(개수))로 계산하므로,
-    의도가 약한 근거는 여기서 자동으로 점수를 덜 흔든다.
+    schema.compute_risk_score()가 (가중치 x 타입별 평균 확신도 x (1 + ln(개수)))로
+    계산하므로, 의도가 약한 근거는 여기서 자동으로 점수를 덜 흔든다.
     """
     return round(_INTENT.get(reason, 0.5) * _READ_CERTAINTY.get(reason, 1.0), 2)
 
@@ -181,6 +226,16 @@ def _confidence(reason: str) -> float:
 # "지웠다"는 사실이 아니라 **지운 자리에 무엇이 남아 있는가**로 가른다. B급 보이지
 # 않는 문자를 복원 검사로 거르는 것과 같은 구조다.
 _CONDITIONAL_HIDDEN_REASONS = {"deleted"}
+
+# 복원한 문장이 AI 지시문이라고 판정됐을 때 evidence["restored_kind"]에 넣는 값.
+#
+# **상수로 빼 둔 이유**: scan.py의 `_promote_hidden_injections`가 이 문자열과
+# 정확히 같은지 비교해서 hidden_text(25점)를 injection(50점)으로 올린다. 그런데
+# 지금 scan.py는 같은 글자를 자기 파일에 한 번 더 적어 두고 있다. 문구를 다듬는
+# 순간 승격이 조용히 멈추고, 숨겨진 지시문이 25점짜리로만 나간다 — 예외도 경고도
+# 없이 점수만 절반이 된다. scan.py가 `hidden.INJECTION_KIND`를 import하도록
+# 바꾸면 그 사고가 구조적으로 불가능해진다 (scan.py는 B-2 담당이라 합의 후 수정).
+INJECTION_KIND = "AI에게 내리는 지시문"
 
 
 # ---------------------------------------------------------------------------
@@ -226,9 +281,10 @@ def is_emoji_zwj(text: str, index: int) -> bool:
     )
 
 
-def count_invisible(text: str, is_document_start: bool = False) -> tuple[int, int]:
-    """(A급 개수, B급 개수). 이모지 ZWJ와 맨 앞 BOM 1개는 세지 않는다."""
+def count_invisible(text: str, is_document_start: bool = False) -> tuple[int, int, int]:
+    """(A급 개수, Bidi급 개수, B급 개수). 이모지 ZWJ와 맨 앞 BOM 1개는 세지 않는다."""
     a_count = len(INVISIBLE_A.findall(text))
+    bidi_count = len(INVISIBLE_BIDI.findall(text))
 
     b_count = 0
     for index, char in enumerate(text):
@@ -240,14 +296,14 @@ def count_invisible(text: str, is_document_start: bool = False) -> tuple[int, in
         if char == BOM and is_document_start and index == 0:
             continue
         b_count += 1
-    return a_count, b_count
+    return a_count, bidi_count, b_count
 
 
 def strip_invisible(text: str) -> str:
     """보이지 않는 문자를 걷어낸다. 이모지 ZWJ는 남긴다(이모지가 깨진다)."""
     kept = []
     for index, char in enumerate(text):
-        if INVISIBLE_A.match(char):
+        if INVISIBLE_A.match(char) or INVISIBLE_BIDI.match(char):
             continue
         if INVISIBLE_B.match(char) and not is_emoji_zwj(text, index):
             continue
@@ -308,12 +364,22 @@ def _looks_dangerous(text: str, method: str) -> tuple[bool, str]:
         return False, ""
     is_command, _ = models.is_injection(text)
     if is_command:
-        return True, "AI에게 내리는 지시문"
+        return True, INJECTION_KIND
     if rules.find_all(text):
         return True, "규칙 탐지 대상 값"
-    # 디코드·뒤집기로 문장이 통째로 나온 경우에만 "읽을 수 있다"를 근거로 친다.
-    # 단순 제거(strip)에 이 기준을 쓰면 모든 정상 문서가 통과해 버린다.
-    if method in ("tag", "bidi") and text.isprintable() and len(text.split()) >= 2:
+    # 디코드로 문장이 통째로 나온 경우에만 "읽을 수 있다"를 근거로 친다.
+    #
+    # "tag"만 인정하는 이유: 태그 문자는 디코드할 것이 없으면 빈 문자열이 나온다.
+    # 뭔가 나왔다는 것 자체가 누군가 심었다는 뜻이라 오탐이 날 자리가 없다.
+    #
+    # "bidi"를 뺐다 (7회차, 2026-09-12). 되돌리기는 **어떤 글자든** 뒤집어 놓기
+    # 때문에, 아랍어 상호를 인용한 정상 문서도 "hdayiR ,dR dhaF gniK" 같은 5단어짜리
+    # 출력이 나와서 이 조건을 그냥 통과했다. 뒤집힌 글자가 말이 되는지는 판정할 수
+    # 없으므로, Bidi는 위의 두 검사(지시문·규칙 탐지)만으로 가른다.
+    # hidden/14·16의 숨은 문장은 둘 다 is_injection에 걸리므로 놓치지 않는다.
+    #
+    # "strip"에 이 기준을 쓰면 모든 정상 문서가 통과해 버린다(1회차에서 확인).
+    if method == "tag" and text.isprintable() and len(text.split()) >= 2:
         return True, "복원하자 드러난 문장"
     return False, ""
 
@@ -342,7 +408,7 @@ def _format_signals(span) -> list[tuple[str, dict]]:
                               "bg_known": getattr(span, "bg_known", False)}))
 
     if getattr(span, "hidden_attr", False):
-        for reason in (getattr(span, "hidden_reason", "") or "unknown").split("+"):
+        for reason in (getattr(span, "hidden_reason", "") or "other").split("+"):
             if not reason:
                 continue
             if reason in _CONDITIONAL_HIDDEN_REASONS:
@@ -357,32 +423,48 @@ def _format_signals(span) -> list[tuple[str, dict]]:
 
 def _invisible_signals(span, is_document_start: bool) -> list[tuple[str, dict]]:
     """보이지 않는 문자로 감춰졌는지 본다."""
-    a_count, b_count = count_invisible(span.text, is_document_start)
-    if not (a_count or b_count):
+    a_count, bidi_count, b_count = count_invisible(span.text, is_document_start)
+    if not (a_count or bidi_count or b_count):
         return []
 
     restored, method = restore(span.text)
     dangerous, restored_kind = _looks_dangerous(restored, method)
-    evidence = {"invisible_a": a_count, "invisible_b": b_count}
+    evidence = {"invisible_a": a_count, "invisible_bidi": bidi_count,
+                "invisible_b": b_count}
     if dangerous:
         evidence["restored"] = restored[:200]
         evidence["restored_kind"] = restored_kind
         evidence["restore_method"] = method
 
+    length = len(span.text)
+    density = b_count / max(length, 1)
+
     # A급은 개수 하나로 충분하다. 대조군에서 한 번도 나오지 않는 문자다.
     if a_count >= INVISIBLE_A_MIN_COUNT:
         return [("invisible_a", evidence)]
 
+    # Bidi급은 1개부터 보되 복원 검사를 통과해야 신고한다. 아랍어를 인용한 정상
+    # 문서와 임베딩으로 순서를 뒤집은 공격을 가르는 것이 이 한 줄이다.
+    if bidi_count >= INVISIBLE_BIDI_MIN_COUNT and dangerous:
+        return [("invisible_bidi", evidence)]
+
     # B급은 개수·밀도를 넘겨도 복원까지 통과해야 신고한다. 넘지 못하면 서식 잡음이다.
-    length = len(span.text)
     over_count = b_count >= INVISIBLE_B_MIN_COUNT
     over_density = (
         length >= INVISIBLE_DENSITY_MIN_LENGTH
-        and b_count / length > INVISIBLE_B_MAX_DENSITY
+        and density > INVISIBLE_B_MAX_DENSITY
     )
     if (over_count or over_density) and dangerous:
-        evidence["density"] = round(b_count / max(length, 1), 4)
+        evidence["density"] = round(density, 4)
         return [("invisible_b", evidence)]
+
+    # 복원 검사를 통과하지 못했더라도 밀도가 이 정도면 그것만으로 신고한다.
+    # 복원 검사는 models.is_injection에 기대는데 그쪽이 아직 한국어 키워드 6개짜리
+    # 임시 구현이라, 영어 지시문을 숨긴 문서가 통째로 빠져나간다. 그 구멍을 막는
+    # 마지막 그물이다 — 정상 문서의 최대 밀도(13.8%)보다 한참 위에 선을 둔다.
+    if length >= INVISIBLE_DENSITY_MIN_LENGTH and density > INVISIBLE_B_EXTREME_DENSITY:
+        evidence["density"] = round(density, 4)
+        return [("invisible_density", evidence)]
     return []
 
 
@@ -451,9 +533,18 @@ def detect_text(text: str) -> list[dict]:
 
 
 class _PlainSpan:
-    """detect_text 전용. 서식 값이 없는 자리표시자다."""
+    """detect_text 전용. 서식 값이 없는 자리표시자다.
+
+    색·크기 값을 "탐지가 안 되는 쪽"의 기본값으로 채워 둔다. detect_text는
+    _invisible_signals만 부르므로 지금은 쓰이지 않지만, 이 객체가 _format_signals로
+    넘어가면 span.color를 getattr 없이 바로 읽는 자리에서 AttributeError가 난다.
+    (parse.TextSpan의 기본값과 같은 값이다 — 모르면 놓치는 게 낫지, 모른다고
+    신고하면 안 된다.)
+    """
 
     def __init__(self, text: str, start: int, end: int) -> None:
         self.text = text
         self.start = start
         self.end = end
+        self.color = "#000000"
+        self.bg_color = "#ffffff"
