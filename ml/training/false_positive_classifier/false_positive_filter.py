@@ -100,6 +100,13 @@ def get_checksum_feature(text: str, risk_type: str, start: int, end: int) -> int
     return 1 if validator(value) else 0
 
 
+def mask_candidate(text: str, start: int, end: int) -> str:
+    """후보값은 체크섬 feature에 맡기고 텍스트 feature에서는 문맥만 남긴다."""
+    if not 0 <= start < end <= len(text):
+        raise ValueError(f"잘못된 start/end: {start}, {end}, text_length={len(text)}")
+    return f"{text[:start]} __VALUE__ {text[end:]}"
+
+
 # ---------------------------------------------------------------------------
 # Feature 조립: TF-IDF(kiwi) + type 원-핫 + 체크섬
 # ---------------------------------------------------------------------------
@@ -111,6 +118,14 @@ class FalsePositiveFilter:
             token_pattern=None,
             ngram_range=(1, 2),
             min_df=1,
+            sublinear_tf=True,
+        )
+        self.char_vectorizer = TfidfVectorizer(
+            analyzer="char_wb",
+            ngram_range=(3, 5),
+            min_df=2,
+            max_features=20_000,
+            sublinear_tf=True,
         )
         self.onehot = OneHotEncoder(handle_unknown="ignore")
         self.clf = LogisticRegression(
@@ -125,13 +140,15 @@ class FalsePositiveFilter:
     def _build_features(self, texts: list[str], types: list[str], checksums: list[int], fit: bool):
         if fit:
             text_vec = self.vectorizer.fit_transform(texts)
+            char_vec = self.char_vectorizer.fit_transform(texts)
             type_vec = self.onehot.fit_transform(np.array(types).reshape(-1, 1))
         else:
             text_vec = self.vectorizer.transform(texts)
+            char_vec = self.char_vectorizer.transform(texts)
             type_vec = self.onehot.transform(np.array(types).reshape(-1, 1))
 
         checksum_vec = csr_matrix(np.array(checksums).reshape(-1, 1))
-        return hstack([text_vec, type_vec, checksum_vec])
+        return hstack([text_vec, char_vec, type_vec, checksum_vec])
 
     def fit(self, data: list[dict]) -> "FalsePositiveFilter":
         """전체 데이터로 모델을 학습한다. 성능 평가는 evaluate_group_cv를 쓴다."""
@@ -139,7 +156,7 @@ class FalsePositiveFilter:
 
     def fit_final(self, data: list[dict]) -> "FalsePositiveFilter":
         """평가가 끝난 뒤 전달용 모델을 전체 데이터로 학습한다."""
-        texts = [d["text"] for d in data]
+        texts = [mask_candidate(d["text"], d["start"], d["end"]) for d in data]
         types = [d["type"] for d in data]
         labels = np.array([d["label"] for d in data])
         checksums = [
@@ -153,7 +170,7 @@ class FalsePositiveFilter:
 
     def predict_proba_many(self, data: list[dict]) -> np.ndarray:
         """평가용 일괄 추론. 각 항목에는 text/type/start/end가 필요하다."""
-        texts = [d["text"] for d in data]
+        texts = [mask_candidate(d["text"], d["start"], d["end"]) for d in data]
         types = [d["type"] for d in data]
         checksums = [
             get_checksum_feature(d["text"], d["type"], d["start"], d["end"])
@@ -171,7 +188,8 @@ class FalsePositiveFilter:
         pass/fail을 계산해서 넘길 필요가 없다(이전 버전과 달라진 점).
         """
         checksum = get_checksum_feature(text, risk_type, start, end)
-        X = self._build_features([text], [risk_type], [checksum], fit=False)
+        feature_text = mask_candidate(text, start, end)
+        X = self._build_features([feature_text], [risk_type], [checksum], fit=False)
         return float(self.clf.predict_proba(X)[0][1])
 
     def save(self, path: str):
