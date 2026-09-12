@@ -249,7 +249,7 @@ def _apply_classifier_filters(
         # prob_positive는 "진짜 개인정보일 확률" 하나의 뜻만 갖는다(models.py 참고).
         # 예전에는 걸러낸 쪽에서 1.0 - x로 뒤집었는데, 같은 이름의 값이 두 가지 뜻을
         # 갖게 돼서 화면이 무엇을 보고 있는지 알 수 없었다.
-        if models.false_positive_model_ready():
+        if models.false_positive_model_ready(f.type):
             f.evidence = {
                 **f.evidence,
                 "prob_positive": prob_positive,
