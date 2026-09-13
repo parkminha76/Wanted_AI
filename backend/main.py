@@ -46,6 +46,7 @@ from starlette.background import BackgroundTask
 
 from backend.scanner import scan
 from backend.shared import schema
+from backend.training.router import router as training_router
 
 MASKED_DIR_PREFIX = "infoguard_mask_"
 
@@ -67,6 +68,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
+
+# Training Mode API 연결
+app.include_router(training_router)
 
 # 프론트(D)가 다른 포트에서 부른다. 배포 도메인이 정해지면 그 도메인만 남긴다.
 app.add_middleware(

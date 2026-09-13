@@ -1,0 +1,702 @@
+[
+  {
+    "text": "요청하신 견적서를 첨부하여 전달드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_001"
+  },
+  {
+    "text": "첨부 파일을 확인하신 후 회신 부탁드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_002"
+  },
+  {
+    "text": "검토 의견이 있으시면 금요일까지 회신해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_003"
+  },
+  {
+    "text": "회의 자료는 참석자 전원에게 이메일로 공유해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_004"
+  },
+  {
+    "text": "수정된 문서는 기존 메일 스레드에 첨부해 주시기 바랍니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_005"
+  },
+  {
+    "text": "담당자 변경 사항이 있으면 관련 부서에 공지해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_006"
+  },
+  {
+    "text": "수신자 목록을 확인한 후 메일을 발송해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_007"
+  },
+  {
+    "text": "고객 문의에 대한 답변 초안을 작성해 공유 부탁드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_008"
+  },
+  {
+    "text": "지난주 전달드린 자료에 추가 의견이 있는지 확인 부탁드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_009"
+  },
+  {
+    "text": "업무 관련 공지는 사내 메신저와 이메일을 통해 안내할 예정입니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_010"
+  },
+  {
+    "text": "금주 정기회의는 목요일 오후 2시에 진행됩니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_011"
+  },
+  {
+    "text": "회의 일정 변경이 필요하시면 오늘 중 말씀해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_012"
+  },
+  {
+    "text": "다음 주 월요일 오전에 프로젝트 진행 상황을 점검할 예정입니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_013"
+  },
+  {
+    "text": "회의실 예약이 완료되었는지 확인해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_014"
+  },
+  {
+    "text": "회의 참석이 어려운 경우 사전에 담당자에게 알려주시기 바랍니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_015"
+  },
+  {
+    "text": "주간 회의 안건은 수요일까지 취합해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_016"
+  },
+  {
+    "text": "이번 회의에서는 예산과 일정 변경 사항을 함께 검토합니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_017"
+  },
+  {
+    "text": "교육 일정은 참석 가능한 인원을 확인한 후 확정하겠습니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_018"
+  },
+  {
+    "text": "외부 미팅 장소와 시간을 참석자에게 다시 안내해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_019"
+  },
+  {
+    "text": "회의 종료 후 주요 결정 사항을 정리해 공유 부탁드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_020"
+  },
+  {
+    "text": "휴가 신청서는 팀장 승인 후 제출해 주시기 바랍니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_021"
+  },
+  {
+    "text": "이번 달 근태 내역을 확인해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_022"
+  },
+  {
+    "text": "신입사원 오리엔테이션 자료를 준비해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_023"
+  },
+  {
+    "text": "사원증 재발급 신청은 총무팀에 문의하시기 바랍니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_024"
+  },
+  {
+    "text": "출장 신청서는 출발일 이전에 결재를 완료해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_025"
+  },
+  {
+    "text": "복리후생 신청 기간은 이번 주 금요일까지입니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_026"
+  },
+  {
+    "text": "교육 참석자는 출석 확인을 위해 신청서를 제출해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_027"
+  },
+  {
+    "text": "좌석 배치 변경 사항을 확인하고 필요한 의견을 전달해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_028"
+  },
+  {
+    "text": "사내 행사 참석 여부를 설문에 입력해 주시기 바랍니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_029"
+  },
+  {
+    "text": "개인정보 수집 및 이용 동의서는 안내된 절차에 따라 제출해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_030"
+  },
+  {
+    "text": "8월 비용 정산 내역을 첨부드립니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_031"
+  },
+  {
+    "text": "세금계산서 발행 여부를 확인해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_032"
+  },
+  {
+    "text": "법인카드 사용 내역은 증빙 자료와 함께 제출해 주세요.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_033"
+  },
+  {
+    "text": "이번 달 경비 처리 마감일은 25일입니다.",
+    "label": 0,
+    "level": 1,
+    "source": "normal_doc",
+    "group_id": "business_normal_034"
+  },
+  {
+    "text": "지출결의서를 작성한 후 팀장 승인을 받아 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_035"
+  },
+  {
+    "text": "거래명세서와 세금계산서의 금액이 일치하는지 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_036"
+  },
+  {
+    "text": "예산 집행 내역은 분기별 보고서에 반영할 예정입니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_037"
+  },
+  {
+    "text": "입금 확인이 완료되면 주문 상태를 변경해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_038"
+  },
+  {
+    "text": "환불 요청 건은 결제 내역을 확인한 후 처리해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_039"
+  },
+  {
+    "text": "회계팀 검토가 필요한 비용은 관련 증빙을 함께 전달해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_040"
+  },
+  {
+    "text": "계약서 수정본을 검토하여 회신 부탁드립니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_041"
+  },
+  {
+    "text": "발주서 확인 후 납기 일정을 알려주시기 바랍니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_042"
+  },
+  {
+    "text": "구매 요청서는 부서장 결재 후 구매팀으로 전달해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_043"
+  },
+  {
+    "text": "계약 조건 변경 사항을 기존 문서와 비교해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_044"
+  },
+  {
+    "text": "견적 금액과 납품 조건을 확인한 후 의견을 공유해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_045"
+  },
+  {
+    "text": "공급업체 등록에 필요한 서류 목록을 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_046"
+  },
+  {
+    "text": "계약 만료일 이전에 갱신 여부를 검토해야 합니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_047"
+  },
+  {
+    "text": "발주 수량이 요청 내용과 일치하는지 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_048"
+  },
+  {
+    "text": "구매 승인 완료 후 주문서를 업체에 전달해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_049"
+  },
+  {
+    "text": "납품 완료 후 검수 결과를 시스템에 등록해 주시기 바랍니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_050"
+  },
+  {
+    "text": "프로젝트 진행 상황을 주간 보고서에 업데이트해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_051"
+  },
+  {
+    "text": "이번 주 완료된 작업과 다음 주 계획을 정리해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_052"
+  },
+  {
+    "text": "테스트 결과를 확인한 후 이슈 목록을 수정해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_053"
+  },
+  {
+    "text": "담당 업무의 진행률을 오늘 오후까지 공유 부탁드립니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_054"
+  },
+  {
+    "text": "보고서 초안을 검토하고 필요한 내용을 보완해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_055"
+  },
+  {
+    "text": "변경된 요구사항은 프로젝트 문서에 반영해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_056"
+  },
+  {
+    "text": "완료된 작업은 체크리스트에서 상태를 변경해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_057"
+  },
+  {
+    "text": "이번 배포에 포함되는 기능 목록을 다시 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_058"
+  },
+  {
+    "text": "프로젝트 일정이 지연될 가능성이 있으면 사전에 알려주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_059"
+  },
+  {
+    "text": "최종 보고서는 검토 의견을 반영한 후 제출해 주시기 바랍니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_060"
+  },
+  {
+    "text": "업무용 프로그램 업데이트 후 정상 실행되는지 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_061"
+  },
+  {
+    "text": "사내 시스템 접속 오류가 발생하면 IT지원팀에 문의해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_062"
+  },
+  {
+    "text": "비밀번호 변경은 회사 공식 포털의 계정 설정 메뉴에서 진행해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_063"
+  },
+  {
+    "text": "공용 폴더 접근 권한이 필요한 직원 목록을 전달해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_064"
+  },
+  {
+    "text": "신규 계정 생성 요청서는 담당 부서 승인을 받은 후 제출해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_065"
+  },
+  {
+    "text": "시스템 점검 시간에는 일부 서비스 이용이 제한될 수 있습니다.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_066"
+  },
+  {
+    "text": "파일 업로드가 완료되면 공유 링크가 정상적으로 열리는지 확인해 주세요.",
+    "label": 0,
+    "level": 2,
+    "source": "normal_doc",
+    "group_id": "business_normal_067"
+  },
+  {
+    "text": "업무용 계정의 이중 인증 설정 여부를 확인해 주시기 바랍니다.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_068"
+  },
+  {
+    "text": "접근 권한 변경이 필요한 경우 사내 절차에 따라 신청해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_069"
+  },
+  {
+    "text": "오류 화면이 나타나면 화면 캡처와 발생 시간을 함께 전달해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_070"
+  },
+  {
+    "text": "고객 요청 사항을 확인한 후 담당 영업사원에게 전달해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_071"
+  },
+  {
+    "text": "이번 주 상담 내역을 고객관리시스템에 입력해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_072"
+  },
+  {
+    "text": "제품 문의에 대한 답변 자료를 최신 버전으로 업데이트해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_073"
+  },
+  {
+    "text": "고객 미팅 전에 기존 거래 이력을 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_074"
+  },
+  {
+    "text": "견적 요청을 받은 경우 품목과 수량을 먼저 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_075"
+  },
+  {
+    "text": "계약 체결 후 고객에게 일정과 담당자 정보를 안내해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_076"
+  },
+  {
+    "text": "고객 불편 사항은 처리 결과와 함께 기록해 주시기 바랍니다.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_077"
+  },
+  {
+    "text": "제안서 수정 요청 내용을 확인하여 담당자에게 공유해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_078"
+  },
+  {
+    "text": "신규 고객 문의는 영업일 기준 하루 이내에 회신해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_079"
+  },
+  {
+    "text": "고객사 방문 일정이 확정되면 참석자에게 안내 부탁드립니다.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_080"
+  },
+  {
+    "text": "출고 예정 수량과 재고 수량을 다시 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_081"
+  },
+  {
+    "text": "배송 일정이 변경된 경우 고객에게 변경 내용을 안내해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_082"
+  },
+  {
+    "text": "입고된 제품의 수량과 품목이 발주서와 일치하는지 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_083"
+  },
+  {
+    "text": "검수 완료된 제품은 지정된 보관 위치로 이동해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_084"
+  },
+  {
+    "text": "반품 접수 건은 사유를 확인한 후 시스템에 등록해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_085"
+  },
+  {
+    "text": "배송 지연이 예상되면 담당 부서에 즉시 공유해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_086"
+  },
+  {
+    "text": "창고 재고 현황을 월말 기준으로 정리해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_087"
+  },
+  {
+    "text": "납품 일정은 거래처와 협의한 후 최종 확정해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_088"
+  },
+  {
+    "text": "운송장 번호가 등록되었는지 주문별로 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_089"
+  },
+  {
+    "text": "배송 완료 건은 시스템에서 상태를 완료로 변경해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_090"
+  },
+  {
+    "text": "아래 내용을 확인하여 문서를 수정해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_091"
+  },
+  {
+    "text": "완료된 파일은 공유 폴더에 업로드해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_092"
+  },
+  {
+    "text": "문서 제목과 작성일이 최신 정보인지 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_093"
+  },
+  {
+    "text": "최종본에는 검토자의 수정 의견을 모두 반영해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_094"
+  },
+  {
+    "text": "공용 양식을 사용해 신청서를 작성해 주시기 바랍니다.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_095"
+  },
+  {
+    "text": "파일명은 부서명과 작성일이 포함되도록 저장해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_096"
+  },
+  {
+    "text": "이전 버전의 문서는 별도 폴더에 보관해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_097"
+  },
+  {
+    "text": "자료를 배포하기 전에 오탈자와 누락 항목을 확인해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_098"
+  },
+  {
+    "text": "문서 검토가 끝나면 승인 요청을 진행해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_099"
+  },
+  {
+    "text": "완료된 업무는 관련 기록과 함께 정리해 보관해 주세요.",
+    "label": 0,
+    "level": 3,
+    "source": "normal_doc",
+    "group_id": "business_normal_100"
+  }
+]
