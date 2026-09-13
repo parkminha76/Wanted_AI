@@ -124,8 +124,10 @@ class ParsedDoc:
 
     # 스캔본 PDF를 페이지마다 그림으로 구운 경로들. 사진 파일이면 빈 목록이다.
     #
-    # `path`는 그중 첫 장이라 지금은 1쪽만 검사된다. scan.py의 _scan_image가 이
-    # 목록을 돌면 여러 쪽짜리도 전부 검사된다.
+    # **검사도 마스킹도 이 목록을 기준으로 돈다.** scan.py의 `_scan_image`가 여기를
+    # 돌면서 쪽 번호를 찍어 주고, masking/mask.py의 `_mask_scanned_pdf`가 같은 목록을
+    # 돌면서 칠한다. 둘이 같은 목록을 쓰기 때문에 "검사는 했는데 안 가려진 페이지"가
+    # 구조적으로 생기지 않는다 (2026-09-12에 mask.py의 여러 쪽 빗장을 푼 근거다).
     image_paths: list[str] = field(default_factory=list)
 
     # 구울 때 쓴 배율 = 그림 1픽셀당 PDF 좌표 몇 pt인지의 역수.
@@ -401,6 +403,10 @@ class _PdfItem:
     seqno: int
     char_x: list[float] | None
 
+    # get_texttrace()가 준 **거르기 전** 순번. get_bboxlog()의 text 항목과 1:1로
+    # 맞는 유일한 번호다 — 아래 _pdf_page_items 주석 참고.
+    draw_index: int
+
 
 def _safe_chr(code) -> str:
     try:
@@ -433,8 +439,18 @@ def _char_x_edges(chars, direction) -> list[float] | None:
 
 
 def _pdf_page_items(page) -> list[_PdfItem]:
+    """get_texttrace()의 span을 쓰기 좋게 정리한다. 빈 조각과 공백만 있는 조각은 뺀다.
+
+    **빼면서 원래 순번(draw_index)은 남긴다.** `_pdf_covers`는 `get_bboxlog()`를 세는데
+    그쪽은 공백 조각도 글자로 세기 때문에, 여기서 거른 뒤 다시 번호를 매기면 두 숫자가
+    어긋난다. 워드·인디자인이 공백만 있는 조각을 흔히 남기므로 드문 일이 아니다.
+
+    어긋나면 **덮이지 않은 글자가 덮였다고 잡힌다.** 실측(2026-09-12): 본문 -> 강조
+    박스 이미지 -> 그 위의 안내 문구 순서로 그린 정상 PDF에 공백 조각 3개를 섞었더니,
+    박스 위에 잘 보이는 문구가 `covered_by_image`로 신고됐다.
+    """
     items: list[_PdfItem] = []
-    for span in page.get_texttrace():
+    for index, span in enumerate(page.get_texttrace()):
         chars = span.get("chars") or ()
         if not chars:
             continue
@@ -454,6 +470,7 @@ def _pdf_page_items(page) -> list[_PdfItem]:
                 spacewidth=float(span.get("spacewidth") or 0.0),
                 seqno=int(span.get("seqno", -1)),
                 char_x=_char_x_edges(chars, span.get("dir")),
+                draw_index=index,
             )
         )
     return items
@@ -567,8 +584,6 @@ def _load_pdf(path: str) -> ParsedDoc:
             covers = _pdf_covers(page)
             crop = tuple(page.cropbox)
             items = _pdf_page_items(page)
-            # 그려진 순서(seqno)로 매긴 번호. _pdf_covers가 센 글자 수와 맞춰 쓴다.
-            draw_order = {id(it): i for i, it in enumerate(sorted(items, key=lambda x: x.seqno))}
             for line in _pdf_group_lines(items):
                 builder.newline(page_number)
                 previous: _PdfItem | None = None
@@ -584,9 +599,9 @@ def _load_pdf(path: str) -> ParsedDoc:
                     # 겹치는 부분이 조금도 없을 때만 잡는다(잘린 글자를 신고하지 않도록).
                     if not _rects_overlap(crop, item.bbox):
                         reasons.append("outside_page")
-                    # 이미지에 가려짐 — 이 글자보다 뒤에 그려진 이미지가 통째로 덮는 경우
-                    order = draw_order.get(id(item), 0)
-                    if any(order < text_count and _rect_contains(rect, item.bbox)
+                    # 이미지에 가려짐 — 이 글자보다 뒤에 그려진 이미지가 통째로 덮는 경우.
+                    # draw_index는 _pdf_covers가 센 글자 수와 같은 기준(거르기 전 순번)이다.
+                    if any(item.draw_index < text_count and _rect_contains(rect, item.bbox)
                            for text_count, rect in covers):
                         reasons.append("covered_by_image")
 
@@ -645,7 +660,8 @@ def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
         return
     doc.image_paths = rendered
     doc.image_scale = _PDF_SCANNED_RENDER_ZOOM
-    # CNN은 경로 하나만 받는다. 첫 장을 넘긴다 (scan.py가 image_paths를 돌기 전까지).
+    # `path`는 "그림 경로 하나"를 기대하는 쪽을 위한 자리다. 스캔본 PDF의 검사는
+    # image_paths를 도는 쪽이 담당하므로 여기 담긴 첫 장은 대표값에 가깝다.
     doc.path = rendered[0]
 
 

@@ -153,13 +153,13 @@ def _valid_intent_score(v) -> bool:
 # opacity/font_size/color는 evidence의 동명 키(수치)와 짝을 이루는
 # "이 값으로 탐지했다"는 표시이고, 나머지는 그 네 개로 깔끔하게 안 잡히는
 # 케이스(문서 형식별 특수 서식)를 위한 것이다. vanish/web_hidden/
-# blank_format/invisible_a/invisible_b는 정확한 정의를 B에게 확인 중 —
-# 일단 값 자체는 통과시켜두고 의미는 나중에 문서화한다.
+# blank_format/invisible_* 의 정의는 2026-09-12에 B와 맞췄고, 아래 목록에
+# 항목마다 그대로 적어 뒀다. 기준 구현은 hidden.py의 _REASONS/_INTENT다.
 #
 # intent_score를 DB에 저장하는 이유는 XAI 근거 표시와 통계용이고, 실제
 # 위험점수 계산에 반영하려면 B가 Finding을 만들 때 이 값이 높을수록
 # Finding.confidence도 높게 잡아줘야 한다 — compute_risk_score()가
-# weight x confidence x log(count) 구조라 confidence를 통해서만 점수에
+# weight x (타입별 평균 confidence) x (1 + ln(count)) 구조라 confidence를 통해서만 점수에
 # 반영되고, evidence 내부 값을 직접 읽어서 계산하지는 않는다.
 #
 # (2026-09-10) B는 confidence를 intent_score 그대로 쓰지 않고
@@ -191,6 +191,16 @@ _HIDDEN_REASONS = {
     "invisible_b",         # B급 보이지 않는 문자 — 제로폭·BOM·soft hyphen 등.
                            # 정상 문서에 흔해서, 걷어냈을 때 위험한 것이 새로
                            # 드러나야 신고한다(복원 검사)
+
+    # --- 2026-09-12 추가. hidden.py 7회차 (B) ---
+    "invisible_bidi",      # Bidi 임베딩(LRE/RLE/PDF)·isolate(LRI/RLI/FSI/PDI).
+                           # 아랍어를 인용한 정상 문서도 쓰는 표기라 A급에서 뺐고,
+                           # 복원 검사를 통과할 때만 신고한다. A급에 두었을 때
+                           # 정상 계약서가 위험점수 38.1로 걸리는 것을 확인했다
+    "invisible_density",   # 한 span의 4분의 1 이상이 보이지 않는 문자인 경우.
+                           # 복원 검사(models.is_injection)가 임시 구현이라 영어
+                           # 지시문을 놓치는 구멍을 밀도만으로 막는 마지막 그물.
+                           # 안에 무엇이 들었는지는 모르는 상태라 의도성은 0.7
 
     # --- 2026-09-11 추가. hidden.py 4·6회차에서 늘어난 탐지 수법 (B) ---
     "outside_page",        # PDF 페이지 경계(CropBox) 밖에 배치된 글자.
