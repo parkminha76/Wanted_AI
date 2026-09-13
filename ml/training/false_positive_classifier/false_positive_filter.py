@@ -36,6 +36,7 @@ from ml.training.false_positive_classifier.features import tokenize
 
 
 MAX_OPERATING_FALSE_NEGATIVE_RATE = 0.05
+MODEL_RISK_TYPES = frozenset({"account", "biz_reg", "card", "phone"})
 
 
 # ---------------------------------------------------------------------------
@@ -344,8 +345,13 @@ def train_and_save() -> dict:
     if not data_paths:
         raise FileNotFoundError("sample_data/false_positive에 학습 JSON이 없습니다.")
 
-    data = merge_json_files([str(path) for path in data_paths])
-    print(f"학습 데이터 {len(data)}건 / 파일 {len(data_paths)}개 로드")
+    loaded_data = merge_json_files([str(path) for path in data_paths])
+    data = [item for item in loaded_data if item["type"] in MODEL_RISK_TYPES]
+    excluded_rows = len(loaded_data) - len(data)
+    print(
+        f"학습 데이터 {len(data)}건 / 파일 {len(data_paths)}개 로드 "
+        f"(emp_no 등 제외 {excluded_rows}건)"
+    )
 
     candidates = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
     results = [evaluate_group_cv(data, c=c) for c in candidates]
@@ -383,6 +389,8 @@ def train_and_save() -> dict:
             "negative_rows": negative_rows,
             "positive_rows": positive_rows,
             "positive_rate": positive_rows / len(data),
+            "included_risk_types": sorted(MODEL_RISK_TYPES),
+            "excluded_rows": excluded_rows,
         },
         "limitations": [
             "합성 데이터의 양성 비율은 실제 rules.py 후보 분포를 대표하지 않는다.",
