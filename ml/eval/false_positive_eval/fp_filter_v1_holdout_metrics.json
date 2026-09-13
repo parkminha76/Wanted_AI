@@ -3,22 +3,22 @@
   "files": [
     "false_positive_eval_C_0913_001.json"
   ],
-  "rows": 64,
+  "rows": 48,
   "label_distribution": {
-    "1": 32,
-    "0": 32
+    "1": 24,
+    "0": 24
   },
   "text_overlap_with_training": 0,
-  "group_overlap_with_training": 48,
+  "group_overlap_with_training": 32,
   "independence_warning": "동일 문장은 없지만 학습셋과 같은 group_id 및 유사 문장 틀이 포함되어 완전 독립 평가셋으로 간주할 수 없다.",
-  "roc_auc": 0.9638671875,
-  "average_precision": 0.9757525027056277,
+  "roc_auc": 1.0,
+  "average_precision": 0.9999999999999999,
   "default_point": {
     "threshold": 0.5,
-    "precision": 0.9666666666666667,
-    "recall": 0.90625,
-    "f1": 0.9354838709677419,
-    "false_negative_rate": 0.09375,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "false_negative_rate": 0.0,
     "confusion_matrix": {
       "labels": [
         0,
@@ -26,22 +26,22 @@
       ],
       "values": [
         [
-          31,
-          1
+          24,
+          0
         ],
         [
-          3,
-          29
+          0,
+          24
         ]
       ]
     }
   },
   "operating_point": {
-    "threshold": 0.35337190452734196,
-    "precision": 0.8108108108108109,
-    "recall": 0.9375,
-    "f1": 0.8695652173913043,
-    "false_negative_rate": 0.0625,
+    "threshold": 0.45001867275057356,
+    "precision": 0.9230769230769231,
+    "recall": 1.0,
+    "f1": 0.96,
+    "false_negative_rate": 0.0,
     "confusion_matrix": {
       "labels": [
         0,
@@ -49,19 +49,19 @@
       ],
       "values": [
         [
-          25,
-          7
+          22,
+          2
         ],
         [
-          2,
-          30
+          0,
+          24
         ]
       ]
     }
   },
   "per_type_at_operating_threshold": {
     "account": {
-      "threshold": 0.35337190452734196,
+      "threshold": 0.45001867275057356,
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
@@ -85,7 +85,7 @@
       "rows": 16
     },
     "biz_reg": {
-      "threshold": 0.35337190452734196,
+      "threshold": 0.45001867275057356,
       "precision": 0.8,
       "recall": 1.0,
       "f1": 0.8888888888888888,
@@ -109,10 +109,10 @@
       "rows": 16
     },
     "card": {
-      "threshold": 0.35337190452734196,
-      "precision": 0.8888888888888888,
+      "threshold": 0.45001867275057356,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9411764705882353,
+      "f1": 1.0,
       "false_negative_rate": 0.0,
       "confusion_matrix": {
         "labels": [
@@ -121,8 +121,8 @@
         ],
         "values": [
           [
-            7,
-            1
+            8,
+            0
           ],
           [
             0,
@@ -131,57 +131,33 @@
         ]
       },
       "rows": 16
-    },
-    "phone": {
-      "threshold": 0.35337190452734196,
-      "precision": 0.6,
-      "recall": 0.75,
-      "f1": 0.6666666666666666,
-      "false_negative_rate": 0.25,
-      "confusion_matrix": {
-        "labels": [
-          0,
-          1
-        ],
-        "values": [
-          [
-            4,
-            4
-          ],
-          [
-            2,
-            6
-          ]
-        ]
-      },
-      "rows": 16
     }
   },
   "classification_report_at_operating_threshold": {
     "오탐(0)": {
-      "precision": 0.9259259259259259,
-      "recall": 0.78125,
-      "f1-score": 0.847457627118644,
-      "support": 32.0
+      "precision": 1.0,
+      "recall": 0.9166666666666666,
+      "f1-score": 0.9565217391304348,
+      "support": 24.0
     },
     "진짜(1)": {
-      "precision": 0.8108108108108109,
-      "recall": 0.9375,
-      "f1-score": 0.8695652173913043,
-      "support": 32.0
+      "precision": 0.9230769230769231,
+      "recall": 1.0,
+      "f1-score": 0.96,
+      "support": 24.0
     },
-    "accuracy": 0.859375,
+    "accuracy": 0.9583333333333334,
     "macro avg": {
-      "precision": 0.8683683683683684,
-      "recall": 0.859375,
-      "f1-score": 0.8585114222549741,
-      "support": 64.0
+      "precision": 0.9615384615384616,
+      "recall": 0.9583333333333333,
+      "f1-score": 0.9582608695652174,
+      "support": 48.0
     },
     "weighted avg": {
-      "precision": 0.8683683683683684,
-      "recall": 0.859375,
-      "f1-score": 0.8585114222549741,
-      "support": 64.0
+      "precision": 0.9615384615384616,
+      "recall": 0.9583333333333334,
+      "f1-score": 0.9582608695652174,
+      "support": 48.0
     }
   }
 }

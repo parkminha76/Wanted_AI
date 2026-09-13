@@ -1,0 +1,354 @@
+{
+  "evaluation": "synthetic exact-span address pattern evaluation",
+  "rows": 200,
+  "distribution": {
+    "jibun": 50,
+    "unit": 50,
+    "road": 50,
+    "location_only": 50
+  },
+  "precision": 0.8823529411764706,
+  "recall": 1.0,
+  "f1": 0.9375,
+  "accuracy": 0.9,
+  "positive_exact_span_rate": 1.0,
+  "confusion_matrix": {
+    "tp": 150,
+    "fp": 20,
+    "fn": 0,
+    "tn": 30
+  },
+  "per_kind": {
+    "jibun": {
+      "rows": 50,
+      "correct": 50,
+      "errors": 0,
+      "accuracy": 1.0
+    },
+    "location_only": {
+      "rows": 50,
+      "correct": 30,
+      "errors": 20,
+      "accuracy": 0.6
+    },
+    "road": {
+      "rows": 50,
+      "correct": 50,
+      "errors": 0,
+      "accuracy": 1.0
+    },
+    "unit": {
+      "rows": 50,
+      "correct": 50,
+      "errors": 0,
+      "accuracy": 1.0
+    }
+  },
+  "errors": [
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        8,
+        15
+      ],
+      "predicted": [
+        [
+          8,
+          15
+        ]
+      ],
+      "text": "교육 자료에서 세종대로 11은 가상 주소 예시로만 사용했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        12,
+        19
+      ],
+      "predicted": [
+        [
+          12,
+          19
+        ]
+      ],
+      "text": "테스트 케이스 이름은 혁신로 297이며 실제 배송지가 아닙니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        12,
+        20
+      ],
+      "predicted": [
+        [
+          12,
+          20
+        ]
+      ],
+      "text": "테스트 케이스 이름은 달구벌대로 92이며 실제 배송지가 아닙니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        6,
+        14
+      ],
+      "predicted": [
+        [
+          6,
+          14
+        ]
+      ],
+      "text": "회의에서는 영동대로 174이라는 임의 문자열을 비교했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        17
+      ],
+      "predicted": [
+        [
+          9,
+          17
+        ]
+      ],
+      "text": "문서 분류 코드 한밭대로 133을 새 버전에서 폐기했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        17
+      ],
+      "predicted": [
+        [
+          9,
+          17
+        ]
+      ],
+      "text": "버스 노선표에는 해운대로 175번 구간으로 표시되어 있습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        8,
+        14
+      ],
+      "predicted": [
+        [
+          8,
+          14
+        ]
+      ],
+      "text": "교육 자료에서 대학로 51은 가상 주소 예시로만 사용했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        6,
+        18
+      ],
+      "predicted": [
+        [
+          6,
+          18
+        ]
+      ],
+      "text": "회의에서는 동판교로52번길 339이라는 임의 문자열을 비교했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        8,
+        15
+      ],
+      "predicted": [
+        [
+          8,
+          15
+        ]
+      ],
+      "text": "교육 자료에서 누리로 216은 가상 주소 예시로만 사용했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        21
+      ],
+      "predicted": [
+        [
+          9,
+          21
+        ]
+      ],
+      "text": "문서 분류 코드 판교로256번길 298을 새 버전에서 폐기했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        16
+      ],
+      "predicted": [
+        [
+          9,
+          16
+        ]
+      ],
+      "text": "버스 노선표에는 판교로 420번 구간으로 표시되어 있습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        8,
+        16
+      ],
+      "predicted": [
+        [
+          8,
+          16
+        ]
+      ],
+      "text": "교육 자료에서 엑스포로 256은 가상 주소 예시로만 사용했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        17
+      ],
+      "predicted": [
+        [
+          9,
+          17
+        ]
+      ],
+      "text": "버스 노선표에는 양재천로 215번 구간으로 표시되어 있습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        12,
+        21
+      ],
+      "predicted": [
+        [
+          12,
+          21
+        ]
+      ],
+      "text": "테스트 케이스 이름은 과학기술로 257이며 실제 배송지가 아닙니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        16
+      ],
+      "predicted": [
+        [
+          9,
+          16
+        ]
+      ],
+      "text": "버스 노선표에는 테헤란로 10번 구간으로 표시되어 있습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        12,
+        20
+      ],
+      "predicted": [
+        [
+          12,
+          20
+        ]
+      ],
+      "text": "테스트 케이스 이름은 송도과학로 52이며 실제 배송지가 아닙니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        6,
+        15
+      ],
+      "predicted": [
+        [
+          6,
+          15
+        ]
+      ],
+      "text": "회의에서는 가락시장길 134이라는 임의 문자열을 비교했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        15
+      ],
+      "predicted": [
+        [
+          9,
+          15
+        ]
+      ],
+      "text": "문서 분류 코드 중앙로 93을 새 버전에서 폐기했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        9,
+        16
+      ],
+      "predicted": [
+        [
+          9,
+          16
+        ]
+      ],
+      "text": "문서 분류 코드 문화로 338을 새 버전에서 폐기했습니다."
+    },
+    {
+      "kind": "location_only",
+      "label": 0,
+      "expected": [
+        6,
+        17
+      ],
+      "predicted": [
+        [
+          6,
+          17
+        ]
+      ],
+      "text": "회의에서는 서초중앙로8길 379이라는 임의 문자열을 비교했습니다."
+    }
+  ],
+  "limitations": [
+    "동일 생성기의 합성 데이터로 측정한 규칙 적합도이며 독립 실문서 성능이 아니다.",
+    "B의 NER 결과 병합과 실제 문서 파서 오프셋은 별도 통합 테스트가 필요하다.",
+    "제시된 정규식은 rules.py 반영 전 검토용 프로토타입이다."
+  ]
+}

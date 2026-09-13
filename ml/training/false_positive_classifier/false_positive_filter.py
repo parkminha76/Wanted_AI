@@ -36,7 +36,7 @@ from ml.training.false_positive_classifier.features import tokenize
 
 
 MAX_OPERATING_FALSE_NEGATIVE_RATE = 0.05
-MODEL_RISK_TYPES = frozenset({"account", "biz_reg", "card", "phone"})
+MODEL_RISK_TYPES = frozenset({"account", "biz_reg", "card"})
 
 
 # ---------------------------------------------------------------------------

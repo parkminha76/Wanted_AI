@@ -200,14 +200,25 @@ def evaluate(rows: Sequence[dict], threshold: float = DEFAULT_THRESHOLD) -> dict
     per_level = {}
     for level in sorted({row["level"] for row in rows}):
         mask = np.asarray([row["level"] == level for row in rows])
+        level_labels = labels[mask]
+        level_predictions = predictions[mask]
+        tn, fp, fn, tp = confusion_matrix(
+            level_labels, level_predictions, labels=[0, 1]
+        ).ravel()
         p, r, level_f1, _ = precision_recall_fscore_support(
-            labels[mask], predictions[mask], average="binary", zero_division=0
+            level_labels, level_predictions, average="binary", zero_division=0
         )
         per_level[str(level)] = {
             "rows": int(mask.sum()),
             "precision": float(p),
             "recall": float(r),
             "f1": float(level_f1),
+            "false_positive_rate": float(fp / (fp + tn)) if fp + tn else 0.0,
+            "false_negative_rate": float(fn / (fn + tp)) if fn + tp else 0.0,
+            "confusion_matrix": {
+                "labels": [0, 1],
+                "values": [[int(tn), int(fp)], [int(fn), int(tp)]],
+            },
         }
 
     per_source = {}
