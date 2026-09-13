@@ -345,7 +345,7 @@ def validate_data(data):
             )
 
         # level 검사
-        if item.get("level") not in [1, 2, 3]:
+        if item.get("level") not in [1, 2, 3, 4, 5]:
 
             errors.append(
                 f"{index}번: level 오류"
