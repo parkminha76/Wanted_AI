@@ -35,6 +35,9 @@ from sklearn.preprocessing import OneHotEncoder
 from ml.training.false_positive_classifier.features import tokenize
 
 
+MAX_OPERATING_FALSE_NEGATIVE_RATE = 0.05
+
+
 # ---------------------------------------------------------------------------
 # 데이터 로딩
 # ---------------------------------------------------------------------------
@@ -112,7 +115,7 @@ def mask_candidate(text: str, start: int, end: int) -> str:
 # ---------------------------------------------------------------------------
 
 class FalsePositiveFilter:
-    def __init__(self, *, c: float = 1.0):
+    def __init__(self, *, c: float = 1.0, type_context_weight: float = 1.0):
         self.vectorizer = TfidfVectorizer(
             tokenizer=tokenize,
             token_pattern=None,
@@ -127,6 +130,11 @@ class FalsePositiveFilter:
             max_features=20_000,
             sublinear_tf=True,
         )
+        self.type_context_vectorizer = TfidfVectorizer(
+            ngram_range=(1, 2),
+            min_df=2,
+            sublinear_tf=True,
+        )
         self.onehot = OneHotEncoder(handle_unknown="ignore")
         self.clf = LogisticRegression(
             C=c,
@@ -135,20 +143,36 @@ class FalsePositiveFilter:
             random_state=42,
         )
         self.c = c
+        self.type_context_weight = type_context_weight
+        self.operating_threshold = 0.5
         self.risk_types: list[str] = []
 
     def _build_features(self, texts: list[str], types: list[str], checksums: list[int], fit: bool):
+        type_context_texts = [
+            " ".join(f"{risk_type}_{token}" for token in tokenize(text))
+            for text, risk_type in zip(texts, types)
+        ]
         if fit:
             text_vec = self.vectorizer.fit_transform(texts)
             char_vec = self.char_vectorizer.fit_transform(texts)
+            type_context_vec = self.type_context_vectorizer.fit_transform(type_context_texts)
             type_vec = self.onehot.fit_transform(np.array(types).reshape(-1, 1))
         else:
             text_vec = self.vectorizer.transform(texts)
             char_vec = self.char_vectorizer.transform(texts)
+            type_context_vec = self.type_context_vectorizer.transform(type_context_texts)
             type_vec = self.onehot.transform(np.array(types).reshape(-1, 1))
 
         checksum_vec = csr_matrix(np.array(checksums).reshape(-1, 1))
-        return hstack([text_vec, char_vec, type_vec, checksum_vec])
+        return hstack(
+            [
+                text_vec,
+                char_vec,
+                type_context_vec * self.type_context_weight,
+                type_vec,
+                checksum_vec,
+            ]
+        )
 
     def fit(self, data: list[dict]) -> "FalsePositiveFilter":
         """전체 데이터로 모델을 학습한다. 성능 평가는 evaluate_group_cv를 쓴다."""
@@ -202,8 +226,51 @@ class FalsePositiveFilter:
             return pickle.load(f)
 
 
+def select_operating_threshold(
+    labels: np.ndarray,
+    probabilities: np.ndarray,
+    *,
+    max_false_negative_rate: float = MAX_OPERATING_FALSE_NEGATIVE_RATE,
+) -> dict:
+    """FNR 제약을 지키는 지점 중 precision이 가장 높은 운영 임계값을 고른다."""
+    candidates = []
+    for threshold in sorted(set(float(value) for value in probabilities), reverse=True):
+        predictions = (probabilities >= threshold).astype(int)
+        tn, fp, fn, tp = confusion_matrix(
+            labels, predictions, labels=[0, 1]
+        ).ravel()
+        false_negative_rate = fn / (fn + tp) if fn + tp else 0.0
+        if false_negative_rate > max_false_negative_rate:
+            continue
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            labels, predictions, average="binary", zero_division=0
+        )
+        candidates.append(
+            {
+                "threshold": threshold,
+                "max_false_negative_rate": max_false_negative_rate,
+                "false_negative_rate": float(false_negative_rate),
+                "precision": float(precision),
+                "recall": float(recall),
+                "f1": float(f1),
+                "confusion_matrix": {
+                    "labels": [0, 1],
+                    "values": [[int(tn), int(fp)], [int(fn), int(tp)]],
+                },
+            }
+        )
+    if not candidates:
+        raise ValueError("FNR 제약을 만족하는 운영 임계값을 찾지 못했습니다.")
+    return max(candidates, key=lambda item: (item["precision"], item["threshold"]))
+
+
 def evaluate_group_cv(
-    data: list[dict], *, c: float, folds: int = 5, threshold: float = 0.5
+    data: list[dict],
+    *,
+    c: float,
+    type_context_weight: float = 1.0,
+    folds: int = 5,
+    threshold: float = 0.5,
 ) -> dict:
     """같은 문장 템플릿(group_id)이 학습/평가에 갈라지지 않게 평가한다."""
     labels = np.array([int(d["label"]) for d in data])
@@ -212,7 +279,9 @@ def evaluate_group_cv(
     probabilities = np.zeros(len(data), dtype=float)
 
     for train_index, test_index in splitter.split(np.zeros(len(data)), labels, groups):
-        model = FalsePositiveFilter(c=c).fit_final([data[i] for i in train_index])
+        model = FalsePositiveFilter(
+            c=c, type_context_weight=type_context_weight
+        ).fit_final([data[i] for i in train_index])
         probabilities[test_index] = model.predict_proba_many([data[i] for i in test_index])
 
     predictions = (probabilities >= threshold).astype(int)
@@ -226,9 +295,27 @@ def evaluate_group_cv(
         output_dict=True,
         zero_division=0,
     )
+    per_type = {}
+    risk_types = np.array([d["type"] for d in data])
+    for risk_type in sorted(set(risk_types)):
+        type_mask = risk_types == risk_type
+        type_precision, type_recall, type_f1, _ = precision_recall_fscore_support(
+            labels[type_mask],
+            predictions[type_mask],
+            average="binary",
+            zero_division=0,
+        )
+        per_type[risk_type] = {
+            "rows": int(type_mask.sum()),
+            "precision": float(type_precision),
+            "recall": float(type_recall),
+            "f1": float(type_f1),
+        }
+    operating_point = select_operating_threshold(labels, probabilities)
     return {
         "evaluation": f"{folds}-fold stratified group cross-validation",
         "c": c,
+        "type_context_weight": type_context_weight,
         "threshold": threshold,
         "rows": len(data),
         "groups": len(set(groups)),
@@ -242,6 +329,8 @@ def evaluate_group_cv(
             "values": confusion_matrix(labels, predictions, labels=[0, 1]).tolist(),
         },
         "classification_report": report,
+        "per_type": per_type,
+        "operating_point": operating_point,
     }
 
 
@@ -258,9 +347,16 @@ def train_and_save() -> dict:
     data = merge_json_files([str(path) for path in data_paths])
     print(f"학습 데이터 {len(data)}건 / 파일 {len(data_paths)}개 로드")
 
-    candidates = [0.25, 0.5, 1.0, 2.0, 4.0]
+    candidates = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
     results = [evaluate_group_cv(data, c=c) for c in candidates]
-    best = max(results, key=lambda result: (result["f1"], result["recall"]))
+    best = max(
+        results,
+        key=lambda result: (
+            result["average_precision"],
+            result["roc_auc"],
+            result["operating_point"]["precision"],
+        ),
+    )
     print("C 탐색 결과:")
     for result in results:
         print(
@@ -268,18 +364,42 @@ def train_and_save() -> dict:
             f"recall={result['recall']:.4f} f1={result['f1']:.4f}"
         )
 
-    model = FalsePositiveFilter(c=best["c"]).fit_final(data)
+    model = FalsePositiveFilter(
+        c=best["c"], type_context_weight=best["type_context_weight"]
+    ).fit_final(data)
+    model.operating_threshold = best["operating_point"]["threshold"]
     model_path = Path("ml/models/fp_filter_v1.pkl")
     metrics_path = Path("ml/eval/false_positive_eval/fp_filter_v1_metrics.json")
     model_path.parent.mkdir(parents=True, exist_ok=True)
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     model.save(str(model_path))
 
-    payload = {"selected": best, "candidates": results}
+    negative_rows = sum(int(item["label"] == 0) for item in data)
+    positive_rows = len(data) - negative_rows
+    payload = {
+        "selected": best,
+        "candidates": results,
+        "dataset_distribution": {
+            "negative_rows": negative_rows,
+            "positive_rows": positive_rows,
+            "positive_rate": positive_rows / len(data),
+        },
+        "limitations": [
+            "합성 데이터의 양성 비율은 실제 rules.py 후보 분포를 대표하지 않는다.",
+            "운영 임계값은 동일 합성 데이터의 그룹 교차검증 예측으로 보정했으며 독립 평가셋 검증이 필요하다.",
+            "false_negative_rate는 오탐 제거 분류기 단계의 개인정보 후보 누락률이며 전체 서비스 유출률이 아니다.",
+        ],
+    }
     with metrics_path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, ensure_ascii=False, indent=2)
 
-    print(f"\nbest C={best['c']} / F1={best['f1']:.4f}")
+    operating_point = best["operating_point"]
+    print(f"\nbest C={best['c']} / F1@0.5={best['f1']:.4f}")
+    print(
+        f"운영 threshold={operating_point['threshold']:.6f} / "
+        f"FNR={operating_point['false_negative_rate']:.4f} / "
+        f"precision={operating_point['precision']:.4f}"
+    )
     print(f"모델 저장: {model_path}")
     print(f"평가 저장: {metrics_path}")
     return payload
