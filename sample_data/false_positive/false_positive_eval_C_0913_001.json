@@ -1,0 +1,578 @@
+[
+  {
+    "text": "입금 계좌는 신한은행 110-234-567890입니다.",
+    "type": "account",
+    "start": 12,
+    "end": 26,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_01"
+  },
+  {
+    "text": "환불받으실 계좌번호 123-45-6789-01234를 확인해 주세요.",
+    "type": "account",
+    "start": 11,
+    "end": 28,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_02"
+  },
+  {
+    "text": "급여 지급 계좌로 1002-345-678901을 등록했습니다.",
+    "type": "account",
+    "start": 10,
+    "end": 25,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_03"
+  },
+  {
+    "text": "거래 대금은 계좌 3333-12-3456789로 송금해 주세요.",
+    "type": "account",
+    "start": 10,
+    "end": 25,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_04"
+  },
+  {
+    "text": "정산 계좌: 7777-01-2345678, 예금주 홍길동.",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_05"
+  },
+  {
+    "text": "납품대금 수령 계좌는 302-1234-5678-91입니다.",
+    "type": "account",
+    "start": 12,
+    "end": 28,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_06"
+  },
+  {
+    "text": "지정된 입금계좌 123-456-789012로 처리 바랍니다.",
+    "type": "account",
+    "start": 9,
+    "end": 23,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_07"
+  },
+  {
+    "text": "계약금은 456-78-901234 계좌로 입금합니다.",
+    "type": "account",
+    "start": 5,
+    "end": 18,
+    "label": 1,
+    "note": "계좌 문맥",
+    "group_id": "account_true_08"
+  },
+  {
+    "text": "주문번호 110-234-567890 건의 배송 상태를 확인해 주세요.",
+    "type": "account",
+    "start": 5,
+    "end": 19,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_01"
+  },
+  {
+    "text": "접수번호 123-45-6789-01234는 반품 건입니다.",
+    "type": "account",
+    "start": 5,
+    "end": 22,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_02"
+  },
+  {
+    "text": "문서관리번호 1002-345-678901을 기준으로 조회하세요.",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_03"
+  },
+  {
+    "text": "프로젝트 참조번호 3333-12-3456789로 티켓을 생성했습니다.",
+    "type": "account",
+    "start": 10,
+    "end": 25,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_04"
+  },
+  {
+    "text": "출고번호 7777-01-2345678 물품이 오늘 발송되었습니다.",
+    "type": "account",
+    "start": 5,
+    "end": 20,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_05"
+  },
+  {
+    "text": "제품 일련번호 302-1234-5678-91을 입력해 주세요.",
+    "type": "account",
+    "start": 8,
+    "end": 24,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_06"
+  },
+  {
+    "text": "계약 문서번호 123-456-789012의 최신본을 검토해 주세요.",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_07"
+  },
+  {
+    "text": "고객 문의번호 456-78-901234 건을 담당자에게 전달했습니다.",
+    "type": "account",
+    "start": 8,
+    "end": 21,
+    "label": 0,
+    "note": "계좌처럼 보이지만 다른 식별번호",
+    "group_id": "account_false_08"
+  },
+  {
+    "text": "사업자등록번호는 123-45-67891입니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_01"
+  },
+  {
+    "text": "세금계산서 발행용 사업자번호 214-86-12341를 확인해 주세요.",
+    "type": "biz_reg",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_02"
+  },
+  {
+    "text": "공급자 등록번호 312-81-45670로 계산서를 발행합니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_03"
+  },
+  {
+    "text": "당사 사업자등록번호: 105-87-23459",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_04"
+  },
+  {
+    "text": "거래처 사업자번호는 220-88-34567입니다.",
+    "type": "biz_reg",
+    "start": 11,
+    "end": 23,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_05"
+  },
+  {
+    "text": "사업자 확인을 위해 129-86-45675을 입력해 주세요.",
+    "type": "biz_reg",
+    "start": 11,
+    "end": 23,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_06"
+  },
+  {
+    "text": "법인 사업자등록번호 606-81-56785로 조회 바랍니다.",
+    "type": "biz_reg",
+    "start": 11,
+    "end": 23,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_07"
+  },
+  {
+    "text": "계약서의 사업자번호는 410-82-67897입니다.",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 1,
+    "note": "사업자등록번호 문맥",
+    "group_id": "biz_true_08"
+  },
+  {
+    "text": "문의 전화번호는 123-45-67891 형식으로 내부 문서에 기록돼 있습니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_01"
+  },
+  {
+    "text": "사내 관리코드 214-86-12341를 입력해 주세요.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_02"
+  },
+  {
+    "text": "고객 식별번호 312-81-45670 건을 조회했습니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_03"
+  },
+  {
+    "text": "장비번호 105-87-23459은 교체 대상입니다.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_04"
+  },
+  {
+    "text": "발주번호 220-88-34567의 납기일을 변경했습니다.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_05"
+  },
+  {
+    "text": "티켓번호 129-86-45675을 기준으로 처리해 주세요.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_06"
+  },
+  {
+    "text": "제품코드 606-81-56785 재고가 부족합니다.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_07"
+  },
+  {
+    "text": "내부 참조번호 410-82-67897을 보고서에 기입했습니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "note": "사업자번호 형식과 유사하지만 다른 코드",
+    "group_id": "biz_false_08"
+  },
+  {
+    "text": "담당자 연락처는 010-1234-5678입니다.",
+    "type": "phone",
+    "start": 9,
+    "end": 22,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_01"
+  },
+  {
+    "text": "문의 전화 02-345-6789로 연락 바랍니다.",
+    "type": "phone",
+    "start": 6,
+    "end": 17,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_02"
+  },
+  {
+    "text": "휴대전화 번호는 010-9876-5432입니다.",
+    "type": "phone",
+    "start": 9,
+    "end": 22,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_03"
+  },
+  {
+    "text": "고객센터 번호 031-555-1234로 전화해 주세요.",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_04"
+  },
+  {
+    "text": "비상 연락망: 010-2468-1357",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_05"
+  },
+  {
+    "text": "배송 기사 연락처 010-1122-3344입니다.",
+    "type": "phone",
+    "start": 10,
+    "end": 23,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_06"
+  },
+  {
+    "text": "담당 부서 전화번호는 051-123-4567입니다.",
+    "type": "phone",
+    "start": 12,
+    "end": 24,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_07"
+  },
+  {
+    "text": "예약 변경은 070-4567-8910으로 문의하세요.",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 1,
+    "note": "실제 연락처 문맥",
+    "group_id": "phone_true_08"
+  },
+  {
+    "text": "장비 관리번호 010-1234-5678의 점검일은 내일입니다.",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_01"
+  },
+  {
+    "text": "품목코드 02-345-6789 재고를 확인했습니다.",
+    "type": "phone",
+    "start": 5,
+    "end": 16,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_02"
+  },
+  {
+    "text": "작업지시번호 010-9876-5432를 완료 처리했습니다.",
+    "type": "phone",
+    "start": 7,
+    "end": 20,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_03"
+  },
+  {
+    "text": "문서번호 031-555-1234를 최신 버전으로 교체했습니다.",
+    "type": "phone",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_04"
+  },
+  {
+    "text": "내부 인증코드 010-2468-1357은 테스트 값입니다.",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_05"
+  },
+  {
+    "text": "반품 접수번호 010-1122-3344를 확인해 주세요.",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_06"
+  },
+  {
+    "text": "프로젝트 코드 051-123-4567 단계가 종료되었습니다.",
+    "type": "phone",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_07"
+  },
+  {
+    "text": "발주 참조번호 070-4567-8910의 수량을 수정했습니다.",
+    "type": "phone",
+    "start": 8,
+    "end": 21,
+    "label": 0,
+    "note": "전화번호 형식이지만 다른 업무 코드",
+    "group_id": "phone_false_08"
+  },
+  {
+    "text": "결제 카드번호는 4111-1111-1111-1111입니다.",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_01"
+  },
+  {
+    "text": "법인카드 5555-5555-5555-4444로 결제했습니다.",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_02"
+  },
+  {
+    "text": "등록된 카드번호 4000-0000-0000-0002를 삭제해 주세요.",
+    "type": "card",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_03"
+  },
+  {
+    "text": "고객이 입력한 카드 번호는 4012-8888-8888-1881입니다.",
+    "type": "card",
+    "start": 15,
+    "end": 34,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_04"
+  },
+  {
+    "text": "결제수단 카드 4222-2222-2222-2를 확인하세요.",
+    "type": "card",
+    "start": 8,
+    "end": 24,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_05"
+  },
+  {
+    "text": "카드번호 6011-1111-1111-1117로 승인 요청했습니다.",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_06"
+  },
+  {
+    "text": "정기결제 카드 3530-1113-3330-0000이 등록되었습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_07"
+  },
+  {
+    "text": "환불 대상 카드번호는 3782-822463-10005입니다.",
+    "type": "card",
+    "start": 12,
+    "end": 29,
+    "label": 1,
+    "note": "카드 결제 문맥",
+    "group_id": "card_true_08"
+  },
+  {
+    "text": "쿠폰번호 4111-1111-1111-1111을 행사 페이지에 입력하세요.",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_01"
+  },
+  {
+    "text": "제품 일련번호 5555-5555-5555-4444가 출고되었습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_02"
+  },
+  {
+    "text": "참조번호 4000-0000-0000-0002 문서를 찾아 주세요.",
+    "type": "card",
+    "start": 5,
+    "end": 24,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_03"
+  },
+  {
+    "text": "라이선스 키 4012-8888-8888-1881이 만료되었습니다.",
+    "type": "card",
+    "start": 7,
+    "end": 26,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_04"
+  },
+  {
+    "text": "배송 추적번호 4222-2222-2222-2를 조회했습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 24,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_05"
+  },
+  {
+    "text": "고객 티켓번호 6011-1111-1111-1117 처리 완료했습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_06"
+  },
+  {
+    "text": "장비 식별번호 3530-1113-3330-0000을 자산대장에 등록했습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_07"
+  },
+  {
+    "text": "문서 참조키 3782-822463-10005를 기준으로 검색하세요.",
+    "type": "card",
+    "start": 7,
+    "end": 24,
+    "label": 0,
+    "note": "카드번호처럼 보이지만 다른 식별값",
+    "group_id": "card_false_08"
+  }
+]
