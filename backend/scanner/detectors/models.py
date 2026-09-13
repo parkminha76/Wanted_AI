@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 INJECTION_MODEL_PATH = os.path.join("ml", "models", "injection_classifier_v1.pkl")
 FALSE_POSITIVE_MODEL_PATH = os.path.join("ml", "models", "fp_filter_v1.pkl")
@@ -174,6 +175,49 @@ def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, flo
 # 오탐 제거
 # ---------------------------------------------------------------------------
 
+# 사번(emp_no) 전용 규칙. 분류기가 학습하지 않은 타입이라 여기서 대신 본다.
+#
+# 왜 rules.py가 아니라 여기인가: rules.py의 사번 탐지에는 **자리 선점**이라는 본업이
+# 따로 있다. "사번 2024-0317-05"의 값은 계좌번호 형식과 똑같이 생겨서, 사번이 그
+# 구간을 먼저 집어주지 않으면 find_all이 account(30점, 화면에 "계좌번호")로 넘긴다.
+# 실측(2026-09-13): rules.py에서 사번 탐지를 빼자 "사번 2024-0317-05 …"가 그대로
+# account로 잡혔다. 예시를 거르려다 더 나쁜 오탐을 만드는 셈이다.
+# 그래서 탐지는 rules.py가 그대로 하고(자리 선점 유지), 거르는 것만 이 단계에서 한다.
+#
+# **마커는 값 바로 뒤에서만 본다.** 문장 어디서나 찾으면 평범한 인사 문서가 무너진다
+# (실측: 진짜 사번이 든 문장 12건 중 10건이 잘못 걸렸다):
+#     예시다:  "사번 S8905 형식으로 자동 부여됩니다"        <- 형식이 값을 설명
+#     진짜다:  "사번 2024-0317 직원의 근태 규칙 위반 건"     <- 규칙은 근태에 붙음
+#              "사번 EMP-03250 님의 연차 신청 양식을 반려"   <- 양식은 신청에 붙음
+# 규칙·양식·형식·형태·테스트는 인사 문서에서 가장 흔한 단어라, 거리를 안 재면
+# 고치려던 놓침보다 큰 놓침을 새로 만든다.
+#
+# 실측(학습 데이터 72건): 예시 32/36(88.9%)을 거르고 진짜는 0/36 오억제.
+# 못 거르는 4건은 마커가 값에서 떨어져 있다("사번 2015-5898 마스킹 처리 예시 화면").
+# 창을 넓히면 위의 진짜 문장들이 걸리기 시작해서 넓히지 않았다 — 예시가 덜 걸리는
+# 쪽이 진짜 사번을 버리는 쪽보다 낫다.
+_EMPLOYEE_EXAMPLE_MARKER = re.compile(
+    r"^\s*(?:은|는|이|가|의|를|을)?\s*"
+    r"(?:예시|샘플|더미|테스트|형식|형태|대역|번대|템플릿|양식|규칙|가상)"
+)
+
+# 값 뒤로 이만큼까지만 본다. 조사 한 글자 + 마커 한 단어가 들어갈 정도다.
+_EMPLOYEE_EXAMPLE_WINDOW = 12
+
+# 규칙으로 걸러낼 때 쓰는 "진짜일 확률". 0.0을 쓰지 않는 이유는 계산으로 증명한
+# 것이 아니라 문구 하나를 보고 내린 판단이기 때문이다.
+_EMPLOYEE_EXAMPLE_PROBABILITY = 0.1
+
+
+def _declares_example(value: str, sentence: str) -> bool:
+    """값 바로 뒤에서 "이건 예시다"라고 말하는 문구가 오는가."""
+    position = sentence.find(value)
+    if position < 0:
+        return False
+    end = position + len(value)
+    return bool(_EMPLOYEE_EXAMPLE_MARKER.match(sentence[end : end + _EMPLOYEE_EXAMPLE_WINDOW]))
+
+
 # 구형 모델에 operating_threshold가 없을 때만 쓰는 호환용 기본값이다.
 FALSE_POSITIVE_THRESHOLD = 0.5
 
@@ -226,7 +270,13 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
 
     모델 파일이 없거나 **모델이 그 타입을 학습하지 않았으면** (True, 1.0)을
     돌려준다 = 통과. 학습한 타입만 판정하는 이유는 아래 주석 참고.
+    사번만 예외다. 분류기가 학습하지 않은 타입인데 "이건 예시다"라고 문장이 직접
+    말해주는 경우가 있어서, 그것만 규칙으로 거른다(_declares_example 주석 참고).
     """
+    # 모델보다 먼저 본다 — 모델 파일이 없는 환경에서도 이 규칙은 돌아야 한다.
+    if risk_type == "emp_no" and _declares_example(text, context):
+        return (False, _EMPLOYEE_EXAMPLE_PROBABILITY)
+
     model = _get_false_positive_model()
     if model is None:
         return (True, 1.0)
