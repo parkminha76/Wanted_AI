@@ -341,7 +341,12 @@ def evaluate_group_cv(
 
 def train_and_save() -> dict:
     """데이터 로드, 교차검증, 전체 재학습, 산출물 저장을 실행한다."""
-    data_paths = sorted(Path("sample_data/false_positive").glob("false_positive_*.json"))
+    # 독립 평가셋(false_positive_eval_*.json)은 절대 학습에 섞지 않는다.
+    data_paths = [
+        path
+        for path in sorted(Path("sample_data/false_positive").glob("false_positive_*.json"))
+        if "_eval_" not in path.stem.lower()
+    ]
     if not data_paths:
         raise FileNotFoundError("sample_data/false_positive에 학습 JSON이 없습니다.")
 

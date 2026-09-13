@@ -17,8 +17,8 @@ v1 학습 대상은 `account`, `biz_reg`, `card`, `phone`이다. 표준 형식�
 uv run python -m ml.training.false_positive_classifier.train
 ```
 
-`sample_data/false_positive/false_positive_*.json`을 모두 읽고, 같은 `group_id`가
-학습과 평가 fold에 나뉘지 않도록 5-fold `StratifiedGroupKFold`로 평가한다.
+`sample_data/false_positive/false_positive_*.json` 중 파일명에 `_eval_`이 없는
+학습 파일만 읽는다. 같은 `group_id`가 학습과 평가 fold에 나뉘지 않도록 5-fold `StratifiedGroupKFold`로 평가한다.
 로지스틱 회귀의 `C` 후보를 비교한 뒤 최종 모델은 전체 데이터로 다시
 학습한다.
 
@@ -27,16 +27,19 @@ uv run python -m ml.training.false_positive_classifier.train
 `model.operating_threshold`에 저장한다. 스캐너는 고정된 0.5 대신 이 값을 사용한다.
 
 - 모델: `ml/models/fp_filter_v1.pkl`
-- 평가: `ml/eval/false_positive_eval/fp_filter_v1_metrics.json`
+- 교차검증: `ml/eval/false_positive_eval/fp_filter_v1_metrics.json`
+- 별도 holdout: `ml/eval/false_positive_eval/fp_filter_v1_holdout_metrics.json`
 
 ## 테스트
 
 ```powershell
+uv run python -m ml.eval.false_positive_eval.evaluate_holdout
 uv run python -m unittest ml.eval.false_positive_eval.test_false_positive_filter -v
 ```
 
-v1은 합성 데이터로 학습하고 `group_id` 단위 교차검증으로 평가한다.
-최신 건수와 성능은 `ml/eval/false_positive_eval/fp_filter_v1_metrics.json`을
-기준으로 한다. 독립된 실제 문서 평가셋 성능은 아직 확인하지 않았다.
+v1은 합성 데이터 272건으로 학습하고 `group_id` 단위 교차검증으로 평가한다.
+별도 파일 64건은 학습에서 제외하고 holdout으로 측정한다. 동일 문장은 없지만
+48건이 학습셋과 같은 `group_id`와 유사 문장 틀을 사용하므로 완전 독립
+평가셋으로 간주하지 않는다. 최신 수치는 두 평가 JSON을 함께 확인한다.
 합성 데이터의 양성 비율은 실제 `rules.py` 후보 분포와 다를 수 있으므로 PR-AUC와
 precision을 운영 환경의 실제 비율로 해석하면 안 된다.
