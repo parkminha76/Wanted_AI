@@ -33,9 +33,9 @@ mask.py가 쓰는 두 함수:
 
 분류기 연결 상태(_ENABLE_CLASSIFIER_STAGE = True, 2026-09-12):
     인젝션    ml/models/injection_classifier_v1.pkl로 판정한다.
-    오탐 제거  ml/models/fp_filter_v1.pkl로 판정한다. 단 그 모델이 학습한 다섯
-              타입(account·biz_reg·card·emp_no·phone)만 물어보고 나머지는 통과
-              시킨다 — models.filter_false_positive 주석의 실측 근거 참고.
+    오탐 제거  ml/models/fp_filter_v1.pkl로 판정한다. 단 그 모델이 학습한 네 타입
+              (account·biz_reg·card·phone)만 물어본다. emp_no는 합성 문장 표현을
+              외우는 문제가 있어 모델에서 제외했고, 기존 탐지 결과를 통과시킨다.
 """
 
 from __future__ import annotations
