@@ -174,7 +174,7 @@ def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, flo
 # 오탐 제거
 # ---------------------------------------------------------------------------
 
-# 이 값 이상이면 "진짜 개인정보"로 본다. 학습 코드가 쓰는 기본값과 같다.
+# 구형 모델에 operating_threshold가 없을 때만 쓰는 호환용 기본값이다.
 FALSE_POSITIVE_THRESHOLD = 0.5
 
 _false_positive_model = None
@@ -256,5 +256,8 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
         start = 0
     end = start + len(text)
 
-    probability = round(float(model.predict_proba(sentence, risk_type, start, end)), 3)
-    return (probability >= FALSE_POSITIVE_THRESHOLD, probability)
+    probability = float(model.predict_proba(sentence, risk_type, start, end))
+    threshold = float(
+        getattr(model, "operating_threshold", FALSE_POSITIVE_THRESHOLD)
+    )
+    return (probability >= threshold, round(probability, 3))
