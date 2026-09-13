@@ -718,6 +718,10 @@ def case_scanned_pdf(tmp: str) -> None:
     masked.close()
 
     check(_digest(src) == before, "원본 파일이 변하지 않았다")
+    # 구운 페이지 그림은 **마스킹 전 원본 신분증 사진**이다. 테스트라도 두고 나가면
+    # 임시 폴더에 원본이 쌓인다(실측 2026-09-13: 이 파일이 한 번 돌 때마다 4개씩,
+    # 누적 131개 10.3MB). 제품 코드는 scan_file의 finally에서 지운다.
+    parse.cleanup(doc)
 
 
 def _check_multipage_scanned(tmp: str, out_dir: str) -> None:
@@ -769,6 +773,7 @@ def _check_multipage_scanned(tmp: str, out_dir: str) -> None:
             check(rgb.getpixel((800, 550)) == (240, 240, 240),
                   f"{index + 1}쪽의 가리지 않은 부분은 그대로다", str(rgb.getpixel((800, 550))))
     masked.close()
+    parse.cleanup(doc)
 
 
 def case_scanned_pdf_guard(tmp: str) -> None:
@@ -788,6 +793,7 @@ def case_scanned_pdf_guard(tmp: str) -> None:
 
     check(bool(mask.build_file(src, doc, [], out_dir=out_dir)),
           "findings가 0건이어도 사본은 만든다")
+    parse.cleanup(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -999,10 +1005,14 @@ def case_cleanup(tmp: str) -> None:
     os.makedirs(outsider, exist_ok=True)
     open(os.path.join(outsider, "소중한파일.txt"), "w").close()
     fake = parse.load(src)
+    # image_paths를 남의 폴더로 바꿔치기하면 **진짜로 구워 낸 폴더가 미아가 된다** —
+    # cleanup은 image_paths만 보고 지우기 때문이다. 바꾸기 전에 진짜 경로를 챙겨 둔다.
+    real_baked = list(fake.image_paths)
     fake.image_paths = [os.path.join(outsider, "page001.png")]
     check(parse.cleanup(fake) == 0, "이름이 다른 폴더는 지우지 않는다")
     check(os.path.isdir(outsider), "남의 폴더는 그대로다")
-    parse.cleanup(parse.load(src))      # 방금 다시 구운 것 정리
+    fake.image_paths = real_baked
+    check(parse.cleanup(fake) == 1, "미아가 될 뻔한 진짜 폴더도 지운다")
 
 
 def main() -> int:
