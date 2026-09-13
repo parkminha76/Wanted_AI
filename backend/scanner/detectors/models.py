@@ -233,7 +233,7 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
 
     # 모델이 배운 적 없는 타입은 물어보지 않는다.
     #
-    # v1이 학습한 타입은 account·biz_reg·card·emp_no·phone 다섯뿐인데, 파이프라인은
+    # v1이 학습한 타입은 account·biz_reg·card·phone 네 가지뿐인데, 파이프라인은
     # rrn·api_key·email·hidden_text 등 훨씬 많은 타입을 흘려보낸다. OneHotEncoder가
     # handle_unknown="ignore"라 모르는 타입은 전부 0 벡터가 되고, 남는 것은 문서
     # 문장에 대한 TF-IDF뿐이라 판정이 사실상 무작위가 된다(모르는 타입 넷을 넣어
@@ -244,8 +244,9 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
     # **0.492로 잘려나가 위험점수가 81.0에서 32.8로 떨어졌다.** 화면에는 위험한
     # 문서가 안전한 문서로 표시된다.
     #
-    # A가 새 타입을 학습시키면 model.risk_types가 자동으로 늘어나므로 이 코드는
-    # 그대로 두면 된다.
+    # emp_no도 이 경로로 통과한다. 사번은 표준 형식과 체크섬이 없고 합성 문장의
+    # 표현을 외우는 문제가 있어 v1 학습에서 제외했다. A가 새 타입을 안정적으로
+    # 학습시키면 model.risk_types가 자동으로 늘어나므로 이 코드는 그대로 두면 된다.
     if risk_type not in (getattr(model, "risk_types", None) or ()):
         return (True, 1.0)
 

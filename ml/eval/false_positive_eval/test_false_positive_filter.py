@@ -45,6 +45,19 @@ class FalsePositiveFilterTest(unittest.TestCase):
             model.operating_threshold, operating_point["threshold"]
         )
         self.assertLessEqual(operating_point["false_negative_rate"], 0.05)
+        self.assertNotIn("emp_no", model.risk_types)
+
+    def test_emp_no_bypasses_false_positive_model(self):
+        model = FalsePositiveFilter.load(str(MODEL_PATH))
+        with patch.object(
+            detector_models, "_get_false_positive_model", return_value=model
+        ):
+            keep, probability = detector_models.filter_false_positive(
+                "A0317", "사번은 A0317입니다", "emp_no"
+            )
+
+        self.assertTrue(keep)
+        self.assertEqual(probability, 1.0)
 
     def test_scanner_uses_model_operating_threshold(self):
         class StubModel:
