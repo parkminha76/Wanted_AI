@@ -265,8 +265,10 @@ def _apply_classifier_filters(
 
 
 # hidden.py의 _looks_dangerous가 "AI에게 내리는 지시문"이라고 판정했을 때 쓰는 문구.
-# 그 판정은 내부에서 models.is_injection을 부른 결과다.
-_HIDDEN_INJECTION_KIND = "AI에게 내리는 지시문"
+# hidden.py가 INJECTION_KIND로 내보내므로 그것을 그대로 가져온다 — 같은 문자열을
+# 두 파일이 따로 들고 있으면 한쪽이 문구를 다듬을 때 조용히 어긋난다.
+# hidden.py가 없는 환경(모듈 미연결)을 위해 기본값을 남겨 둔다.
+_HIDDEN_INJECTION_KIND = getattr(hidden, "INJECTION_KIND", "AI에게 내리는 지시문")
 
 
 def _promote_hidden_injections(findings: list[Finding]) -> None:

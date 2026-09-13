@@ -18,9 +18,9 @@
 모델을 못 읽으면 그 사실을 기억해두고 다시 시도하지 않는다 — 문장마다 파일을
 열려다 실패하면 문서 한 건에 수백 번 같은 예외가 난다.
 
-시그니처는 9/9에 A와 합의해 고정한 것이다. 한때 인젝션 쪽에 threshold 선택 인자를
-덧붙였다가 빼고 되돌렸다 — 부르는 자리마다 동작점을 달리 두려던 것이었는데, 그
-가정이 실측으로 뒤집혔다(INJECTION_THRESHOLD 주석 참고).
+시그니처는 9/9에 A와 합의해 고정한 것이다. 인젝션 쪽에만 threshold 선택 인자를
+덧붙였다(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다) — hidden.py가 자기
+쪽 판정 조건과 함께 더 낮은 문턱을 쓰기 때문이다. 아래 상수 설명 참고.
 """
 
 from __future__ import annotations
@@ -75,26 +75,25 @@ FALSE_POSITIVE_MODEL_NAME = "fp_filter_v1"
 # 겹친다. C의 label=0 데이터에 평범한 한국어 업무 문장이 들어가야 풀린다.
 INJECTION_THRESHOLD = 0.70
 
-# 임계값은 이 하나뿐이다. 부르는 자리마다 다르게 두지 않는다.
+# hidden.py가 쓰는 더 낮은 문턱. **이 값만 단독으로 쓰면 안 된다.**
 #
-# 한때 "숨겨진 텍스트는 인젝션일 사전확률이 높으니 더 느슨한 값(0.5)을 쓰자"고
-# 나눠뒀는데, B-1의 실측이 그 가정을 뒤집었다(2026-09-12). 숨겨진 자리에서 꺼낸
-# 글은 모델의 학습 범위 밖이라 확률이 사전확률 근처(≈0.5)에 몰린다 — 아래
-# filter_false_positive 주석에 적은 "모르는 입력은 한 점에 몰린다"와 같은 현상이다.
-# 0.5는 하필 그 자리라서, 평범한 계약 문구가 명령으로 넘어간다:
+# 이 값을 혼자 쓰면 평범한 계약 문구가 명령으로 넘어간다(실측 2026-09-12):
 #     0.734  을은 갑의 사전 승인 없이 재위탁할 수 없다
 #     0.665  본 계약은 상호 합의에 따라 해지할 수 있다
 #     0.519  지연배상금은 일 0.1퍼센트로 산정한다
-#     0.506  산출물의 저작권은 갑에게 귀속한다
-# 계약 문구 12건 중 5건이 0.5를 넘었다. 검토 중인 계약서의 삭제 이력이 "숨은 명령"
-# 으로 도배된다.
+# 계약 문구 12건 중 5건이 0.5를 넘었다. 숨겨진 자리에서 꺼낸 글은 모델의 학습 범위
+# 밖이라 확률이 사전확률(≈0.5) 근처에 몰리는데, 0.5가 하필 그 자리다 — 아래
+# filter_false_positive 주석의 "모르는 입력은 한 점에 몰린다"와 같은 현상이다.
 #
-# 0.5를 버리고 이 값 하나로 통일해도 **잃는 것이 없다**(문서 30건 실측: 탐지 결과
-# 변화 0건). 확실한 건은 hidden.py가 이미 "AI에게 내리는 지시문"으로 판정해서
-# 보내주고, scan.py는 그 판정을 임계값과 무관하게 그대로 승격시키기 때문이다.
+# 그래서 hidden.py는 이 문턱에 **수신자 조건(_targets_ai)을 AND로 건다** — "이 문장이
+# 사람이 아니라 AI를 향하는가". 계약 조항은 사람에게 하는 말이라 그 조건에서 떨어진다.
+# B-1 실측(hidden.py 8회차): 문턱만 낮추면 정상 26건 중 7건 오탐인데, 수신자 조건을
+# 함께 걸면 공격 6/8 -> 7/8로 늘면서 정상 오탐은 1/6 -> 0/6이 된다.
 #
-# 0.70을 넘겨버리는 계약 문구("…재위탁할 수 없다", 0.734)는 임계값으로는 못 막는다.
-# C의 label=0 데이터에 평범한 한국어 업무·계약 문장이 들어가야 풀린다.
+# scan.py의 승격 경로는 이 값을 쓰지 않는다(수신자 조건이 없으므로). 그쪽은 hidden.py가
+# 이미 내려준 판정(evidence["restored_kind"])을 그대로 믿고, 그 판정이 없을 때만
+# INJECTION_THRESHOLD로 보수적으로 본다.
+HIDDEN_TEXT_INJECTION_THRESHOLD = 0.5
 
 # 모델을 못 읽었을 때의 최소 방어선이자, 모델이 있을 때도 함께 보는 보조 판정.
 # 인젝션 모델의 학습 데이터는 전부 한국어라 영문 인젝션은 학습 범위 밖이다
@@ -140,11 +139,15 @@ def injection_model_ready() -> bool:
     return _get_injection_model() is not None
 
 
-def is_injection(sentence) -> tuple[bool, float]:
+def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, float]:
     """이 문장이 AI에게 내리는 명령인가? 반환: (명령이면 True, 확신도 0~1)
 
     확신도는 모델이 매긴 인젝션일 확률(label=1)이다. 키워드로만 잡은 경우에는
-    _KEYWORD_CONFIDENCE를 돌려준다. 판정 기준은 INJECTION_THRESHOLD 하나다.
+    _KEYWORD_CONFIDENCE를 돌려준다.
+
+    threshold를 주지 않으면 INJECTION_THRESHOLD를 쓴다. 더 낮은 값을 넘길 때는
+    부르는 쪽이 오탐을 막을 다른 조건을 함께 걸어야 한다
+    (HIDDEN_TEXT_INJECTION_THRESHOLD 주석 참고).
     """
     if not isinstance(sentence, str) or not sentence.strip():
         return (False, 0.0)
@@ -157,7 +160,8 @@ def is_injection(sentence) -> tuple[bool, float]:
         return (keyword_hit, _KEYWORD_CONFIDENCE if keyword_hit else 0.0)
 
     probability = round(model.predict_proba(sentence), 3)
-    if probability >= INJECTION_THRESHOLD:
+    limit = INJECTION_THRESHOLD if threshold is None else threshold
+    if probability >= limit:
         return (True, probability)
     # 모델이 넘기지 못한 문장이라도 알려진 공격 문구가 그대로 들어 있으면 잡는다.
     # 영문 인젝션이 여기로 온다.
