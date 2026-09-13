@@ -46,7 +46,7 @@ def check(ok: bool, label: str, detail: str = "") -> None:
 def _finding(risk_type: str, text: str, start: int, end: int) -> Finding:
     return Finding(
         id=f"f_{start:03d}", type=risk_type, text=text, start=start, end=end,
-        confidence=1.0, source="rules", reason="테스트용",
+        confidence=1.0, source="rule", reason="테스트용",
     )
 
 
@@ -718,6 +718,62 @@ def case_scanned_pdf(tmp: str) -> None:
     masked.close()
 
     check(_digest(src) == before, "원본 파일이 변하지 않았다")
+    # 구운 페이지 그림은 **마스킹 전 원본 신분증 사진**이다. 테스트라도 두고 나가면
+    # 임시 폴더에 원본이 쌓인다(실측 2026-09-13: 이 파일이 한 번 돌 때마다 4개씩,
+    # 누적 131개 10.3MB). 제품 코드는 scan_file의 finally에서 지운다.
+    parse.cleanup(doc)
+
+
+def _check_multipage_scanned(tmp: str, out_dir: str) -> None:
+    """여러 쪽짜리 스캔본 — **모든 쪽이 제대로 가려지는가.**
+
+    2026-09-12까지 여기에는 "여러 쪽짜리는 None"을 확인하는 테스트가 있었다.
+    `scan.py`의 `_scan_image`가 첫 장만 CNN에 넘기던 시절의 빗장을 지키는
+    테스트였는데, 그쪽이 `doc.image_paths`를 전부 돌게 되면서 빗장을 풀었다
+    (`mask._mask_scanned_pdf` 주석 참고).
+
+    빗장을 풀면서 이 테스트를 **지우지 않고 뒤집었다.** 지우면 여러 쪽 경로가
+    통째로 시험되지 않는 채로 남는다 — 지금은 그쪽이 실제로 쓰이는 길이라
+    오히려 더 봐야 한다. 특히 쪽 번호 짝짓기(`finding.page` -> 몇 번째 그림)가
+    어긋나면 **2쪽의 주민번호를 1쪽에 칠하고 2쪽은 그대로 내보낸다.**
+    """
+    import pymupdf
+    from PIL import Image
+
+    two, placed, target = _make_scanned_pdf(tmp, "두장.pdf", pages=2)
+    doc = parse.load(two)
+    check(len(doc.image_paths) == 2, "두 장 모두 구웠다", f"{len(doc.image_paths)}장")
+
+    box = (target.x0 * 2, target.y0 * 2, target.x1 * 2, target.y1 * 2)
+    first = _box_finding("id_photo", box)
+    second = _box_finding("rrn", box)
+    second.page = 2                       # 2쪽에서 찾은 항목
+    out = mask.build_file(two, doc, [first, second], out_dir=out_dir)
+    check(bool(out) and os.path.isfile(out), "여러 쪽짜리도 사본을 만든다",
+          os.path.basename(out or ""))
+    if not out:
+        return
+
+    masked = pymupdf.open(out)
+    check(masked.page_count == 2, "쪽 수가 같다", f"{masked.page_count}쪽")
+
+    # 두 쪽 **모두** 붉은 덩어리가 지워졌어야 한다. 쪽 번호 짝짓기가 어긋나면
+    # 한 쪽만 지워지고 다른 쪽에 원본이 그대로 남는다.
+    for index in range(masked.page_count):
+        images = masked[index].get_images()
+        if len(images) != 1:
+            check(False, f"{index + 1}쪽에 그림이 하나다", f"{len(images)}개")
+            continue
+        blob = masked.extract_image(images[0][0])["image"]
+        with Image.open(io.BytesIO(blob)) as embedded:
+            rgb = embedded.convert("RGB")
+            colors = {c for _, c in (rgb.getcolors(maxcolors=200000) or [])}
+            reds = {c for c in colors if c[0] > c[1] + 40}
+            check(not reds, f"{index + 1}쪽의 원본 픽셀이 지워졌다", str(sorted(reds)[:3]))
+            check(rgb.getpixel((800, 550)) == (240, 240, 240),
+                  f"{index + 1}쪽의 가리지 않은 부분은 그대로다", str(rgb.getpixel((800, 550))))
+    masked.close()
+    parse.cleanup(doc)
 
 
 def case_scanned_pdf_guard(tmp: str) -> None:
@@ -726,13 +782,7 @@ def case_scanned_pdf_guard(tmp: str) -> None:
 
     out_dir = os.path.join(tmp, "out")
 
-    two, placed, target = _make_scanned_pdf(tmp, "두장.pdf", pages=2)
-    doc = parse.load(two)
-    check(len(doc.image_paths) == 2, "두 장 모두 구웠다", f"{len(doc.image_paths)}장")
-    findings = [_box_finding("id_photo", (target.x0 * 2, target.y0 * 2,
-                                          target.x1 * 2, target.y1 * 2))]
-    check(mask.build_file(two, doc, findings, out_dir=out_dir) is None,
-          "여러 쪽짜리는 None (지금은 CNN이 1쪽만 본다)")
+    _check_multipage_scanned(tmp, out_dir)
 
     src, placed, target = _make_scanned_pdf(tmp, "스캔본.pdf")
     doc = parse.load(src)
@@ -743,6 +793,7 @@ def case_scanned_pdf_guard(tmp: str) -> None:
 
     check(bool(mask.build_file(src, doc, [], out_dir=out_dir)),
           "findings가 0건이어도 사본은 만든다")
+    parse.cleanup(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -954,10 +1005,14 @@ def case_cleanup(tmp: str) -> None:
     os.makedirs(outsider, exist_ok=True)
     open(os.path.join(outsider, "소중한파일.txt"), "w").close()
     fake = parse.load(src)
+    # image_paths를 남의 폴더로 바꿔치기하면 **진짜로 구워 낸 폴더가 미아가 된다** —
+    # cleanup은 image_paths만 보고 지우기 때문이다. 바꾸기 전에 진짜 경로를 챙겨 둔다.
+    real_baked = list(fake.image_paths)
     fake.image_paths = [os.path.join(outsider, "page001.png")]
     check(parse.cleanup(fake) == 0, "이름이 다른 폴더는 지우지 않는다")
     check(os.path.isdir(outsider), "남의 폴더는 그대로다")
-    parse.cleanup(parse.load(src))      # 방금 다시 구운 것 정리
+    fake.image_paths = real_baked
+    check(parse.cleanup(fake) == 1, "미아가 될 뻔한 진짜 폴더도 지운다")
 
 
 def main() -> int:

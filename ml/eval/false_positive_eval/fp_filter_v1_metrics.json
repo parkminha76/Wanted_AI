@@ -1,15 +1,16 @@
 {
   "selected": {
     "evaluation": "5-fold stratified group cross-validation",
-    "c": 4.0,
+    "c": 16.0,
+    "type_context_weight": 1.0,
     "threshold": 0.5,
-    "rows": 298,
-    "groups": 149,
-    "precision": 0.831081081081081,
-    "recall": 0.82,
-    "f1": 0.825503355704698,
-    "roc_auc": 0.879009009009009,
-    "average_precision": 0.8741033596217893,
+    "rows": 344,
+    "groups": 172,
+    "precision": 0.8860759493670886,
+    "recall": 0.8433734939759037,
+    "f1": 0.8641975308641975,
+    "roc_auc": 0.9440909706240692,
+    "average_precision": 0.9506615737504214,
     "confusion_matrix": {
       "labels": [
         0,
@@ -17,40 +18,96 @@
       ],
       "values": [
         [
-          123,
-          25
+          160,
+          18
         ],
         [
-          27,
-          123
+          26,
+          140
         ]
       ]
     },
     "classification_report": {
       "오탐(0)": {
-        "precision": 0.82,
-        "recall": 0.831081081081081,
-        "f1-score": 0.825503355704698,
-        "support": 148.0
+        "precision": 0.8602150537634409,
+        "recall": 0.898876404494382,
+        "f1-score": 0.8791208791208791,
+        "support": 178.0
       },
       "진짜(1)": {
-        "precision": 0.831081081081081,
-        "recall": 0.82,
-        "f1-score": 0.825503355704698,
-        "support": 150.0
+        "precision": 0.8860759493670886,
+        "recall": 0.8433734939759037,
+        "f1-score": 0.8641975308641975,
+        "support": 166.0
       },
-      "accuracy": 0.825503355704698,
+      "accuracy": 0.872093023255814,
       "macro avg": {
-        "precision": 0.8255405405405405,
-        "recall": 0.8255405405405405,
-        "f1-score": 0.825503355704698,
-        "support": 298.0
+        "precision": 0.8731455015652647,
+        "recall": 0.8711249492351428,
+        "f1-score": 0.8716592049925382,
+        "support": 344.0
       },
       "weighted avg": {
-        "precision": 0.8255777253763831,
-        "recall": 0.8255033557046979,
-        "f1-score": 0.825503355704698,
-        "support": 298.0
+        "precision": 0.8726944394326428,
+        "recall": 0.872093023255814,
+        "f1-score": 0.8719194959505037,
+        "support": 344.0
+      }
+    },
+    "per_type": {
+      "account": {
+        "rows": 60,
+        "precision": 0.8125,
+        "recall": 0.8666666666666667,
+        "f1": 0.8387096774193549
+      },
+      "biz_reg": {
+        "rows": 70,
+        "precision": 0.9375,
+        "recall": 1.0,
+        "f1": 0.967741935483871
+      },
+      "card": {
+        "rows": 60,
+        "precision": 0.8823529411764706,
+        "recall": 1.0,
+        "f1": 0.9375
+      },
+      "emp_no": {
+        "rows": 72,
+        "precision": 0.875,
+        "recall": 0.7777777777777778,
+        "f1": 0.8235294117647058
+      },
+      "phone": {
+        "rows": 82,
+        "precision": 0.9285714285714286,
+        "recall": 0.65,
+        "f1": 0.7647058823529411
+      }
+    },
+    "operating_point": {
+      "threshold": 0.275282625094404,
+      "max_false_negative_rate": 0.05,
+      "false_negative_rate": 0.04819277108433735,
+      "precision": 0.6991150442477876,
+      "recall": 0.9518072289156626,
+      "f1": 0.8061224489795918,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            110,
+            68
+          ],
+          [
+            8,
+            158
+          ]
+        ]
       }
     }
   },
@@ -58,14 +115,15 @@
     {
       "evaluation": "5-fold stratified group cross-validation",
       "c": 0.25,
+      "type_context_weight": 1.0,
       "threshold": 0.5,
-      "rows": 298,
-      "groups": 149,
-      "precision": 0.782608695652174,
-      "recall": 0.6,
-      "f1": 0.6792452830188679,
-      "roc_auc": 0.8168018018018017,
-      "average_precision": 0.778721432770572,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.7727272727272727,
+      "recall": 0.8192771084337349,
+      "f1": 0.7953216374269005,
+      "roc_auc": 0.9026668471639366,
+      "average_precision": 0.9090711677498762,
       "confusion_matrix": {
         "labels": [
           0,
@@ -73,54 +131,111 @@
         ],
         "values": [
           [
-            123,
-            25
+            138,
+            40
           ],
           [
-            60,
-            90
+            30,
+            136
           ]
         ]
       },
       "classification_report": {
         "오탐(0)": {
-          "precision": 0.6721311475409836,
-          "recall": 0.831081081081081,
-          "f1-score": 0.743202416918429,
-          "support": 148.0
+          "precision": 0.8214285714285714,
+          "recall": 0.7752808988764045,
+          "f1-score": 0.7976878612716763,
+          "support": 178.0
         },
         "진짜(1)": {
-          "precision": 0.782608695652174,
-          "recall": 0.6,
-          "f1-score": 0.6792452830188679,
-          "support": 150.0
+          "precision": 0.7727272727272727,
+          "recall": 0.8192771084337349,
+          "f1-score": 0.7953216374269005,
+          "support": 166.0
         },
-        "accuracy": 0.714765100671141,
+        "accuracy": 0.7965116279069767,
         "macro avg": {
-          "precision": 0.7273699215965788,
-          "recall": 0.7155405405405405,
-          "f1-score": 0.7112238499686485,
-          "support": 298.0
+          "precision": 0.797077922077922,
+          "recall": 0.7972790036550697,
+          "f1-score": 0.7965047493492885,
+          "support": 344.0
         },
         "weighted avg": {
-          "precision": 0.7277406516237974,
-          "recall": 0.714765100671141,
-          "f1-score": 0.7110092287139519,
-          "support": 298.0
+          "precision": 0.7979273633343402,
+          "recall": 0.7965116279069767,
+          "f1-score": 0.7965460206954182,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.65,
+          "recall": 0.8666666666666667,
+          "f1": 0.7428571428571429
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9285714285714286,
+          "recall": 0.8666666666666667,
+          "f1": 0.896551724137931
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.7894736842105263,
+          "recall": 1.0,
+          "f1": 0.8823529411764706
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.7368421052631579,
+          "recall": 0.7777777777777778,
+          "f1": 0.7567567567567568
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.8125,
+          "recall": 0.65,
+          "f1": 0.7222222222222222
+        }
+      },
+      "operating_point": {
+        "threshold": 0.4686764500310639,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.7053571428571429,
+        "recall": 0.9518072289156626,
+        "f1": 0.8102564102564103,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              112,
+              66
+            ],
+            [
+              8,
+              158
+            ]
+          ]
         }
       }
     },
     {
       "evaluation": "5-fold stratified group cross-validation",
       "c": 0.5,
+      "type_context_weight": 1.0,
       "threshold": 0.5,
-      "rows": 298,
-      "groups": 149,
-      "precision": 0.8015267175572519,
-      "recall": 0.7,
-      "f1": 0.7473309608540926,
-      "roc_auc": 0.8531981981981982,
-      "average_precision": 0.814443104319282,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.8117647058823529,
+      "recall": 0.8313253012048193,
+      "f1": 0.8214285714285714,
+      "roc_auc": 0.9231081629890349,
+      "average_precision": 0.9315156037144312,
       "confusion_matrix": {
         "labels": [
           0,
@@ -128,54 +243,111 @@
         ],
         "values": [
           [
-            122,
-            26
+            146,
+            32
           ],
           [
-            45,
-            105
+            28,
+            138
           ]
         ]
       },
       "classification_report": {
         "오탐(0)": {
-          "precision": 0.7305389221556886,
-          "recall": 0.8243243243243243,
-          "f1-score": 0.7746031746031746,
-          "support": 148.0
+          "precision": 0.8390804597701149,
+          "recall": 0.8202247191011236,
+          "f1-score": 0.8295454545454546,
+          "support": 178.0
         },
         "진짜(1)": {
-          "precision": 0.8015267175572519,
-          "recall": 0.7,
-          "f1-score": 0.7473309608540926,
-          "support": 150.0
+          "precision": 0.8117647058823529,
+          "recall": 0.8313253012048193,
+          "f1-score": 0.8214285714285714,
+          "support": 166.0
         },
-        "accuracy": 0.761744966442953,
+        "accuracy": 0.8255813953488372,
         "macro avg": {
-          "precision": 0.7660328198564703,
-          "recall": 0.7621621621621621,
-          "f1-score": 0.7609670677286335,
-          "support": 298.0
+          "precision": 0.8254225828262339,
+          "recall": 0.8257750101529715,
+          "f1-score": 0.825487012987013,
+          "support": 344.0
         },
         "weighted avg": {
-          "precision": 0.766271033934999,
-          "recall": 0.761744966442953,
-          "f1-score": 0.7608755502328313,
-          "support": 298.0
+          "precision": 0.8258990203940437,
+          "recall": 0.8255813953488372,
+          "f1-score": 0.8256285865297494,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.6842105263157895,
+          "recall": 0.8666666666666667,
+          "f1": 0.7647058823529411
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9333333333333333,
+          "recall": 0.9333333333333333,
+          "f1": 0.9333333333333333
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8333333333333334,
+          "recall": 1.0,
+          "f1": 0.9090909090909091
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.8235294117647058,
+          "recall": 0.7777777777777778,
+          "f1": 0.8
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.8125,
+          "recall": 0.65,
+          "f1": 0.7222222222222222
+        }
+      },
+      "operating_point": {
+        "threshold": 0.44468038147691547,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6991150442477876,
+        "recall": 0.9518072289156626,
+        "f1": 0.8061224489795918,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              110,
+              68
+            ],
+            [
+              8,
+              158
+            ]
+          ]
         }
       }
     },
     {
       "evaluation": "5-fold stratified group cross-validation",
       "c": 1.0,
+      "type_context_weight": 1.0,
       "threshold": 0.5,
-      "rows": 298,
-      "groups": 149,
-      "precision": 0.8014184397163121,
-      "recall": 0.7533333333333333,
-      "f1": 0.7766323024054983,
-      "roc_auc": 0.8691891891891892,
-      "average_precision": 0.8426312073267384,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.875,
+      "recall": 0.8433734939759037,
+      "f1": 0.8588957055214724,
+      "roc_auc": 0.931907404900501,
+      "average_precision": 0.9405100189579583,
       "confusion_matrix": {
         "labels": [
           0,
@@ -183,54 +355,111 @@
         ],
         "values": [
           [
-            120,
-            28
+            158,
+            20
           ],
           [
-            37,
-            113
+            26,
+            140
           ]
         ]
       },
       "classification_report": {
         "오탐(0)": {
-          "precision": 0.7643312101910829,
-          "recall": 0.8108108108108109,
-          "f1-score": 0.7868852459016393,
-          "support": 148.0
+          "precision": 0.8586956521739131,
+          "recall": 0.8876404494382022,
+          "f1-score": 0.8729281767955801,
+          "support": 178.0
         },
         "진짜(1)": {
-          "precision": 0.8014184397163121,
-          "recall": 0.7533333333333333,
-          "f1-score": 0.7766323024054983,
-          "support": 150.0
+          "precision": 0.875,
+          "recall": 0.8433734939759037,
+          "f1-score": 0.8588957055214724,
+          "support": 166.0
         },
-        "accuracy": 0.7818791946308725,
+        "accuracy": 0.8662790697674418,
         "macro avg": {
-          "precision": 0.7828748249536974,
-          "recall": 0.7820720720720721,
-          "f1-score": 0.7817587741535688,
-          "support": 298.0
+          "precision": 0.8668478260869565,
+          "recall": 0.8655069717070529,
+          "f1-score": 0.8659119411585263,
+          "support": 344.0
         },
         "weighted avg": {
-          "precision": 0.7829992787440506,
-          "recall": 0.7818791946308725,
-          "f1-score": 0.7817243683029106,
-          "support": 298.0
+          "precision": 0.8665634479271991,
+          "recall": 0.8662790697674418,
+          "f1-score": 0.86615669356447,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.7777777777777778,
+          "recall": 0.9333333333333333,
+          "f1": 0.8484848484848485
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9333333333333333,
+          "recall": 0.9333333333333333,
+          "f1": 0.9333333333333333
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8823529411764706,
+          "recall": 1.0,
+          "f1": 0.9375
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1": 0.8235294117647058
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.9285714285714286,
+          "recall": 0.65,
+          "f1": 0.7647058823529411
+        }
+      },
+      "operating_point": {
+        "threshold": 0.41057544651180566,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6869565217391305,
+        "recall": 0.9518072289156626,
+        "f1": 0.797979797979798,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              106,
+              72
+            ],
+            [
+              8,
+              158
+            ]
+          ]
         }
       }
     },
     {
       "evaluation": "5-fold stratified group cross-validation",
       "c": 2.0,
+      "type_context_weight": 1.0,
       "threshold": 0.5,
-      "rows": 298,
-      "groups": 149,
-      "precision": 0.8013698630136986,
-      "recall": 0.78,
-      "f1": 0.7905405405405406,
-      "roc_auc": 0.8740990990990991,
-      "average_precision": 0.8601695788698324,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.875,
+      "recall": 0.8433734939759037,
+      "f1": 0.8588957055214724,
+      "roc_auc": 0.9390821713821579,
+      "average_precision": 0.9466814909631444,
       "confusion_matrix": {
         "labels": [
           0,
@@ -238,54 +467,111 @@
         ],
         "values": [
           [
-            119,
-            29
+            158,
+            20
           ],
           [
-            33,
-            117
+            26,
+            140
           ]
         ]
       },
       "classification_report": {
         "오탐(0)": {
-          "precision": 0.7828947368421053,
-          "recall": 0.8040540540540541,
-          "f1-score": 0.7933333333333333,
-          "support": 148.0
+          "precision": 0.8586956521739131,
+          "recall": 0.8876404494382022,
+          "f1-score": 0.8729281767955801,
+          "support": 178.0
         },
         "진짜(1)": {
-          "precision": 0.8013698630136986,
-          "recall": 0.78,
-          "f1-score": 0.7905405405405406,
-          "support": 150.0
+          "precision": 0.875,
+          "recall": 0.8433734939759037,
+          "f1-score": 0.8588957055214724,
+          "support": 166.0
         },
-        "accuracy": 0.7919463087248322,
+        "accuracy": 0.8662790697674418,
         "macro avg": {
-          "precision": 0.7921322999279019,
-          "recall": 0.7920270270270271,
-          "f1-score": 0.7919369369369369,
-          "support": 298.0
+          "precision": 0.8668478260869565,
+          "recall": 0.8655069717070529,
+          "f1-score": 0.8659119411585263,
+          "support": 344.0
         },
         "weighted avg": {
-          "precision": 0.7921942969955919,
-          "recall": 0.7919463087248322,
-          "f1-score": 0.7919275651490416,
-          "support": 298.0
+          "precision": 0.8665634479271991,
+          "recall": 0.8662790697674418,
+          "f1-score": 0.86615669356447,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.7777777777777778,
+          "recall": 0.9333333333333333,
+          "f1": 0.8484848484848485
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9333333333333333,
+          "recall": 0.9333333333333333,
+          "f1": 0.9333333333333333
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8823529411764706,
+          "recall": 1.0,
+          "f1": 0.9375
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1": 0.8235294117647058
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.9285714285714286,
+          "recall": 0.65,
+          "f1": 0.7647058823529411
+        }
+      },
+      "operating_point": {
+        "threshold": 0.3751828642640436,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6869565217391305,
+        "recall": 0.9518072289156626,
+        "f1": 0.797979797979798,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              106,
+              72
+            ],
+            [
+              8,
+              158
+            ]
+          ]
         }
       }
     },
     {
       "evaluation": "5-fold stratified group cross-validation",
       "c": 4.0,
+      "type_context_weight": 1.0,
       "threshold": 0.5,
-      "rows": 298,
-      "groups": 149,
-      "precision": 0.831081081081081,
-      "recall": 0.82,
-      "f1": 0.825503355704698,
-      "roc_auc": 0.879009009009009,
-      "average_precision": 0.8741033596217893,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.8765432098765432,
+      "recall": 0.8554216867469879,
+      "f1": 0.8658536585365854,
+      "roc_auc": 0.9415188845268715,
+      "average_precision": 0.9488658420066847,
       "confusion_matrix": {
         "labels": [
           0,
@@ -293,42 +579,332 @@
         ],
         "values": [
           [
-            123,
-            25
+            158,
+            20
           ],
           [
-            27,
-            123
+            24,
+            142
           ]
         ]
       },
       "classification_report": {
         "오탐(0)": {
-          "precision": 0.82,
-          "recall": 0.831081081081081,
-          "f1-score": 0.825503355704698,
-          "support": 148.0
+          "precision": 0.8681318681318682,
+          "recall": 0.8876404494382022,
+          "f1-score": 0.8777777777777778,
+          "support": 178.0
         },
         "진짜(1)": {
-          "precision": 0.831081081081081,
-          "recall": 0.82,
-          "f1-score": 0.825503355704698,
-          "support": 150.0
+          "precision": 0.8765432098765432,
+          "recall": 0.8554216867469879,
+          "f1-score": 0.8658536585365854,
+          "support": 166.0
         },
-        "accuracy": 0.825503355704698,
+        "accuracy": 0.872093023255814,
         "macro avg": {
-          "precision": 0.8255405405405405,
-          "recall": 0.8255405405405405,
-          "f1-score": 0.825503355704698,
-          "support": 298.0
+          "precision": 0.8723375390042056,
+          "recall": 0.8715310680925951,
+          "f1-score": 0.8718157181571815,
+          "support": 344.0
         },
         "weighted avg": {
-          "precision": 0.8255777253763831,
-          "recall": 0.8255033557046979,
-          "f1-score": 0.825503355704698,
-          "support": 298.0
+          "precision": 0.8721908295551707,
+          "recall": 0.872093023255814,
+          "f1-score": 0.8720236969811558,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.7777777777777778,
+          "recall": 0.9333333333333333,
+          "f1": 0.8484848484848485
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9375,
+          "recall": 1.0,
+          "f1": 0.967741935483871
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8823529411764706,
+          "recall": 1.0,
+          "f1": 0.9375
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1": 0.8235294117647058
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.9285714285714286,
+          "recall": 0.65,
+          "f1": 0.7647058823529411
+        }
+      },
+      "operating_point": {
+        "threshold": 0.3422002196620421,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6869565217391305,
+        "recall": 0.9518072289156626,
+        "f1": 0.797979797979798,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              106,
+              72
+            ],
+            [
+              8,
+              158
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 8.0,
+      "type_context_weight": 1.0,
+      "threshold": 0.5,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.8875,
+      "recall": 0.8554216867469879,
+      "f1": 0.8711656441717791,
+      "roc_auc": 0.9426018681467444,
+      "average_precision": 0.9497469462935051,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            160,
+            18
+          ],
+          [
+            24,
+            142
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.8695652173913043,
+          "recall": 0.898876404494382,
+          "f1-score": 0.8839779005524862,
+          "support": 178.0
+        },
+        "진짜(1)": {
+          "precision": 0.8875,
+          "recall": 0.8554216867469879,
+          "f1-score": 0.8711656441717791,
+          "support": 166.0
+        },
+        "accuracy": 0.877906976744186,
+        "macro avg": {
+          "precision": 0.8785326086956522,
+          "recall": 0.877149045620685,
+          "f1-score": 0.8775717723621326,
+          "support": 344.0
+        },
+        "weighted avg": {
+          "precision": 0.8782197927199191,
+          "recall": 0.877906976744186,
+          "f1-score": 0.8777952419501681,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.8235294117647058,
+          "recall": 0.9333333333333333,
+          "f1": 0.875
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9375,
+          "recall": 1.0,
+          "f1": 0.967741935483871
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8823529411764706,
+          "recall": 1.0,
+          "f1": 0.9375
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1": 0.8235294117647058
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.9285714285714286,
+          "recall": 0.65,
+          "f1": 0.7647058823529411
+        }
+      },
+      "operating_point": {
+        "threshold": 0.3059792689636711,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6869565217391305,
+        "recall": 0.9518072289156626,
+        "f1": 0.797979797979798,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              106,
+              72
+            ],
+            [
+              8,
+              158
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "evaluation": "5-fold stratified group cross-validation",
+      "c": 16.0,
+      "type_context_weight": 1.0,
+      "threshold": 0.5,
+      "rows": 344,
+      "groups": 172,
+      "precision": 0.8860759493670886,
+      "recall": 0.8433734939759037,
+      "f1": 0.8641975308641975,
+      "roc_auc": 0.9440909706240692,
+      "average_precision": 0.9506615737504214,
+      "confusion_matrix": {
+        "labels": [
+          0,
+          1
+        ],
+        "values": [
+          [
+            160,
+            18
+          ],
+          [
+            26,
+            140
+          ]
+        ]
+      },
+      "classification_report": {
+        "오탐(0)": {
+          "precision": 0.8602150537634409,
+          "recall": 0.898876404494382,
+          "f1-score": 0.8791208791208791,
+          "support": 178.0
+        },
+        "진짜(1)": {
+          "precision": 0.8860759493670886,
+          "recall": 0.8433734939759037,
+          "f1-score": 0.8641975308641975,
+          "support": 166.0
+        },
+        "accuracy": 0.872093023255814,
+        "macro avg": {
+          "precision": 0.8731455015652647,
+          "recall": 0.8711249492351428,
+          "f1-score": 0.8716592049925382,
+          "support": 344.0
+        },
+        "weighted avg": {
+          "precision": 0.8726944394326428,
+          "recall": 0.872093023255814,
+          "f1-score": 0.8719194959505037,
+          "support": 344.0
+        }
+      },
+      "per_type": {
+        "account": {
+          "rows": 60,
+          "precision": 0.8125,
+          "recall": 0.8666666666666667,
+          "f1": 0.8387096774193549
+        },
+        "biz_reg": {
+          "rows": 70,
+          "precision": 0.9375,
+          "recall": 1.0,
+          "f1": 0.967741935483871
+        },
+        "card": {
+          "rows": 60,
+          "precision": 0.8823529411764706,
+          "recall": 1.0,
+          "f1": 0.9375
+        },
+        "emp_no": {
+          "rows": 72,
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1": 0.8235294117647058
+        },
+        "phone": {
+          "rows": 82,
+          "precision": 0.9285714285714286,
+          "recall": 0.65,
+          "f1": 0.7647058823529411
+        }
+      },
+      "operating_point": {
+        "threshold": 0.275282625094404,
+        "max_false_negative_rate": 0.05,
+        "false_negative_rate": 0.04819277108433735,
+        "precision": 0.6991150442477876,
+        "recall": 0.9518072289156626,
+        "f1": 0.8061224489795918,
+        "confusion_matrix": {
+          "labels": [
+            0,
+            1
+          ],
+          "values": [
+            [
+              110,
+              68
+            ],
+            [
+              8,
+              158
+            ]
+          ]
         }
       }
     }
+  ],
+  "dataset_distribution": {
+    "negative_rows": 178,
+    "positive_rows": 166,
+    "positive_rate": 0.48255813953488375
+  },
+  "limitations": [
+    "합성 데이터의 양성 비율은 실제 rules.py 후보 분포를 대표하지 않는다.",
+    "운영 임계값은 동일 합성 데이터의 그룹 교차검증 예측으로 보정했으며 독립 평가셋 검증이 필요하다.",
+    "false_negative_rate는 오탐 제거 분류기 단계의 개인정보 후보 누락률이며 전체 서비스 유출률이 아니다."
   ]
 }

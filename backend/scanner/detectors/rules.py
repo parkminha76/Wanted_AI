@@ -9,9 +9,11 @@ confidence는 검증 강도에 따라 다르게 매긴다:
 - 1.0: 체크섬까지 확인됨 (주민등록번호, 외국인등록번호, 사업자등록번호, 카드번호)
 - 0.9: 접두어/URI 스킴이 워낙 특이해서 오탐 가능성이 낮음 (API 키/토큰, DB 접속정보)
 - 0.8: 형식은 맞지만 부분 검증만 가능 (운전면허번호, 여권번호) /
-  값이 아니라 옆 라벨 단어를 근거로 잡음 (사번)
+  값이 아니라 옆 라벨 단어를 근거로 잡음 (사번 — 라벨이 값 **앞**에 올 때)
 - 0.6: 형식만 확인, 별도 검증 수단이 없음 (전화번호, 이메일, IP 주소) /
-  체크섬 알고리즘의 출처가 확정되지 않음 (법인등록번호)
+  체크섬 알고리즘의 출처가 확정되지 않음 (법인등록번호) /
+  라벨이 값 **뒤**에 와서 근거가 한 단계 약함
+  (사번 — find_employee_numbers_before_label)
 - 0.3: 체크섬 자체가 존재하지 않아 형식만으로는 판단 불가 (계좌번호) —
   최종 판정은 오탐 제거 분류기(models.filter_false_positive)에 맡긴다.
 
@@ -85,6 +87,31 @@ _PASSPORT_VALID_FIRST_LETTERS = frozenset("MSROD")
 # 14 하나로 줄어든다. Luhn만으로는 이 충돌을 막을 수 없다.
 CARD_NUMBER_PATTERN = re.compile(r"(?<!\d)(?:\d[-\s]?){13,18}\d(?!\d)")
 
+# 구분자가 있으면 **그룹 모양**으로 카드와 계좌를 가른다(실측, 2026-09-12).
+# 카드번호는 브랜드가 정한 고정 묶음으로 적는다:
+#     (4,4,4,4)    16자리 — Visa·Master·BC·JCB 등 국내 카드 대부분
+#     (4,6,5)      15자리 — Amex
+#     (4,6,4)      14자리 — Diners Club
+#     (4,4,4,4,3)  19자리 — UnionPay 일부
+# 국내 은행 계좌는 이 모양을 쓰지 않는다. 계좌 2,000건을 뽑아 보니 모양이
+# 4-3-6 / 3-6-5 / 3-2-4-5 / 4-4-5 / 3-4-6 / 3-3-6 여섯 가지였고 위와 겹치는 것이
+# 하나도 없었다.
+#
+# 자릿수만 보던 이전 방식은 14자리에서 충돌했다. Luhn은 자릿수와 무관하게 무작위
+# 숫자열의 약 9.9%를 통과시키는데 국내 계좌도 14자리가 흔해서(국민·하나·기업),
+# **계좌 2,000건 중 84건(4.2%)이 카드번호로 표시됐다** — 예: "301-684934-07224".
+# 가중치는 card·account 둘 다 30점으로 같지만 확신도가 1.0 대 0.3이라 위험 점수
+# 기여가 3.3배로 뛰고, 화면에도 "카드번호"라는 틀린 이름이 나간다.
+# 그룹 모양으로 바꾼 뒤 같은 2,000건에서 0건이 됐고, 카드 쪽은 위 네 모양과
+# 연속 표기까지 각 200건씩 100% 그대로 잡힌다.
+_CARD_GROUP_SHAPES = frozenset({(4, 4, 4, 4), (4, 6, 5), (4, 6, 4), (4, 4, 4, 4, 3)})
+
+# 구분자 없이 붙여 쓴 숫자는 모양으로 가를 수 없어 자릿수로만 본다. 15자리
+# 이상만 받는다 — 국내 계좌가 12~14자리라 14 이하를 받으면 위 충돌이 되돌아온다.
+# 대신 **구분자 없이 붙여 쓴 14자리 Diners 카드는 놓친다.** 국내 점유율이 사실상
+# 0이고 문서에는 거의 항상 구분자를 넣어 적기 때문에 이쪽을 버렸다.
+_CARD_MIN_UNSEPARATED_DIGITS = 15
+
 # ---------- 계좌번호 ----------
 # 은행마다 자릿수가 달라 하나의 정규식으로 형식을 완전히 못 박을 수 없다.
 # 대시/공백으로 나뉜 숫자 그룹이거나, 구분자 없는 10~16자리 연속 숫자만 후보로 잡는다.
@@ -126,6 +153,27 @@ EMPLOYEE_NUMBER_PATTERN = re.compile(
     r"([A-Za-z0-9][A-Za-z0-9-]{1,14}[A-Za-z0-9])"
 )
 
+# 값이 라벨보다 **먼저** 오는 어순도 잡는다("EMP-03250 사원의 부서 이동을 승인합니다").
+# 표 형태 문서에서 특히 흔하다 — 첫 칸에 사번, 그 뒤 칸에 "사원"·"직원"이 온다.
+#
+# 이쪽은 라벨이 뒤에 있어 근거가 약하므로 값 모양을 좁힌다. 하이픈으로 나뉜 값
+# ("2026-2216", "EMP-03250", "24-04821")이거나 영문+숫자 조합("K6371", "A0317")만
+# 받고, **순수 숫자만 있는 값은 받지 않는다.** 안 그러면 "총 120 사원"의 "120"이
+# 사번이 된다.
+#
+# 그래도 "010-1234-5678 직원 연락처"처럼 다른 번호가 걸릴 수 있어서, find_all이
+# 이 후보를 계좌번호와 같은 취급으로 맨 뒤에 처리한다 — 다른 탐지기가 이미 잡은
+# 구간과 겹치면 버린다.
+# 길이도 3~12자로 묶는다. 실측한 사번은 5~9자("R6080", "2022-9316", "37-73163")인데
+# 계좌번호는 14~17자라 사이가 넓게 비어 있다. 이 빗장이 없으면 "입금 계좌
+# 301-684934-07224 사원 복지비"의 계좌번호가 사번으로 둔갑한다(실제로 그랬다).
+EMPLOYEE_NUMBER_TRAILING_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9-])"
+    r"(?=[A-Za-z0-9-]{3,12}(?![A-Za-z0-9-]))"
+    r"([A-Za-z0-9]+(?:-[A-Za-z0-9]+){1,2}|[A-Za-z]+[0-9][A-Za-z0-9]*)"
+    r"\s*(?:사번|사원|직원|임직원)"
+)
+
 # ---------- 전화번호 ----------
 # 휴대폰만 보면 집·사무실 전화가 전부 계좌번호로 오분류된다(실측 2026-09-11:
 # 전화 15종 중 12종이 account, 2종은 완전 미탐). 위험점수도 phone 10점이 아니라
@@ -137,8 +185,12 @@ EMPLOYEE_NUMBER_PATTERN = re.compile(
 #
 # **대표번호(15XX·16XX·18XX)는 일부러 넣지 않는다.** 4자리-4자리라 금액 범위
 # "1500-2000", 연도 범위 "1588-1999"과 형태가 완전히 같아서 숫자만으로는 가를 수
-# 없다(실측에서 둘 다 오탐으로 잡혔다). 앞뒤 문맥("고객센터" vs "원"·"년")을 보는
-# 오탐 제거 분류기가 판정할 몫이다.
+# 없다(실측에서 둘 다 오탐으로 잡혔다).
+#
+# 그래서 대표번호는 **아예 탐지되지 않는다.** 오탐 제거 분류기에 판정을 맡기는
+# 것도 불가능하다 — 여기서 후보를 만들지 않으면 그 분류기는 호출조차 되지 않는다
+# (실측 2026-09-12: "대표번호 1588-1234 로 문의" -> 탐지 0건). 대표번호를 잡기로
+# 정하면 이 패턴에 넣는 변경과 대표번호가 담긴 학습 데이터가 함께 필요하다.
 PHONE_NUMBER_PATTERN = re.compile(
     r"(?<!\d)(?:"
     r"01[016789][-\s]?\d{3,4}[-\s]?\d{4}"                             # 휴대폰
@@ -384,14 +436,26 @@ def find_passport_numbers(text: str) -> list[dict]:
     return matches
 
 
-def find_card_numbers(text: str) -> list[dict]:
-    """12~19자리 숫자열 중 Luhn 체크섬을 통과한 카드번호만 반환한다.
+def _looks_like_card_grouping(value: str) -> bool:
+    """카드번호의 묶음 모양인지 본다. 계좌번호와 가르는 핵심 기준이다
+    (_CARD_GROUP_SHAPES 주석의 실측 근거 참고)."""
+    groups = re.split(r"[-\s]", value.strip())
+    if len(groups) == 1:
+        return len(groups[0]) >= _CARD_MIN_UNSEPARATED_DIGITS
+    return tuple(len(g) for g in groups) in _CARD_GROUP_SHAPES
 
-    브랜드마다 자릿수가 다르다(Visa 16 / Amex 15 / Diners 14). 16자리만 보면
-    Amex·Diners가 계좌번호로 오분류된다.
+
+def find_card_numbers(text: str) -> list[dict]:
+    """Luhn 체크섬을 통과하고 **카드번호의 묶음 모양**인 값만 반환한다.
+
+    브랜드마다 자릿수가 다르다(Diners 14 / Amex 15 / Visa·Master·BC 16 / UnionPay
+    19). 자릿수만 보면 14자리 구간에서 국내 은행 계좌와 충돌하므로, 구분자로 나뉜
+    그룹 모양까지 함께 본다.
     """
     matches = []
     for m in CARD_NUMBER_PATTERN.finditer(text):
+        if not _looks_like_card_grouping(m.group()):
+            continue
         digits = re.sub(r"\D", "", m.group())
         if not validators.validate_card_luhn(digits):
             continue
@@ -433,23 +497,38 @@ def find_bank_account_numbers(text: str) -> list[dict]:
     return matches
 
 
-def find_employee_numbers(text: str) -> list[dict]:
-    """"사번"·"사원번호" 같은 라벨 뒤에 오는 값을 사번으로 잡는다.
-
-    start/end는 라벨이 아니라 **값 부분만** 가리킨다 — 마스킹해야 하는 것은
-    "사번:"이 아니라 그 뒤의 값이다. 값 형식에 제약이 거의 없어 체크섬은 없지만,
-    라벨 단어가 바로 앞에 있다는 것 자체가 강한 근거라 확신도를 0.8로 둔다.
-    """
+def _employee_numbers_from(pattern, text: str, confidence: float) -> list[dict]:
     return [
         {
             "field": "emp_no",
             "value": m.group(1),
             "start": m.start(1),
             "end": m.end(1),
-            "confidence": 0.8,
+            "confidence": confidence,
         }
-        for m in EMPLOYEE_NUMBER_PATTERN.finditer(text)
+        for m in pattern.finditer(text)
     ]
+
+
+def find_employee_numbers(text: str) -> list[dict]:
+    """라벨이 값 **앞**에 오는 사번을 잡는다("사번 EMP-03250").
+
+    start/end는 라벨이 아니라 **값 부분만** 가리킨다 — 마스킹해야 하는 것은
+    "사번:"이 아니라 그 뒤의 값이다. 값 형식에 제약이 거의 없어 체크섬은 없지만,
+    라벨 단어가 바로 앞에 있다는 것 자체가 강한 근거라 확신도를 0.8로 둔다.
+    """
+    return _employee_numbers_from(EMPLOYEE_NUMBER_PATTERN, text, 0.8)
+
+
+def find_employee_numbers_before_label(text: str) -> list[dict]:
+    """라벨이 값 **뒤**에 오는 사번을 잡는다("EMP-03250 사원의 부서 이동").
+
+    라벨이 뒤에 있으면 그 값이 사번이라는 근거가 한 단계 약하다. 앞에 오는 경우는
+    "사번:" 다음 자리가 값으로 예약되어 있지만, 뒤에 오는 경우는 문장 안의 아무
+    값이나 후보가 될 수 있기 때문이다. 그래서 확신도를 0.6으로 한 단계 낮추고,
+    find_all이 다른 탐지 결과와 겹치는 후보를 버린다.
+    """
+    return _employee_numbers_from(EMPLOYEE_NUMBER_TRAILING_PATTERN, text, 0.6)
 
 
 def find_phone_numbers(text: str) -> list[dict]:
@@ -532,13 +611,15 @@ def find_db_connection_strings(text: str) -> list[dict]:
 def find_all(text: str) -> list[dict]:
     """모든 필드 탐지기를 돌려서 하나의 목록으로 합친다.
 
-    계좌번호만 맨 마지막에 따로 처리한다. 은행별 자릿수를 못 박을 수 없어 패턴이
-    넓다 보니 다른 번호를 통째로 삼키는데, scan.py의 dedupe는 위험 가중치만 보기
-    때문에(계좌 30점 > 사업자등록번호 5점) **체크섬으로 검증된 쪽이 밀려나** 오히려
-    오탐이 된다. 실제로 "123-45-67891"(체크섬 통과한 사업자등록번호)이 확신도 0.3짜리
-    계좌번호로 표시되는 걸 확인했다. 그래서 다른 탐지기가 이미 잡은 구간과 겹치는
-    계좌번호 후보는 여기서 버린다 — 계좌번호는 "다른 무엇도 아닌 숫자"일 때만
-    계좌번호다.
+    근거가 약한 탐지기 둘(라벨이 값 뒤에 오는 사번, 계좌번호)은 맨 마지막에 따로
+    처리한다. 패턴이 넓어서 다른 번호를 통째로 삼키는데, scan.py의 dedupe는 위험
+    가중치만 보기 때문에(계좌 30점 > 사업자등록번호 5점) **체크섬으로 검증된 쪽이
+    밀려나** 오히려 오탐이 된다. 실제로 "123-45-67891"(체크섬 통과한 사업자등록번호)이
+    확신도 0.3짜리 계좌번호로 표시되는 걸 확인했다.
+
+    그래서 다른 탐지기가 이미 잡은 구간과 겹치는 후보는 여기서 버린다 — 계좌번호는
+    "다른 무엇도 아닌 숫자"일 때만 계좌번호다. 사번(라벨이 뒤)을 계좌번호보다 먼저
+    처리하는 이유는 둘이 서로 겹칠 수 있어서다(사번 쪽이 길이 3~12자로 더 좁다).
     """
     findings = (
         find_resident_registration_numbers(text)
@@ -555,10 +636,19 @@ def find_all(text: str) -> list[dict]:
         + find_api_keys_and_tokens(text)
         + find_db_connection_strings(text)
     )
+    def not_overlapping(candidates: list[dict], claimed: list[tuple[int, int]]) -> list[dict]:
+        return [
+            m
+            for m in candidates
+            if not any(m["start"] < end and start < m["end"] for start, end in claimed)
+        ]
+
     claimed = [(m["start"], m["end"]) for m in findings]
-    accounts = [
-        m
-        for m in find_bank_account_numbers(text)
-        if not any(m["start"] < end and start < m["end"] for start, end in claimed)
-    ]
-    return findings + accounts
+
+    # 라벨이 값 뒤에 오는 사번도 근거가 약해 같은 취급을 한다. "010-1234-5678 직원
+    # 연락처"의 전화번호가 사번으로 둔갑하는 것을 여기서 막는다.
+    late = not_overlapping(find_employee_numbers_before_label(text), claimed)
+    claimed += [(m["start"], m["end"]) for m in late]
+
+    accounts = not_overlapping(find_bank_account_numbers(text), claimed)
+    return findings + late + accounts
