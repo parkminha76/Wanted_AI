@@ -37,9 +37,11 @@ CLEAN_DIR = os.path.join(TESTS_DIR, "clean")
 def _thresholds() -> str:
     return (
         f"A급 개수 >= {hidden.INVISIBLE_A_MIN_COUNT} | "
+        f"Bidi급 개수 >= {hidden.INVISIBLE_BIDI_MIN_COUNT} + 복원 통과 | "
         f"B급 개수 >= {hidden.INVISIBLE_B_MIN_COUNT} 또는 밀도 > "
         f"{hidden.INVISIBLE_B_MAX_DENSITY:.0%} (span {hidden.INVISIBLE_DENSITY_MIN_LENGTH}자 이상) "
-        f"+ 복원 통과 | 색 거리 < {hidden.COLOR_DISTANCE_THRESHOLD} | "
+        f"+ 복원 통과 | 밀도 > {hidden.INVISIBLE_B_EXTREME_DENSITY:.0%}는 복원 없이도 신고 | "
+        f"색 거리 < {hidden.COLOR_DISTANCE_THRESHOLD} | "
         f"글자 < {hidden.MIN_READABLE_FONT_SIZE}pt"
     )
 
