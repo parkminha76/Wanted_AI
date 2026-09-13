@@ -46,7 +46,28 @@ from starlette.background import BackgroundTask
 
 from backend.scanner import scan
 from backend.shared import schema
-from backend.training.router import router as training_router
+
+# 훈련 모드 라우터(C). **임시 조치 — C가 고치면 이 try/except를 걷어낸다.**
+#
+# backend/training/training_flow.py가 모듈 최상단에서 AttackerService()를 즉시
+# 만들고, 그 안에서 ANTHROPIC_API_KEY가 없으면 ValueError를 던진다. 그 예외가
+# 여기까지 타고 올라와 **app 객체 자체가 만들어지지 않았다** — 훈련 모드만이
+# 아니라 /health·/scan·/download까지 전부 죽었다(2026-09-13 실측).
+#
+# 이 파일 맨 위에 적어둔 "DB는 없어도 돈다. .env가 없는 환경에서도 스캔은 되어야
+# 한다"는 원칙이 깨지는 자리다. 스캐너는 키 없이도 떠야 하므로, 훈련 모드를 못
+# 붙이면 그 단계만 건너뛴다 — ner.py·models.py·id_detector.py가 모델을 지연
+# 로딩하는 것과 같은 이유다.
+#
+# 근본 해결은 C 쪽에서 AttackerService()를 첫 호출 때 만드는 것이다. 그렇게
+# 바뀌면 여기서 예외가 나지 않으므로 이 코드는 그대로 둬도 정상 동작한다.
+try:
+    from backend.training.router import router as training_router
+except Exception as exc:  # 키 없음, DB 미설정, C 모듈 오류 등 무엇이든
+    training_router = None
+    _TRAINING_ROUTER_ERROR = f"{type(exc).__name__}: {exc}"
+else:
+    _TRAINING_ROUTER_ERROR = ""
 
 MASKED_DIR_PREFIX = "infoguard_mask_"
 
@@ -69,8 +90,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
 
-# Training Mode API 연결
-app.include_router(training_router)
+# Training Mode API 연결. 못 붙였으면 스캐너만 띄운다(위 import 주석 참고).
+if training_router is not None:
+    app.include_router(training_router)
 
 # 프론트(D)가 다른 포트에서 부른다. 배포 도메인이 정해지면 그 도메인만 남긴다.
 app.add_middleware(
@@ -221,8 +243,16 @@ class ScanTextRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
-    """배포 후 살아있는지 확인. 링크가 10/5까지 살아 있어야 해서 모니터링이 이걸 찍는다."""
-    return {"status": "ok", "schema_version": schema.SCHEMA_VERSION}
+    """배포 후 살아있는지 확인. 링크가 10/5까지 살아 있어야 해서 모니터링이 이걸 찍는다.
+
+    훈련 모드가 안 붙었으면 그 사실을 같이 알린다. 조용히 사라지면 C가 왜 자기
+    엔드포인트가 404인지 알 길이 없다.
+    """
+    body = {"status": "ok", "schema_version": schema.SCHEMA_VERSION}
+    body["training_mode"] = "on" if training_router is not None else "off"
+    if _TRAINING_ROUTER_ERROR:
+        body["training_mode_error"] = _TRAINING_ROUTER_ERROR
+    return body
 
 
 @app.post("/scan")
