@@ -5,9 +5,11 @@
                학습 코드 ml/training/injection_classifier/ — C의 합성 공격 문장
                271건(그룹 209개)으로 학습. 그룹 분리 5-fold 교차검증 F1 0.883.
     오탐 제거   ml/models/fp_filter_v1.pkl
-               학습 코드 ml/training/false_positive_classifier/ — 학습 데이터
-               (sample_data/false_positive/, 298건)는 들어와 있지만 아직 학습 전이라
-               파일이 없다. 파일이 생기면 코드 수정 없이 그대로 붙는다.
+               학습 코드 ml/training/false_positive_classifier/ — 합성 데이터
+               298건(그룹 149개)으로 학습. 그룹 분리 5-fold 교차검증 F1 0.826.
+               학습한 타입은 account·biz_reg·card·emp_no·phone **다섯뿐**이라 그
+               다섯 개만 이 모델에 물어본다(filter_false_positive 주석 참고).
+               학습 데이터는 그 뒤 318건으로 늘었지만 모델은 아직 298건판이다.
 
 두 함수 모두 첫 호출 때 모델을 한 번만 읽고 캐싱한다. import 시점에 읽으면 모델
 파일이 없는 환경에서 `import models` 자체가 실패해 scan.py 전체가 멎는다
@@ -16,9 +18,9 @@
 모델을 못 읽으면 그 사실을 기억해두고 다시 시도하지 않는다 — 문장마다 파일을
 열려다 실패하면 문서 한 건에 수백 번 같은 예외가 난다.
 
-시그니처는 9/9에 A와 합의해 고정한 것이다. 인젝션 쪽 threshold만 선택 인자로
-덧붙였다(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다) — 호출하는 자리가
-둘인데 필요한 동작점이 서로 다르기 때문이다. 아래 상수 설명 참고.
+시그니처는 9/9에 A와 합의해 고정한 것이다. 인젝션 쪽에만 threshold 선택 인자를
+덧붙였다(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다) — hidden.py가 자기
+쪽 판정 조건과 함께 더 낮은 문턱을 쓰기 때문이다. 아래 상수 설명 참고.
 """
 
 from __future__ import annotations
@@ -73,10 +75,24 @@ FALSE_POSITIVE_MODEL_NAME = "fp_filter_v1"
 # 겹친다. C의 label=0 데이터에 평범한 한국어 업무 문장이 들어가야 풀린다.
 INJECTION_THRESHOLD = 0.70
 
-# 이미 "숨겨져 있다"고 판정된 텍스트를 승격할 때(scan.py의 _promote_hidden_injections)
-# 쓰는 임계값. 이쪽은 모델 기본값을 그대로 둔다 — 일부러 숨긴 문장은 애초에 인젝션일
-# 사전확률이 훨씬 높고, 여기서 놓쳐도 탐지가 사라지는 게 아니라 hidden_text(25점)로
-# 남을 뿐이다. 문서 전체 스캔과 달리 오탐 비용이 작아서 재현율을 택한다.
+# hidden.py가 쓰는 더 낮은 문턱. **이 값만 단독으로 쓰면 안 된다.**
+#
+# 이 값을 혼자 쓰면 평범한 계약 문구가 명령으로 넘어간다(실측 2026-09-12):
+#     0.734  을은 갑의 사전 승인 없이 재위탁할 수 없다
+#     0.665  본 계약은 상호 합의에 따라 해지할 수 있다
+#     0.519  지연배상금은 일 0.1퍼센트로 산정한다
+# 계약 문구 12건 중 5건이 0.5를 넘었다. 숨겨진 자리에서 꺼낸 글은 모델의 학습 범위
+# 밖이라 확률이 사전확률(≈0.5) 근처에 몰리는데, 0.5가 하필 그 자리다 — 아래
+# filter_false_positive 주석의 "모르는 입력은 한 점에 몰린다"와 같은 현상이다.
+#
+# 그래서 hidden.py는 이 문턱에 **수신자 조건(_targets_ai)을 AND로 건다** — "이 문장이
+# 사람이 아니라 AI를 향하는가". 계약 조항은 사람에게 하는 말이라 그 조건에서 떨어진다.
+# B-1 실측(hidden.py 8회차): 문턱만 낮추면 정상 26건 중 7건 오탐인데, 수신자 조건을
+# 함께 걸면 공격 6/8 -> 7/8로 늘면서 정상 오탐은 1/6 -> 0/6이 된다.
+#
+# scan.py의 승격 경로는 이 값을 쓰지 않는다(수신자 조건이 없으므로). 그쪽은 hidden.py가
+# 이미 내려준 판정(evidence["restored_kind"])을 그대로 믿고, 그 판정이 없을 때만
+# INJECTION_THRESHOLD로 보수적으로 본다.
 HIDDEN_TEXT_INJECTION_THRESHOLD = 0.5
 
 # 모델을 못 읽었을 때의 최소 방어선이자, 모델이 있을 때도 함께 보는 보조 판정.
@@ -129,7 +145,9 @@ def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, flo
     확신도는 모델이 매긴 인젝션일 확률(label=1)이다. 키워드로만 잡은 경우에는
     _KEYWORD_CONFIDENCE를 돌려준다.
 
-    threshold를 주지 않으면 INJECTION_THRESHOLD를 쓴다.
+    threshold를 주지 않으면 INJECTION_THRESHOLD를 쓴다. 더 낮은 값을 넘길 때는
+    부르는 쪽이 오탐을 막을 다른 조건을 함께 걸어야 한다
+    (HIDDEN_TEXT_INJECTION_THRESHOLD 주석 참고).
     """
     if not isinstance(sentence, str) or not sentence.strip():
         return (False, 0.0)
@@ -199,7 +217,7 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
              예: "입금 계좌는 512-55-9401-22268입니다. 확인 후 송금 부탁드립니다"
 
     context에 값 뒷부분까지 담는 이유: 학습 데이터(sample_data/false_positive/,
-    298건)를 재보니 값 앞 평균 8.2자, **뒤 평균 11.7자**였다. "입니다. 확인 후 송금
+    318건)를 재보니 값 앞 평균 8.1자, **뒤 평균 12.2자**였다. "입니다. 확인 후 송금
     부탁드립니다"나 "기준으로 발급됩니다"처럼 계좌번호와 사번을 가르는 단서가 값
     뒤쪽에 몰려 있어서, 앞쪽만 넘기면 판단 근거의 절반을 버리게 된다.
 
