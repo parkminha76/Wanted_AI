@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from backend.db.session import get_session
 from backend.db.tables import TrainingProgress
+from backend.db.converters import build_defender_payload
+from backend.training.defender import generate_defender_report
 from backend.training.training_flow import (
     create_training_session,
     generate_attacker_message,
@@ -126,4 +128,50 @@ def reply_training_api(
         raise HTTPException(
             status_code=500,
             detail=f"답장 처리 중 오류가 발생했습니다: {exc}",
+        )
+
+# ---------------------------------------------------------
+# 훈련 결과 리포트 조회
+# ---------------------------------------------------------
+
+@router.get("/{training_progress_id}/report")
+def get_training_report_api(
+    training_progress_id: int,
+    db: Session = Depends(get_session),
+):
+    # 1. 실제 존재하는 훈련인지 확인
+    progress = db.get(TrainingProgress, training_progress_id)
+
+    if progress is None:
+        raise HTTPException(
+            status_code=404,
+            detail="훈련 기록을 찾을 수 없습니다.",
+        )
+
+    try:
+        # 2. DB에서 비식별화된 훈련 기록 조회
+        payload = build_defender_payload(
+            db=db,
+            training_progress_id=training_progress_id,
+        )
+
+        # 3. Defender AI 최종 분석 생성
+        report = generate_defender_report(
+            db=db,
+            training_progress_id=training_progress_id,
+        )
+
+        # 4. 프론트엔드용 응답
+        return {
+            "training_progress_id": training_progress_id,
+            "level": payload["level"],
+            "final_score": payload["final_score"],
+            "turns": payload["turns"],
+            "report": report,
+        }
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"훈련 리포트 생성 중 오류가 발생했습니다: {exc}",
         )
