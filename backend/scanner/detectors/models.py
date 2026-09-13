@@ -5,9 +5,11 @@
                학습 코드 ml/training/injection_classifier/ — C의 합성 공격 문장
                271건(그룹 209개)으로 학습. 그룹 분리 5-fold 교차검증 F1 0.883.
     오탐 제거   ml/models/fp_filter_v1.pkl
-               학습 코드 ml/training/false_positive_classifier/ — 학습 데이터
-               (sample_data/false_positive/, 298건)는 들어와 있지만 아직 학습 전이라
-               파일이 없다. 파일이 생기면 코드 수정 없이 그대로 붙는다.
+               학습 코드 ml/training/false_positive_classifier/ — 합성 데이터
+               298건(그룹 149개)으로 학습. 그룹 분리 5-fold 교차검증 F1 0.826.
+               학습한 타입은 account·biz_reg·card·emp_no·phone **다섯뿐**이라 그
+               다섯 개만 이 모델에 물어본다(filter_false_positive 주석 참고).
+               학습 데이터는 그 뒤 318건으로 늘었지만 모델은 아직 298건판이다.
 
 두 함수 모두 첫 호출 때 모델을 한 번만 읽고 캐싱한다. import 시점에 읽으면 모델
 파일이 없는 환경에서 `import models` 자체가 실패해 scan.py 전체가 멎는다
@@ -16,9 +18,9 @@
 모델을 못 읽으면 그 사실을 기억해두고 다시 시도하지 않는다 — 문장마다 파일을
 열려다 실패하면 문서 한 건에 수백 번 같은 예외가 난다.
 
-시그니처는 9/9에 A와 합의해 고정한 것이다. 인젝션 쪽 threshold만 선택 인자로
-덧붙였다(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다) — 호출하는 자리가
-둘인데 필요한 동작점이 서로 다르기 때문이다. 아래 상수 설명 참고.
+시그니처는 9/9에 A와 합의해 고정한 것이다. 한때 인젝션 쪽에 threshold 선택 인자를
+덧붙였다가 빼고 되돌렸다 — 부르는 자리마다 동작점을 달리 두려던 것이었는데, 그
+가정이 실측으로 뒤집혔다(INJECTION_THRESHOLD 주석 참고).
 """
 
 from __future__ import annotations
@@ -73,11 +75,26 @@ FALSE_POSITIVE_MODEL_NAME = "fp_filter_v1"
 # 겹친다. C의 label=0 데이터에 평범한 한국어 업무 문장이 들어가야 풀린다.
 INJECTION_THRESHOLD = 0.70
 
-# 이미 "숨겨져 있다"고 판정된 텍스트를 승격할 때(scan.py의 _promote_hidden_injections)
-# 쓰는 임계값. 이쪽은 모델 기본값을 그대로 둔다 — 일부러 숨긴 문장은 애초에 인젝션일
-# 사전확률이 훨씬 높고, 여기서 놓쳐도 탐지가 사라지는 게 아니라 hidden_text(25점)로
-# 남을 뿐이다. 문서 전체 스캔과 달리 오탐 비용이 작아서 재현율을 택한다.
-HIDDEN_TEXT_INJECTION_THRESHOLD = 0.5
+# 임계값은 이 하나뿐이다. 부르는 자리마다 다르게 두지 않는다.
+#
+# 한때 "숨겨진 텍스트는 인젝션일 사전확률이 높으니 더 느슨한 값(0.5)을 쓰자"고
+# 나눠뒀는데, B-1의 실측이 그 가정을 뒤집었다(2026-09-12). 숨겨진 자리에서 꺼낸
+# 글은 모델의 학습 범위 밖이라 확률이 사전확률 근처(≈0.5)에 몰린다 — 아래
+# filter_false_positive 주석에 적은 "모르는 입력은 한 점에 몰린다"와 같은 현상이다.
+# 0.5는 하필 그 자리라서, 평범한 계약 문구가 명령으로 넘어간다:
+#     0.734  을은 갑의 사전 승인 없이 재위탁할 수 없다
+#     0.665  본 계약은 상호 합의에 따라 해지할 수 있다
+#     0.519  지연배상금은 일 0.1퍼센트로 산정한다
+#     0.506  산출물의 저작권은 갑에게 귀속한다
+# 계약 문구 12건 중 5건이 0.5를 넘었다. 검토 중인 계약서의 삭제 이력이 "숨은 명령"
+# 으로 도배된다.
+#
+# 0.5를 버리고 이 값 하나로 통일해도 **잃는 것이 없다**(문서 30건 실측: 탐지 결과
+# 변화 0건). 확실한 건은 hidden.py가 이미 "AI에게 내리는 지시문"으로 판정해서
+# 보내주고, scan.py는 그 판정을 임계값과 무관하게 그대로 승격시키기 때문이다.
+#
+# 0.70을 넘겨버리는 계약 문구("…재위탁할 수 없다", 0.734)는 임계값으로는 못 막는다.
+# C의 label=0 데이터에 평범한 한국어 업무·계약 문장이 들어가야 풀린다.
 
 # 모델을 못 읽었을 때의 최소 방어선이자, 모델이 있을 때도 함께 보는 보조 판정.
 # 인젝션 모델의 학습 데이터는 전부 한국어라 영문 인젝션은 학습 범위 밖이다
@@ -123,13 +140,11 @@ def injection_model_ready() -> bool:
     return _get_injection_model() is not None
 
 
-def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, float]:
+def is_injection(sentence) -> tuple[bool, float]:
     """이 문장이 AI에게 내리는 명령인가? 반환: (명령이면 True, 확신도 0~1)
 
     확신도는 모델이 매긴 인젝션일 확률(label=1)이다. 키워드로만 잡은 경우에는
-    _KEYWORD_CONFIDENCE를 돌려준다.
-
-    threshold를 주지 않으면 INJECTION_THRESHOLD를 쓴다.
+    _KEYWORD_CONFIDENCE를 돌려준다. 판정 기준은 INJECTION_THRESHOLD 하나다.
     """
     if not isinstance(sentence, str) or not sentence.strip():
         return (False, 0.0)
@@ -142,8 +157,7 @@ def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, flo
         return (keyword_hit, _KEYWORD_CONFIDENCE if keyword_hit else 0.0)
 
     probability = round(model.predict_proba(sentence), 3)
-    limit = INJECTION_THRESHOLD if threshold is None else threshold
-    if probability >= limit:
+    if probability >= INJECTION_THRESHOLD:
         return (True, probability)
     # 모델이 넘기지 못한 문장이라도 알려진 공격 문구가 그대로 들어 있으면 잡는다.
     # 영문 인젝션이 여기로 온다.
@@ -199,7 +213,7 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
              예: "입금 계좌는 512-55-9401-22268입니다. 확인 후 송금 부탁드립니다"
 
     context에 값 뒷부분까지 담는 이유: 학습 데이터(sample_data/false_positive/,
-    298건)를 재보니 값 앞 평균 8.2자, **뒤 평균 11.7자**였다. "입니다. 확인 후 송금
+    318건)를 재보니 값 앞 평균 8.1자, **뒤 평균 12.2자**였다. "입니다. 확인 후 송금
     부탁드립니다"나 "기준으로 발급됩니다"처럼 계좌번호와 사번을 가르는 단서가 값
     뒤쪽에 몰려 있어서, 앞쪽만 넘기면 판단 근거의 절반을 버리게 된다.
 

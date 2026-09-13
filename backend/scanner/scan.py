@@ -32,9 +32,10 @@ mask.py가 쓰는 두 함수:
 만들어지지 않고 화면도 미리보기에 하이라이트를 그릴 수 없다.
 
 분류기 연결 상태(_ENABLE_CLASSIFIER_STAGE = True, 2026-09-12):
-    인젝션    ml/models/injection_classifier_v1.pkl이 들어와서 실제로 판정한다.
-    오탐 제거  모델 파일(fp_filter_v1.pkl)이 아직 없어 전부 통과시킨다. 파일이
-              생기면 코드를 고치지 않아도 그 자리에서 붙는다.
+    인젝션    ml/models/injection_classifier_v1.pkl로 판정한다.
+    오탐 제거  ml/models/fp_filter_v1.pkl로 판정한다. 단 그 모델이 학습한 다섯
+              타입(account·biz_reg·card·emp_no·phone)만 물어보고 나머지는 통과
+              시킨다 — models.filter_false_positive 주석의 실측 근거 참고.
 """
 
 from __future__ import annotations
@@ -126,11 +127,11 @@ _CLASSIFIER_CONTEXT_RADIUS = 50
 
 # models.py(오탐 제거 + 인젝션) 연결 스위치.
 #
-# 2026-09-12에 켰다. 인젝션 모델(ml/models/injection_classifier_v1.pkl)이 들어와서
-# 4단계가 실제로 판정을 하게 됐기 때문이다. 5단계(오탐 제거)는 모델 파일이 아직
-# 없어서 models.filter_false_positive가 전부 통과시키는 상태로 돈다 — 지금은 아무
-# 것도 걸러내지 않지만, A가 fp_filter_v1.pkl을 올리면 이 플래그를 다시 건드리지
-# 않아도 그 순간부터 붙는다.
+# 2026-09-12에 켰다. 두 모델(injection_classifier_v1.pkl, fp_filter_v1.pkl)이 모두
+# 들어와서 4·5단계가 실제로 판정하기 때문이다.
+#
+# 모델 파일이 없는 환경에서도 켜둔 채로 안전하다 — models.py가 모델을 못 읽으면
+# 인젝션은 키워드 판정으로, 오탐 제거는 "전부 통과"로 떨어진다.
 _ENABLE_CLASSIFIER_STAGE = True
 
 # 확장자 -> schema.ScanResult.file_type. 화면(D)이 "PDF 사본 받기"인지 "텍스트 사본
@@ -173,7 +174,7 @@ def _raw_to_finding(raw: dict, source: str) -> Finding:
         reason=raw.get("reason") or _REASONS.get(risk_type, "탐지 규칙 일치"),
         evidence=dict(evidence),
         # 좌표를 이미 아는 탐지기는 직접 담아 보낸다. 이미지 CNN이 그 경우다 —
-        # 이미지에는 문자 오프셋이 없어서 _attach_bboxes로는 좌표를 만들 수 없고,
+        # 이미지에는 문자 오프셋이 없어서 locate.fill_coords로는 좌표를 만들 수 없고,
         # YOLO가 준 박스가 유일한 마스킹 근거다. 여기서 버리면 얼굴을 가릴
         # 좌표가 사라진다.
         bbox=raw.get("bbox"),
@@ -299,11 +300,10 @@ def _promote_hidden_injections(findings: list[Finding]) -> None:
         else:
             # 복원된 문장이 있으면 그것을, 없으면 보이는 문장을 본다.
             candidate = f.evidence.get("restored") or f.text
-            # 문서 전체 스캔보다 느슨한 임계값을 쓴다 — 이미 "일부러 숨겼다"는
-            # 사실이 확인된 텍스트라 인젝션일 사전확률이 훨씬 높다(models.py 설명).
-            promoted, _ = models.is_injection(
-                candidate, threshold=models.HIDDEN_TEXT_INJECTION_THRESHOLD
-            )
+            # models.py의 단일 임계값을 그대로 쓴다. 한때 이 자리만 더 느슨하게
+            # 뒀는데, 숨겨진 자리에서 꺼낸 글은 모델이 사전확률(≈0.5)만 내뱉어서
+            # 평범한 계약 문구가 명령으로 승격됐다(models.py 주석의 실측 참고).
+            promoted, _ = models.is_injection(candidate)
 
         if not promoted:
             continue
@@ -314,9 +314,23 @@ def _promote_hidden_injections(findings: list[Finding]) -> None:
 
 
 def _merge_hidden_evidence(survivor: Finding, dropped: Finding) -> None:
-    """밀려난 hidden_text의 판정 근거를 살아남은 Finding의 evidence로 옮긴다."""
+    """밀려난 hidden_text의 판정 근거를 살아남은 Finding의 evidence로 옮긴다.
+
+    두 벌로 담는다.
+      - **평평하게**: hidden_reason·intent_score·color·bg 같은 코드/수치 키를 위로
+        그대로 올린다. db/codes.py의 sanitize_evidence는 평평한 화이트리스트라
+        중첩된 dict 안을 들여다보지 않는다 — 아래 "hidden"만 담으면 DB에 저장되는
+        evidence가 통째로 {}가 된다(실측 2026-09-12). 그러면 **"이 API 키는 흰
+        글씨로 숨겨져 있었다"는 사실이 DB 통계에서 사라진다.**
+      - **중첩으로**: 사람이 읽는 reason 문장은 화면 05가 그대로 쓰므로 "hidden"
+        아래 따로 남긴다. 자유 문장이라 DB 화이트리스트에는 어차피 안 들어간다.
+
+    이미 있는 키는 덮지 않는다 — 살아남은 쪽이 자기 근거로 넣은 값이 우선이다.
+    """
+    lifted = {k: v for k, v in dropped.evidence.items() if k not in survivor.evidence}
     survivor.evidence = {
         **survivor.evidence,
+        **lifted,
         "hidden": {"reason": dropped.reason, **dropped.evidence},
     }
 
