@@ -24,7 +24,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from backend.scanner.tests.make_fp_dataset import gen_account, gen_biz_reg
+from backend.scanner.tests.make_fp_dataset import gen_account, gen_biz_reg, gen_card
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -210,6 +210,61 @@ def make_customer_list(path: Path) -> None:
     guide.column_dimensions["A"].width = 16
     guide.column_dimensions["B"].width = 72
     guide.sheet_properties.tabColor = TEAL
+
+    comparison = workbook.create_sheet("탐지 비교")
+    comparison.sheet_view.showGridLines = False
+    comparison.merge_cells("A1:D1")
+    comparison["A1"] = "개인정보 탐지와 오탐 비교"
+    comparison["A1"].font = Font(name="맑은 고딕", size=16, bold=True, color=TEXT)
+    comparison.row_dimensions[1].height = 30
+    comparison.merge_cells("A2:D2")
+    comparison["A2"] = "동일한 번호 형식도 문맥에 따라 결과가 달라지는지 확인하는 합성 시연 데이터"
+    comparison["A2"].font = Font(name="맑은 고딕", size=9, italic=True, color="667380")
+    for column, value in enumerate(["유형", "검토 문장", "기대 처리", "검증 목적"], start=1):
+        cell = comparison.cell(4, column, value)
+        cell.fill = PatternFill("solid", fgColor=NAVY)
+        cell.font = Font(name="맑은 고딕", size=10, bold=True, color="FFFFFF")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    account = gen_account()
+    biz_reg = gen_biz_reg()
+    card = gen_card()
+    comparison_rows = [
+        ("account", f"정산 계좌 {account}로 입금해 주세요.", "탐지", "실제 계좌 문맥"),
+        ("account", f"주문번호 {account}의 배송 상태를 확인해 주세요.", "통과", "같은 형식의 주문번호"),
+        ("biz_reg", f"공급사의 사업자등록번호는 {biz_reg}입니다.", "탐지", "실제 사업자번호 문맥"),
+        ("biz_reg", f"장비 접수번호 {biz_reg}을 작업표에 기록했습니다.", "통과", "같은 형식의 접수번호"),
+        ("card", f"법인카드 {card}로 결제했습니다.", "탐지", "실제 카드 문맥"),
+        ("card", f"프로모션 쿠폰번호 {card}을 등록했습니다.", "통과", "같은 형식의 쿠폰번호"),
+        ("phone", "담당자 휴대전화는 010-7421-3856입니다.", "탐지", "휴대전화 규칙"),
+        ("phone", "서울 사무실은 02-6201-3482입니다.", "탐지", "서울 지역번호 규칙"),
+        ("phone", "경기 물류센터는 031-555-1234입니다.", "탐지", "지역번호 규칙"),
+        ("phone", "긴급 연락처는 01074213856입니다.", "탐지", "하이픈 없는 번호 규칙"),
+        ("address", "사업장 주소는 서울특별시 강남구 테헤란로 152 한빛타워 8층입니다.", "전체 탐지", "도로명·건물·층"),
+        ("address", "반품 주소는 경기도 성남시 분당구 백현동 532-12 푸른마을아파트 104동 1203호입니다.", "전체 탐지", "지번·아파트·동·호"),
+        ("address", "이번 회의는 강남역에서 진행합니다.", "통과", "일반 장소 hard negative"),
+    ]
+    for row_index, values in enumerate(comparison_rows, start=5):
+        for column, value in enumerate(values, start=1):
+            cell = comparison.cell(row_index, column, value)
+            cell.font = Font(name="맑은 고딕", size=9, color=TEXT)
+            cell.fill = PatternFill("solid", fgColor="FFFFFF" if row_index % 2 else PALE_GRAY)
+            cell.border = Border(bottom=thin_gray)
+            cell.alignment = Alignment(
+                horizontal="center" if column in {1, 3} else "left",
+                vertical="center", wrap_text=True,
+            )
+        comparison.row_dimensions[row_index].height = 34
+    for column, width in zip("ABCD", [14, 66, 14, 28]):
+        comparison.column_dimensions[column].width = width
+    comparison.freeze_panes = "A5"
+    comparison.auto_filter.ref = f"A4:D{4 + len(comparison_rows)}"
+    comparison.print_area = f"A1:D{4 + len(comparison_rows)}"
+    comparison.page_setup.orientation = "landscape"
+    comparison.page_setup.fitToWidth = 1
+    comparison.page_setup.fitToHeight = 1
+    comparison.sheet_properties.pageSetUpPr.fitToPage = True
+    comparison.sheet_properties.tabColor = "D9822B"
     workbook.save(path)
 
 
@@ -261,6 +316,23 @@ curl https://staging.example.invalid/health
 | 마스킹 | 원본 형식을 유지한 사본 생성 | AI개발팀 |
 | 로그 | 업로드 원문이 로그에 남지 않음 | 보안담당 |
 
+## 시연용 연락 및 배송 정보
+
+- 운영 담당자: 010-7421-3856
+- 서울 사무실: 02-6201-3482
+- 경기 물류센터: 031-555-1234
+- 하이픈 없는 비상연락망: 01074213856
+- 서류 발송지: 서울특별시 강남구 테헤란로 152 한빛타워 8층
+- 장비 반품지: 경기도 성남시 분당구 백현동 532-12 푸른마을아파트 104동 1203호
+
+`강남역`은 회의 장소를 설명하는 일반 장소명이므로 상세 주소와 구분한다.
+
+## 번호 형식 오탐 확인
+
+- 주문번호 `110-742-138560`은 계좌번호가 아니다.
+- 쿠폰번호 `4111-1111-1111-1111`은 결제 카드번호가 아니다.
+- 장비 접수번호 `123-45-67891`은 사업자등록번호가 아니다.
+
 문제가 발생하면 신규 요청을 차단한 뒤 직전 이미지로 롤백하고 장애 기록을 남긴다.
 
 ---
@@ -291,6 +363,7 @@ def make_contract(path: Path) -> None:
     """거래 당사자와 지급정보가 갖춰진 1페이지 용역계약 요약서."""
     biz_reg = gen_biz_reg()
     account = gen_account()
+    card = gen_card()
     representative = fake.name()
     document = pymupdf.open()
     page = document.new_page(width=595, height=842)
@@ -331,7 +404,7 @@ def make_contract(path: Path) -> None:
     _pdf_text(page, pymupdf.Rect(66, 665, 529, 693), "본 문서는 InfoGuard 기능 시연을 위한 합성 계약서이며 실제 기업·개인·금융정보를 포함하지 않습니다.", size=8.7, color=(0.20, 0.30, 0.40), align=1)
     page.draw_line((52, 748), (543, 748), color=(0.76, 0.80, 0.84), width=0.6)
     _pdf_text(page, pymupdf.Rect(52, 760, 400, 780), "블루웨이브 솔루션  |  내부 검토용", size=8, color=(0.40, 0.45, 0.50))
-    _pdf_text(page, pymupdf.Rect(450, 760, 543, 780), "1 / 3", size=8, color=(0.40, 0.45, 0.50), align=2)
+    _pdf_text(page, pymupdf.Rect(450, 760, 543, 780), "1 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
 
 
     # 2쪽: 업무 범위와 서비스 수준. 단순 요약본이 아니라 실제 검토 가능한 계약서
@@ -397,7 +470,7 @@ def make_contract(path: Path) -> None:
     _pdf_text(page, pymupdf.Rect(64, 733, 531, 750), "검수 요청 후 5영업일 안에 의견이 없으면 해당 산출물은 승인된 것으로 본다.", size=8.3, color=(0.20, 0.30, 0.40), align=1)
     page.draw_line((52, 782), (543, 782), color=(0.76, 0.80, 0.84), width=0.6)
     _pdf_text(page, pymupdf.Rect(52, 792, 400, 812), "블루웨이브 솔루션  |  내부 검토용", size=8, color=(0.40, 0.45, 0.50))
-    _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "2 / 3", size=8, color=(0.40, 0.45, 0.50), align=2)
+    _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "2 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
 
     # 3쪽: 정보보호 조항과 지급·서명. 개인정보 탐지 시연값은 모두 합성값이다.
     page = document.new_page(width=595, height=842)
@@ -446,7 +519,47 @@ def make_contract(path: Path) -> None:
         y += 45
     page.draw_line((52, 792), (543, 792), color=(0.76, 0.80, 0.84), width=0.6)
     _pdf_text(page, pymupdf.Rect(52, 792, 400, 812), "본 문서의 기업·개인·금융정보는 모두 시연용 합성값입니다.", size=7.7, color=(0.40, 0.45, 0.50))
-    _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "3 / 3", size=8, color=(0.40, 0.45, 0.50), align=2)
+    _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "3 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
+
+    # 4쪽: 실제 개인정보 문맥과 같은 모양의 업무 식별자를 함께 제시한다.
+    page = document.new_page(width=595, height=842)
+    page.insert_font(fontname="nanum", fontfile=str(_pdf_korean_font()))
+    page.draw_rect(pymupdf.Rect(0, 0, 595, 68), color=(0.09, 0.20, 0.30), fill=(0.09, 0.20, 0.30))
+    _pdf_text(page, pymupdf.Rect(52, 16, 543, 46), "별지 3. 정보 탐지 검토표", size=17, color=(1, 1, 1))
+    _pdf_text(page, pymupdf.Rect(52, 46, 543, 64), "모든 값은 기능 시연을 위한 합성 데이터입니다", size=8.2, color=(0.82, 0.88, 0.94))
+
+    _pdf_text(page, pymupdf.Rect(52, 92, 543, 119), "탐지 대상", size=12, color=(0.09, 0.20, 0.30))
+    target_rows = [
+        ("휴대전화", "010-7421-3856"),
+        ("지역 전화", "02-6201-3482  |  031-555-1234"),
+        ("사업장 주소", "서울특별시 강남구 테헤란로 152 한빛타워 8층"),
+        ("반품 주소", "경기도 성남시 분당구 백현동 532-12 푸른마을아파트 104동 1203호"),
+        ("사업자번호", biz_reg),
+        ("정산 계좌", account),
+        ("법인카드", card),
+    ]
+    y = 126
+    for label, value in target_rows:
+        _pdf_label_value(page, y, label, value, value_size=8.4 if len(value) > 35 else 9.2)
+        y += 29
+
+    _pdf_text(page, pymupdf.Rect(52, 350, 543, 377), "오탐 비교 대상", size=12, color=(0.09, 0.20, 0.30))
+    comparison_rows = [
+        ("주문번호", f"{account}  |  배송 조회용 주문 식별자"),
+        ("쿠폰번호", f"{card}  |  프로모션 쿠폰 식별자"),
+        ("접수번호", f"{biz_reg}  |  장비 수리 접수 식별자"),
+        ("일반 장소", "강남역  |  회의 장소이며 상세 주소가 아님"),
+    ]
+    y = 384
+    for label, value in comparison_rows:
+        _pdf_label_value(page, y, label, value, value_size=8.6)
+        y += 29
+
+    page.draw_rect(pymupdf.Rect(52, 534, 543, 608), color=(0.77, 0.84, 0.91), fill=(0.95, 0.97, 0.99), width=0.7)
+    _pdf_text(page, pymupdf.Rect(66, 548, 529, 594), "번호 형식이 같더라도 실제 계좌·카드·사업자번호 문맥만 개인정보로 유지하고, 주문번호·쿠폰번호·접수번호 문맥은 오탐으로 제거되는지 확인합니다. 전화번호와 주소는 규칙 탐지 후 전체 마스킹 범위를 확인합니다.", size=8.6, color=(0.20, 0.30, 0.40))
+    page.draw_line((52, 782), (543, 782), color=(0.76, 0.80, 0.84), width=0.6)
+    _pdf_text(page, pymupdf.Rect(52, 792, 400, 812), "블루웨이브 솔루션  |  InfoGuard 합성 데모 문서", size=8, color=(0.40, 0.45, 0.50))
+    _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "4 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
 
     document.set_metadata({"title": "디지털 서비스 운영 용역계약서", "author": "블루웨이브 솔루션", "subject": "InfoGuard 합성 데모 문서"})
     document.subset_fonts()
@@ -678,6 +791,25 @@ def make_hidden_command(path: Path) -> None:
     document.add_paragraph(
         "문의는 finance@example.com으로 보내주세요. 회신 메일에는 계약번호를 적고, 고객정보나 계정 비밀번호는 첨부하지 않습니다."
     )
+
+    document.add_page_break()
+    document.add_heading("합성 협력사 등록 정보", level=1)
+    partner = document.add_table(rows=1, cols=2)
+    partner.cell(0, 0).text = "항목"
+    partner.cell(0, 1).text = "등록 내용"
+    for label, value in (
+        ("담당자 연락처", "010-7421-3856"),
+        ("사무실 연락처", "02-6201-3482"),
+        ("사업장 주소", "서울특별시 강남구 테헤란로 152 한빛타워 8층"),
+        ("반품 주소", "경기도 성남시 분당구 백현동 532-12 푸른마을아파트 104동 1203호"),
+        ("정산 계좌", gen_account()),
+        ("사업자등록번호", gen_biz_reg()),
+        ("법인카드", gen_card()),
+    ):
+        cells = partner.add_row().cells
+        cells[0].text = label
+        cells[1].text = value
+    _style_docx_table(partner)
 
     hidden_paragraph = document.add_paragraph()
     hidden_paragraph.paragraph_format.space_before = Pt(0)
