@@ -15,13 +15,6 @@ from backend.training.training_service import (
 
 
 # =========================
-# Attacker AI 객체
-# =========================
-
-attacker_service = AttackerService()
-
-
-# =========================
 # 1. Training 대화 세션 시작
 # =========================
 
@@ -66,6 +59,8 @@ def generate_attacker_message(
         ]
     else:
         messages_for_llm = messages
+
+    attacker_service = AttackerService()
 
     attacker_message = attacker_service.generate_message(
         state=session["state"],
