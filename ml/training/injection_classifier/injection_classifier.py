@@ -116,7 +116,7 @@ def build_pipeline() -> Pipeline:
     classifier = LogisticRegression(
         # 인젝션 누락 비용을 반영해 양성 클래스에 더 큰 가중치를 준다.
         # 독립 검증셋과 데모 문서 회귀 검사로 C/가중치를 함께 선택했다.
-        C=8.0,
+        C=16.0,
         class_weight={0: 1.0, 1: 2.5},
         max_iter=3000,
         random_state=42,
