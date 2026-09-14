@@ -1,0 +1,2002 @@
+[
+  {
+    "text": "신청인의 거주지는 충청북도 청주시 흥덕구 조례동 278-24로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 33,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_03"
+  },
+  {
+    "text": "사업장 소재지는 울산광역시 남구 엑스포로 188 다온빌라 111동 1017호로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 42,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_08"
+  },
+  {
+    "text": "고객 배송지 강원특별자치도 춘천시 법원로 206 누리주택 107동 803호로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 41,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_06"
+  },
+  {
+    "text": "신청인의 거주지는 전북특별자치도 전주시 완산구 동판교로52번길 271로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 38,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_03"
+  },
+  {
+    "text": "출장지는 대구로 결정되었습니다.",
+    "type": "address",
+    "start": 5,
+    "end": 7,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_02"
+  },
+  {
+    "text": "사업장 소재지는 서울특별시 강남구 조례동 323-39로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 29,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_08"
+  },
+  {
+    "text": "신청인의 거주지는 광주광역시 북구 도산대로 161로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 27,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_03"
+  },
+  {
+    "text": "서류 발송지는 세종특별자치시 이의동 194-48입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 26,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_07"
+  },
+  {
+    "text": "세금계산서 수령 주소: 서울특별시 마포구 양재천로 144 미래타워 105동 609호",
+    "type": "address",
+    "start": 13,
+    "end": 46,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_04"
+  },
+  {
+    "text": "서류 발송지는 울산광역시 남구 송도동 200 해든아파트 112동 910호입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 40,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_07"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 광주광역시 북구 청평리 64 솔빛아파트 104동 2114호입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 47,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_09"
+  },
+  {
+    "text": "사업장 소재지는 충청북도 청주시 흥덕구 달구벌대로 108 다온빌라 113동 1017호로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 47,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_08"
+  },
+  {
+    "text": "배송지는 대전광역시 유성구 역삼동 381-41입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 25,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_00"
+  },
+  {
+    "text": "교육 자료에서 세종대로 11은 가상 주소 예시로만 사용했습니다.",
+    "type": "address",
+    "start": 8,
+    "end": 15,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_01"
+  },
+  {
+    "text": "채용 대상 지역은 홍대입구입니다.",
+    "type": "address",
+    "start": 10,
+    "end": 14,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_02"
+  },
+  {
+    "text": "행사는 광주 인근에서 열릴 예정입니다.",
+    "type": "address",
+    "start": 4,
+    "end": 6,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_04"
+  },
+  {
+    "text": "배송지는 경상남도 창원시 성산구 도산대로 250 한빛아파트 113동 1211호입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_00"
+  },
+  {
+    "text": "세금계산서 수령 주소: 제주특별자치도 제주시 조천읍 107-45",
+    "type": "address",
+    "start": 13,
+    "end": 35,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_04"
+  },
+  {
+    "text": "서류 발송지는 전북특별자치도 전주시 완산구 백현동 30 해든아파트 102동 1920호입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 47,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_07"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 서울특별시 강남구 조천읍 162-20입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 35,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_09"
+  },
+  {
+    "text": "신청인의 거주지는 세종특별자치시 장성동 222 센트럴오피스텔 114동 1512호로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_03"
+  },
+  {
+    "text": "반품 물품을 충청북도 청주시 흥덕구 이의동 산 49로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_02"
+  },
+  {
+    "text": "테스트 케이스 이름은 혁신로 297이며 실제 배송지가 아닙니다.",
+    "type": "address",
+    "start": 12,
+    "end": 19,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_07"
+  },
+  {
+    "text": "반품 물품을 대구광역시 수성구 한밭대로 344로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 25,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_02"
+  },
+  {
+    "text": "사업장 소재지는 광주광역시 북구 조례동 233-9로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_08"
+  },
+  {
+    "text": "방문 예정지는 울산광역시 남구 판교로256번길 235이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 29,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_05"
+  },
+  {
+    "text": "세금계산서 수령 주소: 대전광역시 유성구 엑스포로 198-8",
+    "type": "address",
+    "start": 13,
+    "end": 33,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_04"
+  },
+  {
+    "text": "서류 발송지는 충청남도 천안시 서북구 이의동 104-18입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 31,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_07"
+  },
+  {
+    "text": "계약서에 기재된 주소는 경기도 수원시 영통구 북면 58 푸른마을아파트 104동 308호입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 48,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_01"
+  },
+  {
+    "text": "고객 배송지 부산광역시 해운대구 가락시장길 46 누리주택 111동 803호로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 41,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_06"
+  },
+  {
+    "text": "반품 물품을 전라남도 순천시 중앙로 352 새봄빌라 105동 415호로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 38,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_02"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 전북특별자치도 전주시 완산구 조천읍 산 252-2입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 42,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_09"
+  },
+  {
+    "text": "사업장 소재지는 서울특별시 강남구 충장대로 456로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 27,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_08"
+  },
+  {
+    "text": "대전 지사 직원이 온라인 회의에 참석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 2,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_05"
+  },
+  {
+    "text": "테스트 케이스 이름은 달구벌대로 92이며 실제 배송지가 아닙니다.",
+    "type": "address",
+    "start": 12,
+    "end": 20,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_02"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 충청북도 청주시 흥덕구 범어동 194 솔빛아파트 112동 1104호입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 52,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_09"
+  },
+  {
+    "text": "사업장 소재지는 세종특별자치시 서초중앙로8길 306-9로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 30,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_08"
+  },
+  {
+    "text": "회의에서는 영동대로 174이라는 임의 문자열을 비교했습니다.",
+    "type": "address",
+    "start": 6,
+    "end": 14,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_04"
+  },
+  {
+    "text": "배송지는 강원특별자치도 춘천시 역삼동 291-11입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_00"
+  },
+  {
+    "text": "광화문 지사 직원이 온라인 회의에 참석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 3,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_03"
+  },
+  {
+    "text": "문서 분류 코드 한밭대로 133을 새 버전에서 폐기했습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 17,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_03"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 강원특별자치도 춘천시 문화로 383입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 34,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_09"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 경기도 성남시 분당구 충장대로 343입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 35,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_09"
+  },
+  {
+    "text": "반품 물품을 세종특별자치시 세종대로 312 새봄빌라 115동 1405호로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 39,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_02"
+  },
+  {
+    "text": "이번 회의는 서울에서 진행합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_00"
+  },
+  {
+    "text": "사업장 소재지는 강원특별자치도 춘천시 조례동 223로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_08"
+  },
+  {
+    "text": "배송지는 부산광역시 해운대구 누리로 50-4입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_00"
+  },
+  {
+    "text": "반품 물품을 경기도 수원시 영통구 과학기술로 82 새봄빌라 103동 415호로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 42,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_02"
+  },
+  {
+    "text": "계약서에 기재된 주소는 전라남도 순천시 복대동 98 푸른마을아파트 106동 308호입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 46,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_01"
+  },
+  {
+    "text": "방문 예정지는 경상북도 포항시 북구 조례동 166 가온아파트 110동 716호이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_05"
+  },
+  {
+    "text": "계약서에 기재된 주소는 전북특별자치도 전주시 완산구 용봉동 320-12입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 39,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_01"
+  },
+  {
+    "text": "계약서에 기재된 주소는 대전광역시 유성구 용봉동 산 220입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 32,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_01"
+  },
+  {
+    "text": "배송지는 광주광역시 북구 첨단과기로 290 한빛아파트 103동 201호입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 39,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_00"
+  },
+  {
+    "text": "반품 물품을 서울특별시 마포구 서초중앙로8길 272 새봄빌라 107동 415호로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_02"
+  },
+  {
+    "text": "사업장 소재지는 경기도 성남시 분당구 과학기술로 86-29로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 32,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_08"
+  },
+  {
+    "text": "신청인의 거주지는 서울특별시 마포구 조례동 378-14로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 30,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_03"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 경기도 수원시 영통구 테헤란로 123입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 35,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_09"
+  },
+  {
+    "text": "세금계산서 수령 주소: 충청남도 천안시 서북구 한밭대로 104 미래타워 115동 1619호",
+    "type": "address",
+    "start": 13,
+    "end": 50,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_04"
+  },
+  {
+    "text": "반품 물품을 인천광역시 연수구 세종대로 124로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 25,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_02"
+  },
+  {
+    "text": "계약서에 기재된 주소는 대구광역시 수성구 용봉동 30-2입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 31,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_01"
+  },
+  {
+    "text": "서류 발송지는 경기도 성남시 분당구 중앙로 309입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_07"
+  },
+  {
+    "text": "사업장 소재지는 전북특별자치도 전주시 완산구 문화로 228 다온빌라 101동 2007호로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 48,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_08"
+  },
+  {
+    "text": "버스 노선표에는 해운대로 175번 구간으로 표시되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 17,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_05"
+  },
+  {
+    "text": "제주공항 상권에 관한 보고서를 작성했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 4,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_09"
+  },
+  {
+    "text": "서류 발송지는 경상남도 창원시 성산구 대학로 159입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 28,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_07"
+  },
+  {
+    "text": "고객 배송지 울산광역시 남구 법원로 12로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 22,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_06"
+  },
+  {
+    "text": "서류 발송지는 세종특별자치시 양재천로 49입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 23,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_07"
+  },
+  {
+    "text": "방문 예정지는 대전광역시 유성구 이의동 86 가온아파트 106동 716호이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 40,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_05"
+  },
+  {
+    "text": "방문 예정지는 전라남도 순천시 역삼동 146-6이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 26,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_05"
+  },
+  {
+    "text": "교육 자료에서 대학로 51은 가상 주소 예시로만 사용했습니다.",
+    "type": "address",
+    "start": 8,
+    "end": 14,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_01"
+  },
+  {
+    "text": "해운대 지역의 분기 매출을 분석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 3,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_07"
+  },
+  {
+    "text": "세금계산서 수령 주소: 대전광역시 유성구 대학로 64 미래타워 107동 609호",
+    "type": "address",
+    "start": 13,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_04"
+  },
+  {
+    "text": "서류 발송지는 제주특별자치도 제주시 서초중앙로8길 419입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 31,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_07"
+  },
+  {
+    "text": "회의에서는 동판교로52번길 339이라는 임의 문자열을 비교했습니다.",
+    "type": "address",
+    "start": 6,
+    "end": 18,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_09"
+  },
+  {
+    "text": "반품 물품을 서울특별시 마포구 이의동 149-33로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_02"
+  },
+  {
+    "text": "사업장 소재지는 제주특별자치도 제주시 중앙로 196로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_08"
+  },
+  {
+    "text": "행사는 테헤란로 인근에서 열릴 예정입니다.",
+    "type": "address",
+    "start": 4,
+    "end": 8,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_00"
+  },
+  {
+    "text": "서류 발송지는 울산광역시 남구 광교중앙로 269입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 26,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_07"
+  },
+  {
+    "text": "사업장 소재지는 경상북도 포항시 북구 조례동 133로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_08"
+  },
+  {
+    "text": "강원도 지역의 분기 매출을 분석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 3,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_09"
+  },
+  {
+    "text": "이번 조사는 여의도 방문객을 대상으로 합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 10,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_03"
+  },
+  {
+    "text": "계약서에 기재된 주소는 경기도 성남시 분당구 용봉동 20-42입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 34,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_01"
+  },
+  {
+    "text": "서류 발송지는 부산광역시 해운대구 이의동 산 204-8입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 30,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_07"
+  },
+  {
+    "text": "고객 배송지 대전광역시 유성구 가락시장길 232로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 26,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_06"
+  },
+  {
+    "text": "교육 자료에서 누리로 216은 가상 주소 예시로만 사용했습니다.",
+    "type": "address",
+    "start": 8,
+    "end": 15,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_06"
+  },
+  {
+    "text": "세금계산서 수령 주소: 강원특별자치도 춘천시 광교중앙로 334 미래타워 109동 609호",
+    "type": "address",
+    "start": 13,
+    "end": 49,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_04"
+  },
+  {
+    "text": "계약서에 기재된 주소는 서울특별시 마포구 송도과학로 47입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 31,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_01"
+  },
+  {
+    "text": "신청인의 거주지는 인천광역시 연수구 해운대로 381로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 28,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_03"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 서울특별시 강남구 어진동 24 솔빛아파트 102동 2114호입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 48,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_09"
+  },
+  {
+    "text": "고객 배송지 경기도 수원시 영통구 용봉동 75-17로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_06"
+  },
+  {
+    "text": "방문 예정지는 제주특별자치도 제주시 용봉동 256 가온아파트 116동 1706호이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_05"
+  },
+  {
+    "text": "인천 지사 직원이 온라인 회의에 참석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 2,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_08"
+  },
+  {
+    "text": "채용 대상 지역은 광주입니다.",
+    "type": "address",
+    "start": 10,
+    "end": 12,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_09"
+  },
+  {
+    "text": "세금계산서 수령 주소: 인천광역시 연수구 조천읍 산 17-15",
+    "type": "address",
+    "start": 13,
+    "end": 34,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_04"
+  },
+  {
+    "text": "반품 물품을 충청북도 청주시 흥덕구 양재천로19길 454-13로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 34,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_02"
+  },
+  {
+    "text": "배송지는 경기도 수원시 영통구 충장대로 210 한빛아파트 105동 201호입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 41,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_00"
+  },
+  {
+    "text": "이번 조사는 송도 방문객을 대상으로 합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_05"
+  },
+  {
+    "text": "방문 예정지는 광주광역시 북구 달구벌대로 195이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 26,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_05"
+  },
+  {
+    "text": "방문 예정지는 경상북도 포항시 북구 가락시장길 345이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 29,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_05"
+  },
+  {
+    "text": "고객 배송지 경기도 성남시 분당구 누리로 86 누리주택 101동 1813호로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 41,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_06"
+  },
+  {
+    "text": "계약서에 기재된 주소는 경상남도 창원시 성산구 우동 188 푸른마을아파트 112동 1318호입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 51,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_01"
+  },
+  {
+    "text": "반품 물품을 경상남도 창원시 성산구 이의동 349로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_02"
+  },
+  {
+    "text": "서류 발송지는 경상북도 포항시 북구 이의동 294-38입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 30,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_07"
+  },
+  {
+    "text": "배송지는 강원특별자치도 춘천시 송도과학로 160입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 26,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_00"
+  },
+  {
+    "text": "문서 분류 코드 판교로256번길 298을 새 버전에서 폐기했습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_08"
+  },
+  {
+    "text": "신청인의 거주지는 충청남도 천안시 서북구 궁동 262 센트럴오피스텔 116동 1512호로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 48,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_03"
+  },
+  {
+    "text": "신청인의 거주지는 대전광역시 유성구 서교동 132 센트럴오피스텔 108동 502호로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 45,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_03"
+  },
+  {
+    "text": "행사는 대구 인근에서 열릴 예정입니다.",
+    "type": "address",
+    "start": 4,
+    "end": 6,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_07"
+  },
+  {
+    "text": "사업장 소재지는 부산광역시 해운대구 판교로 268 다온빌라 109동 1017호로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_08"
+  },
+  {
+    "text": "배송지는 서울특별시 강남구 역삼동 산 1입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 22,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_00"
+  },
+  {
+    "text": "버스 노선표에는 판교로 420번 구간으로 표시되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 16,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_00"
+  },
+  {
+    "text": "교육 자료에서 엑스포로 256은 가상 주소 예시로만 사용했습니다.",
+    "type": "address",
+    "start": 8,
+    "end": 16,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_06"
+  },
+  {
+    "text": "버스 노선표에는 양재천로 215번 구간으로 표시되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 17,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_05"
+  },
+  {
+    "text": "고객 배송지 경상북도 포항시 북구 판교로256번길 122-17로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 34,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_06"
+  },
+  {
+    "text": "이번 회의는 남산에서 진행합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_04"
+  },
+  {
+    "text": "강남역 상권에 관한 보고서를 작성했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 3,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_01"
+  },
+  {
+    "text": "서류 발송지는 광주광역시 북구 이의동 4입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 22,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_07"
+  },
+  {
+    "text": "사업장 소재지는 세종특별자치시 조례동 산 33-29로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_08"
+  },
+  {
+    "text": "배송지는 충청북도 청주시 흥덕구 산업단지로 330 한빛아파트 111동 1211호입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_00"
+  },
+  {
+    "text": "행사는 서울역 인근에서 열릴 예정입니다.",
+    "type": "address",
+    "start": 4,
+    "end": 7,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_02"
+  },
+  {
+    "text": "반품 물품을 경기도 성남시 분당구 이의동 249-23로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 29,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_02"
+  },
+  {
+    "text": "부산 상권에 관한 보고서를 작성했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 2,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_06"
+  },
+  {
+    "text": "반품 물품을 대전광역시 유성구 이의동 59-3로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 25,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_02"
+  },
+  {
+    "text": "반품 물품을 부산광역시 해운대구 월드컵북로 84로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 26,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_02"
+  },
+  {
+    "text": "배송지는 대구광역시 수성구 역삼동 191-21입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 25,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_00"
+  },
+  {
+    "text": "배송지는 전북특별자치도 전주시 완산구 역삼동 91입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_00"
+  },
+  {
+    "text": "신청인의 거주지는 인천광역시 연수구 조례동 178로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_03"
+  },
+  {
+    "text": "방문 예정지는 대전광역시 유성구 판교로 455이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 25,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_05"
+  },
+  {
+    "text": "테스트 케이스 이름은 과학기술로 257이며 실제 배송지가 아닙니다.",
+    "type": "address",
+    "start": 12,
+    "end": 21,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_07"
+  },
+  {
+    "text": "세금계산서 수령 주소: 인천광역시 연수구 동판교로52번길 158-5",
+    "type": "address",
+    "start": 13,
+    "end": 37,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_04"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 서울특별시 강남구 첨단과기로 233입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 34,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_09"
+  },
+  {
+    "text": "버스 노선표에는 테헤란로 10번 구간으로 표시되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 16,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_00"
+  },
+  {
+    "text": "세금계산서 수령 주소: 전라남도 순천시 조천읍 307",
+    "type": "address",
+    "start": 13,
+    "end": 29,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_04"
+  },
+  {
+    "text": "방문 예정지는 전라남도 순천시 엑스포로 85이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 24,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_05"
+  },
+  {
+    "text": "배송지는 서울특별시 강남구 테헤란로 20 한빛아파트 101동 201호입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 38,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_00"
+  },
+  {
+    "text": "테스트 케이스 이름은 송도과학로 52이며 실제 배송지가 아닙니다.",
+    "type": "address",
+    "start": 12,
+    "end": 20,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_02"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 서울특별시 마포구 영동대로 13입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 32,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_09"
+  },
+  {
+    "text": "계약서에 기재된 주소는 경상남도 창원시 성산구 용봉동 120-32입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 36,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_01"
+  },
+  {
+    "text": "고객 배송지 부산광역시 해운대구 용봉동 365-27로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_06"
+  },
+  {
+    "text": "반품 물품을 충청남도 천안시 서북구 혁신로 234-33로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 30,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_02"
+  },
+  {
+    "text": "배송지는 서울특별시 강남구 테헤란로 10-1입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 24,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_00"
+  },
+  {
+    "text": "배송지는 서울특별시 마포구 문화로 270-21입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 25,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_00"
+  },
+  {
+    "text": "회의에서는 가락시장길 134이라는 임의 문자열을 비교했습니다.",
+    "type": "address",
+    "start": 6,
+    "end": 15,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_04"
+  },
+  {
+    "text": "고객 배송지 제주특별자치도 제주시 용봉동 175로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 26,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_06"
+  },
+  {
+    "text": "대학로 지사 직원이 온라인 회의에 참석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 3,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_01"
+  },
+  {
+    "text": "고객 배송지 충청남도 천안시 서북구 용봉동 265로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 27,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_06"
+  },
+  {
+    "text": "이번 회의는 경기도에서 진행합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 10,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_08"
+  },
+  {
+    "text": "출장지는 제주도로 결정되었습니다.",
+    "type": "address",
+    "start": 5,
+    "end": 8,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_00"
+  },
+  {
+    "text": "반품 물품을 대구광역시 수성구 해운대로 42 새봄빌라 113동 1405호로 보내주세요.",
+    "type": "address",
+    "start": 7,
+    "end": 40,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_02"
+  },
+  {
+    "text": "신청인의 거주지는 대구광역시 수성구 혁신로 121로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 27,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_03"
+  },
+  {
+    "text": "인천 상권에 관한 보고서를 작성했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 2,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_03"
+  },
+  {
+    "text": "고객 배송지 세종특별자치시 대학로 272로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 22,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_06"
+  },
+  {
+    "text": "문서 분류 코드 중앙로 93을 새 버전에서 폐기했습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 15,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_03"
+  },
+  {
+    "text": "계약서에 기재된 주소는 강원특별자치도 춘천시 누리로 417입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 32,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_01"
+  },
+  {
+    "text": "세금계산서 수령 주소: 울산광역시 남구 조천읍 207-35",
+    "type": "address",
+    "start": 13,
+    "end": 32,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_04"
+  },
+  {
+    "text": "채용 대상 지역은 판교입니다.",
+    "type": "address",
+    "start": 10,
+    "end": 12,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_04"
+  },
+  {
+    "text": "신청인의 거주지는 서울특별시 마포구 효자동 92 센트럴오피스텔 106동 502호로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_03"
+  },
+  {
+    "text": "고객 배송지 인천광역시 연수구 센텀중앙로 166 누리주택 117동 1813호로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 42,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_06"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 대구광역시 수성구 조천읍 352입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 32,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_09"
+  },
+  {
+    "text": "방문 예정지는 제주특별자치도 제주시 역삼동 336-26이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 30,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_05"
+  },
+  {
+    "text": "배송지는 경기도 수원시 영통구 영동대로 380입니다.",
+    "type": "address",
+    "start": 5,
+    "end": 25,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_00"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 경상남도 창원시 성산구 노형동 234 솔빛아파트 114동 1104호입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 52,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_09"
+  },
+  {
+    "text": "계약서에 기재된 주소는 대구광역시 수성구 상남동 228 푸른마을아파트 114동 1318호입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 49,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_01"
+  },
+  {
+    "text": "방문 예정지는 인천광역시 연수구 조천읍 296 가온아파트 118동 1706호이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 42,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_05"
+  },
+  {
+    "text": "문서 분류 코드 문화로 338을 새 버전에서 폐기했습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 16,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_08"
+  },
+  {
+    "text": "출장지는 인천공항로 결정되었습니다.",
+    "type": "address",
+    "start": 5,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_08"
+  },
+  {
+    "text": "서류 발송지는 경기도 성남시 분당구 애월읍 290 해든아파트 118동 1920호입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_07"
+  },
+  {
+    "text": "세금계산서 수령 주소: 충청북도 청주시 흥덕구 조천읍 117-5",
+    "type": "address",
+    "start": 13,
+    "end": 35,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_04"
+  },
+  {
+    "text": "세금계산서 수령 주소: 제주특별자치도 제주시 양재천로19길 24 미래타워 117동 1619호",
+    "type": "address",
+    "start": 13,
+    "end": 51,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_04"
+  },
+  {
+    "text": "출장지는 서울로 결정되었습니다.",
+    "type": "address",
+    "start": 5,
+    "end": 7,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_05"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 강원특별자치도 춘천시 조천읍 62-30입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 36,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_09"
+  },
+  {
+    "text": "부산 지역의 분기 매출을 분석했습니다.",
+    "type": "address",
+    "start": 0,
+    "end": 2,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_01"
+  },
+  {
+    "text": "계약서에 기재된 주소는 부산광역시 해운대구 센텀중앙로 307입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 33,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_01"
+  },
+  {
+    "text": "방문 예정지는 울산광역시 남구 역삼동 46이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 23,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_05"
+  },
+  {
+    "text": "계약서에 기재된 주소는 충청북도 청주시 흥덕구 월드컵북로 197입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 35,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_01"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 울산광역시 남구 불당동 154 솔빛아파트 110동 1104호입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 48,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_09"
+  },
+  {
+    "text": "방문 예정지는 강원특별자치도 춘천시 역삼동 126 가온아파트 108동 716호이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_05"
+  },
+  {
+    "text": "신청인의 거주지는 전라남도 순천시 남면 52 센트럴오피스텔 104동 502호로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 42,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_03"
+  },
+  {
+    "text": "고객 배송지 경상남도 창원시 성산구 광교중앙로 382-37로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 32,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_06"
+  },
+  {
+    "text": "서류 발송지는 부산광역시 해운대구 효자동3가 160 해든아파트 110동 910호입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 44,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_07"
+  },
+  {
+    "text": "고객 배송지 경상북도 포항시 북구 판교로256번길 126 누리주택 109동 803호로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 46,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_06"
+  },
+  {
+    "text": "세금계산서 수령 주소: 전북특별자치도 전주시 완산구 도산대로 48",
+    "type": "address",
+    "start": 13,
+    "end": 36,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_04"
+  },
+  {
+    "text": "이번 조사는 세종 방문객을 대상으로 합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_07"
+  },
+  {
+    "text": "계약서에 기재된 주소는 대구광역시 수성구 양재천로19길 87입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 33,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_01"
+  },
+  {
+    "text": "이번 회의는 한강에서 진행합니다.",
+    "type": "address",
+    "start": 7,
+    "end": 9,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_06"
+  },
+  {
+    "text": "세금계산서 수령 주소: 전라남도 순천시 달구벌대로 308",
+    "type": "address",
+    "start": 13,
+    "end": 31,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_04"
+  },
+  {
+    "text": "채용 대상 지역은 울산입니다.",
+    "type": "address",
+    "start": 10,
+    "end": 12,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_06"
+  },
+  {
+    "text": "사업장 소재지는 서울특별시 강남구 영동대로 148 다온빌라 103동 2007호로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_08"
+  },
+  {
+    "text": "신청인의 거주지는 경기도 성남시 분당구 조례동 88로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_03"
+  },
+  {
+    "text": "계약서에 기재된 주소는 광주광역시 북구 삼산동 18 푸른마을아파트 102동 308호입니다.",
+    "type": "address",
+    "start": 13,
+    "end": 46,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_01"
+  },
+  {
+    "text": "신청인의 거주지는 전라남도 순천시 조례동 78-44로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 28,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_03"
+  },
+  {
+    "text": "신청인의 거주지는 충청남도 천안시 서북구 세종대로 11로 확인됩니다.",
+    "type": "address",
+    "start": 10,
+    "end": 30,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_03"
+  },
+  {
+    "text": "방문 예정지는 경기도 수원시 영통구 역삼동 산 236-36이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 32,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_05"
+  },
+  {
+    "text": "서류 발송지는 경상북도 포항시 북구 대정읍 120 해든아파트 108동 910호입니다.",
+    "type": "address",
+    "start": 8,
+    "end": 43,
+    "label": 1,
+    "address_kind": "unit",
+    "source": "synthetic_address_eval",
+    "group_id": "unit_07"
+  },
+  {
+    "text": "고객 배송지 광주광역시 북구 용봉동 165-47로 접수했습니다.",
+    "type": "address",
+    "start": 7,
+    "end": 26,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_06"
+  },
+  {
+    "text": "방문 예정지는 부산광역시 해운대구 역삼동 136이니 확인 바랍니다.",
+    "type": "address",
+    "start": 8,
+    "end": 26,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_05"
+  },
+  {
+    "text": "비상 연락망의 자택 주소는 세종특별자치시 조천읍 262입니다.",
+    "type": "address",
+    "start": 15,
+    "end": 30,
+    "label": 1,
+    "address_kind": "jibun",
+    "source": "synthetic_address_eval",
+    "group_id": "jibun_09"
+  },
+  {
+    "text": "사업장 소재지는 경기도 수원시 영통구 첨단과기로 346-12로 등록되어 있습니다.",
+    "type": "address",
+    "start": 9,
+    "end": 33,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_08"
+  },
+  {
+    "text": "회의에서는 서초중앙로8길 379이라는 임의 문자열을 비교했습니다.",
+    "type": "address",
+    "start": 6,
+    "end": 17,
+    "label": 0,
+    "address_kind": "location_only",
+    "source": "synthetic_address_eval",
+    "group_id": "location_only_09"
+  },
+  {
+    "text": "세금계산서 수령 주소: 광주광역시 북구 산업단지로 418-25",
+    "type": "address",
+    "start": 13,
+    "end": 34,
+    "label": 1,
+    "address_kind": "road",
+    "source": "synthetic_address_eval",
+    "group_id": "road_04"
+  }
+]

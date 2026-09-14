@@ -46,6 +46,19 @@ class FalsePositiveFilterTest(unittest.TestCase):
         )
         self.assertLessEqual(operating_point["false_negative_rate"], 0.05)
         self.assertNotIn("emp_no", model.risk_types)
+        self.assertNotIn("phone", model.risk_types)
+
+    def test_phone_bypasses_false_positive_model(self):
+        model = FalsePositiveFilter.load(str(MODEL_PATH))
+        with patch.object(
+            detector_models, "_get_false_positive_model", return_value=model
+        ):
+            keep, probability = detector_models.filter_false_positive(
+                "02-1234-5678", "연락처는 02-1234-5678입니다", "phone"
+            )
+
+        self.assertTrue(keep)
+        self.assertEqual(probability, 1.0)
 
     def test_emp_no_bypasses_false_positive_model(self):
         model = FalsePositiveFilter.load(str(MODEL_PATH))
@@ -61,7 +74,7 @@ class FalsePositiveFilterTest(unittest.TestCase):
 
     def test_scanner_uses_model_operating_threshold(self):
         class StubModel:
-            risk_types = ["phone"]
+            risk_types = ["account"]
             operating_threshold = 0.3
 
             @staticmethod
@@ -72,7 +85,7 @@ class FalsePositiveFilterTest(unittest.TestCase):
             detector_models, "_get_false_positive_model", return_value=StubModel()
         ):
             keep, probability = detector_models.filter_false_positive(
-                "010-1234-5678", "연락처는 010-1234-5678입니다", "phone"
+                "110-123-456789", "입금 계좌는 110-123-456789입니다", "account"
             )
 
         self.assertTrue(keep)

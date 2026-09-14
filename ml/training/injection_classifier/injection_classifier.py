@@ -200,14 +200,50 @@ def evaluate(rows: Sequence[dict], threshold: float = DEFAULT_THRESHOLD) -> dict
     per_level = {}
     for level in sorted({row["level"] for row in rows}):
         mask = np.asarray([row["level"] == level for row in rows])
+        level_labels = labels[mask]
+        level_predictions = predictions[mask]
+        tn, fp, fn, tp = confusion_matrix(
+            level_labels, level_predictions, labels=[0, 1]
+        ).ravel()
         p, r, level_f1, _ = precision_recall_fscore_support(
-            labels[mask], predictions[mask], average="binary", zero_division=0
+            level_labels, level_predictions, average="binary", zero_division=0
         )
         per_level[str(level)] = {
             "rows": int(mask.sum()),
             "precision": float(p),
             "recall": float(r),
             "f1": float(level_f1),
+            "false_positive_rate": float(fp / (fp + tn)) if fp + tn else 0.0,
+            "false_negative_rate": float(fn / (fn + tp)) if fn + tp else 0.0,
+            "confusion_matrix": {
+                "labels": [0, 1],
+                "values": [[int(tn), int(fp)], [int(fn), int(tp)]],
+            },
+        }
+
+    per_source = {}
+    for source in sorted({row.get("source", "unknown") for row in rows}):
+        mask = np.asarray([row.get("source", "unknown") == source for row in rows])
+        source_labels = labels[mask]
+        source_predictions = predictions[mask]
+        tn, fp, fn, tp = confusion_matrix(
+            source_labels, source_predictions, labels=[0, 1]
+        ).ravel()
+        source_precision, source_recall, source_f1, _ = precision_recall_fscore_support(
+            source_labels, source_predictions, average="binary", zero_division=0
+        )
+        per_source[source] = {
+            "rows": int(mask.sum()),
+            "precision": float(source_precision),
+            "recall": float(source_recall),
+            "f1": float(source_f1),
+            "accuracy": float((tp + tn) / mask.sum()),
+            "false_positive_rate": float(fp / (fp + tn)) if fp + tn else 0.0,
+            "false_negative_rate": float(fn / (fn + tp)) if fn + tp else 0.0,
+            "confusion_matrix": {
+                "labels": [0, 1],
+                "values": [[int(tn), int(fp)], [int(fn), int(tp)]],
+            },
         }
 
     report = {
@@ -222,6 +258,7 @@ def evaluate(rows: Sequence[dict], threshold: float = DEFAULT_THRESHOLD) -> dict
         "average_precision": float(average_precision_score(labels, probabilities)),
         "confusion_matrix": {"labels": [0, 1], "values": matrix},
         "per_level": per_level,
+        "per_source": per_source,
         "classification_report": classification_report(
             labels,
             predictions,
