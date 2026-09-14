@@ -125,10 +125,19 @@ def build(raw_text: str, findings) -> str:
     """
     if not raw_text or not findings:
         return raw_text or ""
+    return _apply(raw_text, _plan(findings, len(raw_text)))
 
+
+def _apply(raw_text: str, plan) -> str:
+    """치환 계획을 본문에 적용한 결과.
+
+    `build()`와 누출 검사가 같은 함수를 쓴다. 검사는 "제대로 가려졌다면 본문이
+    어떤 모습이어야 하는가"를 기준으로 판정하는데, 그 기준이 실제 치환과 조금이라도
+    다르면 멀쩡한 사본을 버린다.
+    """
     out: list[str] = []
     cursor = 0
-    for start, end, placeholder in _plan(findings, len(raw_text)):
+    for start, end, placeholder in plan:
         out.append(raw_text[cursor:start])
         out.append(placeholder)
         cursor = end
@@ -416,38 +425,64 @@ def _xlsx_clear_shared_strings(archive, names, sheet_parts, rewritten, replaced)
         rewritten[part] = _serialize(root)
 
 
+def _leak_budget(raw_text: str, plan) -> dict:
+    """값마다 "사본에 이만큼까지는 남아 있어도 정상"인 횟수.
+
+    왜 개수로 보나
+    --------------
+    "값이 파일 어딘가에 있으면 샌다"로 보면 **멀쩡한 사본을 버린다.** NER은
+    `우`·`박`·`삼성` 같은 한두 글자 조각도 이름·주소로 잡는데, 그 글자는 문서의
+    전혀 다른 자리에도 얼마든지 나온다. 탐지된 자리를 제대로 가려도 다른 자리의
+    같은 글자 때문에 "아직 남아 있다"가 되어, 실제로 심사용 샘플 2개가 사본 없이
+    나갔다(계약서.pdf, 고객명단.xlsx).
+
+    그래서 "제대로 가려졌을 때의 본문"에 그 값이 몇 번 남는지를 세고, 사본에 그보다
+    **더** 많으면 샌 것으로 본다. 가려야 할 자리가 안 가려지면 반드시 개수가 늘어난다.
+    """
+    expected = _apply(raw_text, plan)
+    budget: dict = {}
+    for start, end, _ in plan:
+        value = raw_text[start:end]
+        if value and value not in budget:
+            budget[value] = expected.count(value)
+    return budget
+
+
 def _leaks(out_path: str, raw_text: str, plan) -> bool:
-    """사본 안에 가려야 할 글자가 아직 남아 있는가.
+    """사본 안에 가려야 할 값이 기대보다 많이 남아 있는가 (DOCX/XLSX).
 
-    마지막 안전망이다. 여기 걸리면 내가 처리하지 못한 자리(스레드 주석, 차트가 들고
-    있는 값 사본 등)에 원문이 남았다는 뜻이고, 그때는 사본을 만들지 않는다. 새는
-    사본을 "마스킹 사본"이라는 이름으로 내보내는 것이 가장 나쁘다.
+    zip 안의 XML을 통째로 읽어 센다. 셀 값이 아니라 공유 문자열표(sharedStrings)나
+    주석에 원본이 남는 경우가 이 검사가 잡으려는 것이다.
 
-    완전한 증명은 아니다 — 값이 XML 조각 여러 개로 쪼개져 있으면 못 잡고, 바이너리
+    완전한 증명은 아니다 — 값이 XML 조각 여러 개로 쪼개져 있으면 못 세고, 바이너리
     파트는 보지 않는다. 문서 속성(docProps의 작성자·제목)은 본문 마스킹이 다루는
     범위가 아니라서 제외한다.
     """
     import zipfile
     from xml.sax.saxutils import escape
 
-    values = {raw_text[start:end] for start, end, _ in plan}
-    values = {value for value in values if value}
-    if not values:
+    budget = _leak_budget(raw_text, plan)
+    if not budget:
         return False
-    values |= {escape(value) for value in values}
 
     try:
         with zipfile.ZipFile(out_path) as archive:
-            for name in archive.namelist():
-                if name.startswith("docProps/"):
-                    continue
-                if not (name.endswith(".xml") or name.endswith(".rels")):
-                    continue
-                text = archive.read(name).decode("utf-8", "replace")
-                if any(value in text for value in values):
-                    return True
+            blob = "\n".join(
+                archive.read(name).decode("utf-8", "replace")
+                for name in archive.namelist()
+                if not name.startswith("docProps/")
+                and (name.endswith(".xml") or name.endswith(".rels"))
+            )
     except Exception:      # noqa: BLE001
         return True        # 확인하지 못한 사본은 내보내지 않는다
+
+    for value, allowed in budget.items():
+        found = blob.count(value)
+        escaped = escape(value)
+        if escaped != value:
+            found += blob.count(escaped)
+        if found > allowed:
+            return True
     return False
 
 
@@ -668,18 +703,24 @@ def _mask_pdf(path: str, doc, findings, out_dir: str | None) -> str | None:
 
 
 def _leaks_pdf(out_path: str, raw_text: str, plan) -> bool:
-    """사본에서 글자를 뽑았을 때 가려야 할 값이 나오는가.
+    """사본에서 글자를 뽑았을 때 가려야 할 값이 기대보다 많이 나오는가.
 
     "덮기만 하면 복사·추출로 되살아난다"는 바로 이 검사로 확인한다. 값이 줄바꿈으로
     갈라져 뽑히는 경우까지 보려고 공백을 없앤 문자열로도 한 번 더 본다.
+
+    개수로 보는 이유는 `_leak_budget` 참고 — 한두 글자짜리 이름·주소 조각은 문서
+    다른 자리에도 나오기 때문에 "있느냐"로 보면 멀쩡한 사본을 버린다.
     """
     import pymupdf
 
-    values = {raw_text[start:end] for start, end, _ in plan}
-    values = {value for value in values if value}
-    if not values:
+    budget = _leak_budget(raw_text, plan)
+    if not budget:
         return False
-    squeezed = {"".join(value.split()) for value in values}
+    squeezed_budget = {}
+    for value, allowed in budget.items():
+        tight_value = "".join(value.split())
+        if tight_value:
+            squeezed_budget[tight_value] = max(squeezed_budget.get(tight_value, 0), allowed)
 
     try:
         document = pymupdf.open(out_path)
@@ -687,17 +728,20 @@ def _leaks_pdf(out_path: str, raw_text: str, plan) -> bool:
         return True        # 확인하지 못한 사본은 내보내지 않는다
 
     try:
-        for page in document:
-            text = page.get_text()
-            if any(value in text for value in values):
-                return True
-            tight = "".join(text.split())
-            if any(value in tight for value in squeezed):
-                return True
+        text = "\n".join(page.get_text() for page in document)
     except Exception:      # noqa: BLE001
         return True
     finally:
         document.close()
+
+    for value, allowed in budget.items():
+        if text.count(value) > allowed:
+            return True
+
+    tight_text = "".join(text.split())
+    for value, allowed in squeezed_budget.items():
+        if tight_text.count(value) > allowed:
+            return True
     return False
 
 

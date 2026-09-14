@@ -1015,6 +1015,65 @@ def case_cleanup(tmp: str) -> None:
     check(parse.cleanup(fake) == 1, "미아가 될 뻔한 진짜 폴더도 지운다")
 
 
+# ---------------------------------------------------------------------------
+# 누출 검사 - 멀쩡한 사본을 버리지 않는가
+# ---------------------------------------------------------------------------
+#
+# 한때 "값이 파일 어딘가에 있으면 샌다"로 판정했다. NER은 `우`·`박`·`삼성` 같은
+# 한두 글자 조각도 이름·주소로 잡는데 그 글자는 문서 다른 자리에도 나오므로,
+# 탐지된 자리를 제대로 가려도 "아직 남아 있다"가 됐다. 심사용 샘플 2개가 실제로
+# 사본 없이 나갔다. 지금은 개수로 본다 - 아래가 그 회귀 검사다.
+
+
+def case_leak_check(tmp: str) -> None:
+    print("\n[20] 누출 검사 - 짧은 값 오탐")
+
+    # "박"이 세 번 나오는데 그중 한 자리만 탐지된 상황
+    text = "박 대리 보고서. 담당 박, 검토 박. 연락처 010-1234-5678"
+    first = text.index("박")
+    findings = [_finding("person", "박", first, first + 1),
+                _finding("phone", "010-1234-5678", text.index("010"), text.index("010") + 13)]
+    plan = mask._plan(findings, len(text))
+
+    masked = mask.build(text, findings)
+    check(masked.count("박") == 2, "가린 자리만 바뀌고 나머지 '박'은 남는다",
+          f"{masked.count('박')}회")
+
+    # TXT 사본으로 끝까지
+    src = os.path.join(tmp, "오탐.txt")
+    with open(src, "w", encoding="utf-8", newline="") as fh:
+        fh.write(text)
+    doc = parse.load(src)
+    out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "남은 '박' 때문에 사본을 버리지 않는다")
+
+    # 같은 상황을 DOCX로 (누출 검사가 zip XML을 훑는 경로)
+    import docx
+
+    src = os.path.join(tmp, "오탐.docx")
+    document = docx.Document()
+    document.add_paragraph(text)
+    document.save(src)
+    doc = parse.load(src)
+    start = doc.raw_text.index("박")
+    phone = doc.raw_text.index("010")
+    findings = [_finding("person", "박", start, start + 1),
+                _finding("phone", "010-1234-5678", phone, phone + 13)]
+    out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
+    check(bool(out), "DOCX도 마찬가지로 버리지 않는다")
+    if out:
+        text_after = parse.load(out).raw_text
+        check(text_after.count("박") == 2, "가리지 않은 '박'은 사본에 그대로 있다",
+              f"{text_after.count('박')}회")
+        check("[이름]" in text_after and "[전화번호]" in text_after, "가릴 자리는 가려졌다")
+
+    # 안전망은 살아 있어야 한다 - 안 가려진 사본은 여전히 걸러야 한다
+    budget = mask._leak_budget(text, plan)
+    check(budget["박"] == 2, "'박'의 허용 개수는 2회", str(budget.get("박")))
+    check(budget["010-1234-5678"] == 0, "전화번호의 허용 개수는 0회",
+          str(budget.get("010-1234-5678")))
+
+
 def main() -> int:
     tmp = tempfile.mkdtemp(prefix="mask_check_")
     try:
@@ -1037,6 +1096,7 @@ def main() -> int:
         case_image_guard(tmp)
         case_scanned_pdf_guard(tmp)
         case_cleanup(tmp)
+        case_leak_check(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

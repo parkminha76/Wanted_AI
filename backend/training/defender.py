@@ -6,10 +6,9 @@ from backend.db.converters import build_defender_payload
 
 load_dotenv()
 
-client = OpenAI()
-
 
 def generate_defender_report(db, training_progress_id: int) -> str:
+    client = OpenAI()
 
     # 1. DB에서 비식별 훈련 기록 가져오기
     payload = build_defender_payload(
