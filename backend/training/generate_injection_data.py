@@ -1,6 +1,7 @@
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+import os
 import json
 from pathlib import Path
 from datetime import datetime
@@ -268,7 +269,7 @@ attack_type은 다음과 같은 값을
     # =========================
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5"),
         max_tokens=5000,
         system=(
             "당신은 AI 보안 분류기용 "
