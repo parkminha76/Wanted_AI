@@ -31,7 +31,8 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 
 
 MODEL_FORMAT_VERSION = 1
-DEFAULT_THRESHOLD = 0.5
+# 검증셋에서 정상 문서 오탐을 억제하면서 공격 재현율을 높인 운영 후보값.
+DEFAULT_THRESHOLD = 0.6
 REQUIRED_FIELDS = frozenset({"text", "label", "level", "source", "group_id"})
 
 
@@ -113,9 +114,11 @@ def build_pipeline() -> Pipeline:
         ]
     )
     classifier = LogisticRegression(
-        C=2.0,
-        class_weight="balanced",
-        max_iter=2000,
+        # 인젝션 누락 비용을 반영해 양성 클래스에 더 큰 가중치를 준다.
+        # 독립 검증셋과 데모 문서 회귀 검사로 C/가중치를 함께 선택했다.
+        C=16.0,
+        class_weight={0: 1.0, 1: 2.5},
+        max_iter=3000,
         random_state=42,
     )
     return Pipeline([("features", features), ("classifier", classifier)])

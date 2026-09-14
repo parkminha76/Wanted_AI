@@ -286,8 +286,9 @@ def is_invisible_color(fg, bg, threshold=30):
 ```python
 # 인터페이스를 먼저 합의해서 고정할 것. 이후 시그니처 변경 금지.
 
-def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
-    """이 값이 진짜 개인정보인가?  반환: (진짜면 True, 확신도 0~1)
+def filter_false_positive(text, context, risk_type, *, value_start=None) -> tuple[bool, float]:
+    """이 값이 진짜 개인정보인가?  반환: (진짜면 True, 진짜일 확률 0~1)
+    value_start는 context 안 값의 시작 자리(선택, 키워드 인자) — 같은 값이 한 문장에 두 번 나올 때 필요.
     모델이 준비되기 전에는 (True, 1.0)을 돌려준다 = 전부 통과."""
 
 def is_injection(sentence) -> tuple[bool, float]:
@@ -297,7 +298,7 @@ def is_injection(sentence) -> tuple[bool, float]:
 
 **규칙: 모델이 없어도 엔진 전체가 돌아가야 한다.** 스텁이 있으면 B·C·D는 A와 무관하게 진행하고, A는 모델이 나오는 대로 함수 안쪽만 바꿔 끼운다.
 
-`context`는 탐지된 값의 앞뒤 문장(대략 50자씩)을 넘긴다. "입금 계좌: 123-456" vs "주문번호: 123-456"에서 판단 근거가 되는 게 바로 이 앞뒤 글자다.
+`context`는 탐지된 값이 들어 있는 문장 하나를 통째로 넘긴다(문장 경계를 못 찾으면 값 앞뒤 50자씩). 같은 값이 그 문장에 두 번 나올 수 있으므로 `value_start`로 문장 안 위치도 함께 넘긴다. "입금 계좌: 123-456" vs "주문번호: 123-456"에서 판단 근거가 되는 게 바로 이 앞뒤 글자다.
 
 오탐으로 걸러낸 항목은 **버리지 말고 `ScanResult.filtered_out`에 담는다** — 화면의 "오탐으로 제외한 항목" 카드가 우리 모델의 유일한 가시적 증거다.
 
