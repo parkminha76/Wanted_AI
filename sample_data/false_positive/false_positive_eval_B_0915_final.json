@@ -1,0 +1,962 @@
+[
+  {
+    "text": "대금은 아래 계좌로 입금해 주시기 바랍니다. 입금계좌: 697-590-5483840 / 예금주: 다온상사",
+    "type": "account",
+    "start": 31,
+    "end": 46,
+    "label": 1,
+    "group_id": "fp0915_account_pos_01"
+  },
+  {
+    "text": "계약금 납부 계좌는 525-311-8547707이며, 입금 후 담당자에게 확인 바랍니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 1,
+    "group_id": "fp0915_account_pos_02"
+  },
+  {
+    "text": "환불 요청이 승인되어 환급 계좌 138-538-6292406로 처리 예정입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_03"
+  },
+  {
+    "text": "공급대금 지급을 위한 정산계좌는 277-811-7574514입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_04"
+  },
+  {
+    "text": "이번 달 용역비는 등록된 계좌번호 781-006-1980474로 송금됩니다.",
+    "type": "account",
+    "start": 19,
+    "end": 34,
+    "label": 1,
+    "group_id": "fp0915_account_pos_05"
+  },
+  {
+    "text": "보조금 교부 신청서의 입금계좌는 598-428-5205346로 기재되어 있습니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_06"
+  },
+  {
+    "text": "거래처 변경 신청에 따라 신규 지급계좌 655-774-8622178를 등록합니다.",
+    "type": "account",
+    "start": 22,
+    "end": 37,
+    "label": 1,
+    "group_id": "fp0915_account_pos_07"
+  },
+  {
+    "text": "정산 완료 후 잔액은 계좌 518-850-1166187로 반환됩니다.",
+    "type": "account",
+    "start": 15,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_account_pos_08"
+  },
+  {
+    "text": "납품대금 수령계좌: 892-939-7519291. 계좌명의는 세림유통입니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 1,
+    "group_id": "fp0915_account_pos_09"
+  },
+  {
+    "text": "선급금 지급을 위해 수취계좌 848-615-3180298를 확인해 주세요.",
+    "type": "account",
+    "start": 16,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_account_pos_10"
+  },
+  {
+    "text": "대금은 아래 계좌로 입금해 주시기 바랍니다. 입금계좌: 855-842-3046900 / 예금주: 다온상사",
+    "type": "account",
+    "start": 31,
+    "end": 46,
+    "label": 1,
+    "group_id": "fp0915_account_pos_11"
+  },
+  {
+    "text": "계약금 납부 계좌는 475-718-3687217이며, 입금 후 담당자에게 확인 바랍니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 1,
+    "group_id": "fp0915_account_pos_12"
+  },
+  {
+    "text": "환불 요청이 승인되어 환급 계좌 608-214-2271976로 처리 예정입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_13"
+  },
+  {
+    "text": "공급대금 지급을 위한 정산계좌는 153-666-6837606입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_14"
+  },
+  {
+    "text": "이번 달 용역비는 등록된 계좌번호 868-523-2512906로 송금됩니다.",
+    "type": "account",
+    "start": 19,
+    "end": 34,
+    "label": 1,
+    "group_id": "fp0915_account_pos_15"
+  },
+  {
+    "text": "보조금 교부 신청서의 입금계좌는 499-895-7478353로 기재되어 있습니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_account_pos_16"
+  },
+  {
+    "text": "거래처 변경 신청에 따라 신규 지급계좌 570-664-2027459를 등록합니다.",
+    "type": "account",
+    "start": 22,
+    "end": 37,
+    "label": 1,
+    "group_id": "fp0915_account_pos_17"
+  },
+  {
+    "text": "정산 완료 후 잔액은 계좌 835-765-4327413로 반환됩니다.",
+    "type": "account",
+    "start": 15,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_account_pos_18"
+  },
+  {
+    "text": "납품대금 수령계좌: 038-606-5572767. 계좌명의는 세림유통입니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 1,
+    "group_id": "fp0915_account_pos_19"
+  },
+  {
+    "text": "선급금 지급을 위해 수취계좌 736-639-8562365를 확인해 주세요.",
+    "type": "account",
+    "start": 16,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_account_pos_20"
+  },
+  {
+    "text": "주문 확인 메일입니다. 주문번호 419-384-0363436의 출고 상태를 확인해 주세요.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_01"
+  },
+  {
+    "text": "세금계산서 발행 건의 송장번호는 915-857-3208304입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_02"
+  },
+  {
+    "text": "전자결재 문서의 결재번호 030-738-1019906를 기준으로 이력을 조회해 주세요.",
+    "type": "account",
+    "start": 14,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_account_neg_03"
+  },
+  {
+    "text": "민원 처리 참조번호는 233-874-7964991이며 접수일은 별도 표기되어 있습니다.",
+    "type": "account",
+    "start": 12,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_account_neg_04"
+  },
+  {
+    "text": "온라인 주문 408-090-9941432가 정상 접수되었습니다.",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 0,
+    "group_id": "fp0915_account_neg_05"
+  },
+  {
+    "text": "배송 조회용 송장 식별번호 147-260-5497508가 생성되었습니다.",
+    "type": "account",
+    "start": 15,
+    "end": 30,
+    "label": 0,
+    "group_id": "fp0915_account_neg_06"
+  },
+  {
+    "text": "지출결의서 결재번호는 664-444-3155478입니다.",
+    "type": "account",
+    "start": 12,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_account_neg_07"
+  },
+  {
+    "text": "고객 문의 참조번호 898-646-7983913로 상담 내역을 확인할 수 있습니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 0,
+    "group_id": "fp0915_account_neg_08"
+  },
+  {
+    "text": "주문 확인 메일입니다. 주문번호 700-994-9701491의 출고 상태를 확인해 주세요.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_09"
+  },
+  {
+    "text": "세금계산서 발행 건의 송장번호는 309-231-7149106입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_10"
+  },
+  {
+    "text": "전자결재 문서의 결재번호 675-135-4955980를 기준으로 이력을 조회해 주세요.",
+    "type": "account",
+    "start": 14,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_account_neg_11"
+  },
+  {
+    "text": "민원 처리 참조번호는 761-074-3721394이며 접수일은 별도 표기되어 있습니다.",
+    "type": "account",
+    "start": 12,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_account_neg_12"
+  },
+  {
+    "text": "온라인 주문 402-095-8215632가 정상 접수되었습니다.",
+    "type": "account",
+    "start": 7,
+    "end": 22,
+    "label": 0,
+    "group_id": "fp0915_account_neg_13"
+  },
+  {
+    "text": "배송 조회용 송장 식별번호 096-377-0201206가 생성되었습니다.",
+    "type": "account",
+    "start": 15,
+    "end": 30,
+    "label": 0,
+    "group_id": "fp0915_account_neg_14"
+  },
+  {
+    "text": "지출결의서 결재번호는 717-635-5528983입니다.",
+    "type": "account",
+    "start": 12,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_account_neg_15"
+  },
+  {
+    "text": "고객 문의 참조번호 014-928-4589348로 상담 내역을 확인할 수 있습니다.",
+    "type": "account",
+    "start": 11,
+    "end": 26,
+    "label": 0,
+    "group_id": "fp0915_account_neg_16"
+  },
+  {
+    "text": "주문 확인 메일입니다. 주문번호 049-498-8208004의 출고 상태를 확인해 주세요.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_17"
+  },
+  {
+    "text": "세금계산서 발행 건의 송장번호는 227-408-0088446입니다.",
+    "type": "account",
+    "start": 18,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_account_neg_18"
+  },
+  {
+    "text": "전자결재 문서의 결재번호 163-159-8549542를 기준으로 이력을 조회해 주세요.",
+    "type": "account",
+    "start": 14,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_account_neg_19"
+  },
+  {
+    "text": "민원 처리 참조번호는 642-912-2678764이며 접수일은 별도 표기되어 있습니다.",
+    "type": "account",
+    "start": 12,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_account_neg_20"
+  },
+  {
+    "text": "계약 상대방 사업자등록번호는 140-42-40902로 확인되었습니다.",
+    "type": "biz_reg",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_01"
+  },
+  {
+    "text": "전자세금계산서 공급자 사업자번호: 683-17-14234",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_02"
+  },
+  {
+    "text": "입찰 참가업체의 사업자등록번호 662-10-55729를 확인해 주십시오.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_03"
+  },
+  {
+    "text": "거래명세서에 기재된 사업자번호는 909-96-48591입니다.",
+    "type": "biz_reg",
+    "start": 18,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_04"
+  },
+  {
+    "text": "신규 협력사 등록 정보 중 사업자등록번호는 677-30-64529입니다.",
+    "type": "biz_reg",
+    "start": 24,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_05"
+  },
+  {
+    "text": "통신판매 계약서의 사업자번호 854-51-91384를 기준으로 업체를 조회합니다.",
+    "type": "biz_reg",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_06"
+  },
+  {
+    "text": "정산 대상 법인의 사업자등록번호: 103-89-75450",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_07"
+  },
+  {
+    "text": "공급계약 검토 결과 사업자등록번호 041-53-21598가 제출되었습니다.",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_08"
+  },
+  {
+    "text": "세금계산서 수취처 사업자번호는 254-64-85078입니다.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_09"
+  },
+  {
+    "text": "업체 기본정보에 등록된 사업자등록번호 021-24-43415를 확인 바랍니다.",
+    "type": "biz_reg",
+    "start": 21,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_10"
+  },
+  {
+    "text": "계약 상대방 사업자등록번호는 193-38-85599로 확인되었습니다.",
+    "type": "biz_reg",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_11"
+  },
+  {
+    "text": "전자세금계산서 공급자 사업자번호: 973-16-46705",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_12"
+  },
+  {
+    "text": "입찰 참가업체의 사업자등록번호 237-01-54648를 확인해 주십시오.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_13"
+  },
+  {
+    "text": "거래명세서에 기재된 사업자번호는 951-72-42118입니다.",
+    "type": "biz_reg",
+    "start": 18,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_14"
+  },
+  {
+    "text": "신규 협력사 등록 정보 중 사업자등록번호는 278-73-44089입니다.",
+    "type": "biz_reg",
+    "start": 24,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_15"
+  },
+  {
+    "text": "통신판매 계약서의 사업자번호 938-87-78257를 기준으로 업체를 조회합니다.",
+    "type": "biz_reg",
+    "start": 16,
+    "end": 28,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_16"
+  },
+  {
+    "text": "정산 대상 법인의 사업자등록번호: 025-54-13166",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_17"
+  },
+  {
+    "text": "공급계약 검토 결과 사업자등록번호 824-11-75349가 제출되었습니다.",
+    "type": "biz_reg",
+    "start": 19,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_18"
+  },
+  {
+    "text": "세금계산서 수취처 사업자번호는 245-42-80378입니다.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_19"
+  },
+  {
+    "text": "업체 기본정보에 등록된 사업자등록번호 139-90-29704를 확인 바랍니다.",
+    "type": "biz_reg",
+    "start": 21,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_bizreg_pos_20"
+  },
+  {
+    "text": "담당부서 내부 연락 식별번호는 330-20-61037입니다.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_01"
+  },
+  {
+    "text": "사내 인사시스템 사번 291-26-75301의 권한을 변경했습니다.",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_02"
+  },
+  {
+    "text": "온라인 접수번호 423-39-92173로 신청 상태를 조회할 수 있습니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_03"
+  },
+  {
+    "text": "공문 문서번호 454-73-00123에 대한 회신을 요청드립니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_04"
+  },
+  {
+    "text": "콜센터 상담 건의 연락처 관리번호는 500-28-84988입니다.",
+    "type": "biz_reg",
+    "start": 20,
+    "end": 32,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_05"
+  },
+  {
+    "text": "계약직 사원번호 470-66-58876는 금월 말 만료 예정입니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_06"
+  },
+  {
+    "text": "전자민원 접수번호 248-67-85356를 입력하면 처리 현황을 확인할 수 있습니다.",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_07"
+  },
+  {
+    "text": "발송 공문의 문서번호는 643-58-82187입니다.",
+    "type": "biz_reg",
+    "start": 13,
+    "end": 25,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_08"
+  },
+  {
+    "text": "담당부서 내부 연락 식별번호는 459-57-64554입니다.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_09"
+  },
+  {
+    "text": "사내 인사시스템 사번 698-04-41728의 권한을 변경했습니다.",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_10"
+  },
+  {
+    "text": "온라인 접수번호 996-03-60506로 신청 상태를 조회할 수 있습니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_11"
+  },
+  {
+    "text": "공문 문서번호 683-71-29312에 대한 회신을 요청드립니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_12"
+  },
+  {
+    "text": "콜센터 상담 건의 연락처 관리번호는 346-83-40954입니다.",
+    "type": "biz_reg",
+    "start": 20,
+    "end": 32,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_13"
+  },
+  {
+    "text": "계약직 사원번호 873-38-29048는 금월 말 만료 예정입니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_14"
+  },
+  {
+    "text": "전자민원 접수번호 944-17-97940를 입력하면 처리 현황을 확인할 수 있습니다.",
+    "type": "biz_reg",
+    "start": 10,
+    "end": 22,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_15"
+  },
+  {
+    "text": "발송 공문의 문서번호는 686-05-55380입니다.",
+    "type": "biz_reg",
+    "start": 13,
+    "end": 25,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_16"
+  },
+  {
+    "text": "담당부서 내부 연락 식별번호는 717-53-68818입니다.",
+    "type": "biz_reg",
+    "start": 17,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_17"
+  },
+  {
+    "text": "사내 인사시스템 사번 667-50-38930의 권한을 변경했습니다.",
+    "type": "biz_reg",
+    "start": 12,
+    "end": 24,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_18"
+  },
+  {
+    "text": "온라인 접수번호 061-34-53211로 신청 상태를 조회할 수 있습니다.",
+    "type": "biz_reg",
+    "start": 9,
+    "end": 21,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_19"
+  },
+  {
+    "text": "공문 문서번호 316-43-81322에 대한 회신을 요청드립니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "fp0915_bizreg_neg_20"
+  },
+  {
+    "text": "법인카드 번호 4217-4045-1399-1872가 경비 시스템에 등록되어 있습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "fp0915_card_pos_01"
+  },
+  {
+    "text": "결제수단 확인을 위해 카드번호 4278-0232-1016-3720의 끝 네 자리를 대조해 주세요.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_02"
+  },
+  {
+    "text": "정기결제에 사용되는 카드번호는 4075-9390-2925-6659입니다.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_03"
+  },
+  {
+    "text": "출장비 결제 카드: 4546-3310-5537-2942",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_card_pos_04"
+  },
+  {
+    "text": "환불 처리 대상 카드번호 4278-4229-6453-2843를 확인했습니다.",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_card_pos_05"
+  },
+  {
+    "text": "카드 재발급 전 기존 카드번호 4424-7115-5631-6448를 폐기 처리합니다.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_06"
+  },
+  {
+    "text": "결제 승인 요청에 포함된 카드번호는 4186-8040-9948-3458입니다.",
+    "type": "card",
+    "start": 20,
+    "end": 39,
+    "label": 1,
+    "group_id": "fp0915_card_pos_07"
+  },
+  {
+    "text": "법인 구매카드 4130-8827-6327-1638로 결제가 접수되었습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "fp0915_card_pos_08"
+  },
+  {
+    "text": "자동이체 카드정보 중 카드번호는 4609-1306-5417-1182입니다.",
+    "type": "card",
+    "start": 18,
+    "end": 37,
+    "label": 1,
+    "group_id": "fp0915_card_pos_09"
+  },
+  {
+    "text": "등록된 신용카드 번호 4331-2256-3457-6933의 유효성을 확인합니다.",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_card_pos_10"
+  },
+  {
+    "text": "법인카드 번호 4348-8552-3076-8400가 경비 시스템에 등록되어 있습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "fp0915_card_pos_11"
+  },
+  {
+    "text": "결제수단 확인을 위해 카드번호 4067-6989-9684-8696의 끝 네 자리를 대조해 주세요.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_12"
+  },
+  {
+    "text": "정기결제에 사용되는 카드번호는 4752-5362-4967-7373입니다.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_13"
+  },
+  {
+    "text": "출장비 결제 카드: 4300-6553-6975-9675",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 1,
+    "group_id": "fp0915_card_pos_14"
+  },
+  {
+    "text": "환불 처리 대상 카드번호 4670-2804-9554-0469를 확인했습니다.",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 1,
+    "group_id": "fp0915_card_pos_15"
+  },
+  {
+    "text": "카드 재발급 전 기존 카드번호 4414-4023-0516-3677를 폐기 처리합니다.",
+    "type": "card",
+    "start": 17,
+    "end": 36,
+    "label": 1,
+    "group_id": "fp0915_card_pos_16"
+  },
+  {
+    "text": "결제 승인 요청에 포함된 카드번호는 4797-8866-7140-3914입니다.",
+    "type": "card",
+    "start": 20,
+    "end": 39,
+    "label": 1,
+    "group_id": "fp0915_card_pos_17"
+  },
+  {
+    "text": "법인 구매카드 4074-1722-1145-3691로 결제가 접수되었습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 1,
+    "group_id": "fp0915_card_pos_18"
+  },
+  {
+    "text": "자동이체 카드정보 중 카드번호는 4811-2856-5103-8588입니다.",
+    "type": "card",
+    "start": 18,
+    "end": 37,
+    "label": 1,
+    "group_id": "fp0915_card_pos_19"
+  },
+  {
+    "text": "등록된 신용카드 번호 4567-3049-8490-1382의 유효성을 확인합니다.",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 1,
+    "group_id": "fp0915_card_pos_20"
+  },
+  {
+    "text": "프로모션 쿠폰번호 4312-4170-6688-1609를 결제 전에 입력해 주세요.",
+    "type": "card",
+    "start": 10,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_card_neg_01"
+  },
+  {
+    "text": "제품 박스에 표시된 상품 일련번호는 4456-8250-8058-7398입니다.",
+    "type": "card",
+    "start": 20,
+    "end": 39,
+    "label": 0,
+    "group_id": "fp0915_card_neg_02"
+  },
+  {
+    "text": "본인확인용 인증 식별번호 4360-1949-3968-9508를 외부에 공유하지 마세요.",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_card_neg_03"
+  },
+  {
+    "text": "숙박 예약번호 4983-7737-1870-2454로 예약 내역을 조회할 수 있습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_card_neg_04"
+  },
+  {
+    "text": "이벤트 쿠폰 코드 4299-3359-9370-6383는 1회만 사용할 수 있습니다.",
+    "type": "card",
+    "start": 10,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_card_neg_05"
+  },
+  {
+    "text": "장비 자산의 제조 일련번호 4585-0570-0507-7792를 점검표에 기록했습니다.",
+    "type": "card",
+    "start": 15,
+    "end": 34,
+    "label": 0,
+    "group_id": "fp0915_card_neg_06"
+  },
+  {
+    "text": "추가 인증 관리번호 4044-7987-5221-4352가 발급되었습니다.",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "fp0915_card_neg_07"
+  },
+  {
+    "text": "항공권 예약 참조번호 4068-4494-1624-2725를 입력해 주세요.",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 0,
+    "group_id": "fp0915_card_neg_08"
+  },
+  {
+    "text": "프로모션 쿠폰번호 4725-7784-6559-1003를 결제 전에 입력해 주세요.",
+    "type": "card",
+    "start": 10,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_card_neg_09"
+  },
+  {
+    "text": "제품 박스에 표시된 상품 일련번호는 4476-9784-9774-2696입니다.",
+    "type": "card",
+    "start": 20,
+    "end": 39,
+    "label": 0,
+    "group_id": "fp0915_card_neg_10"
+  },
+  {
+    "text": "본인확인용 인증 식별번호 4429-7070-5417-8483를 외부에 공유하지 마세요.",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_card_neg_11"
+  },
+  {
+    "text": "숙박 예약번호 4110-5946-8070-7487로 예약 내역을 조회할 수 있습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_card_neg_12"
+  },
+  {
+    "text": "이벤트 쿠폰 코드 4874-4763-4328-0795는 1회만 사용할 수 있습니다.",
+    "type": "card",
+    "start": 10,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_card_neg_13"
+  },
+  {
+    "text": "장비 자산의 제조 일련번호 4501-1029-3131-5550를 점검표에 기록했습니다.",
+    "type": "card",
+    "start": 15,
+    "end": 34,
+    "label": 0,
+    "group_id": "fp0915_card_neg_14"
+  },
+  {
+    "text": "추가 인증 관리번호 4050-7973-4061-2896가 발급되었습니다.",
+    "type": "card",
+    "start": 11,
+    "end": 30,
+    "label": 0,
+    "group_id": "fp0915_card_neg_15"
+  },
+  {
+    "text": "항공권 예약 참조번호 4569-2947-5987-9681를 입력해 주세요.",
+    "type": "card",
+    "start": 12,
+    "end": 31,
+    "label": 0,
+    "group_id": "fp0915_card_neg_16"
+  },
+  {
+    "text": "프로모션 쿠폰번호 4410-5494-2070-2906를 결제 전에 입력해 주세요.",
+    "type": "card",
+    "start": 10,
+    "end": 29,
+    "label": 0,
+    "group_id": "fp0915_card_neg_17"
+  },
+  {
+    "text": "제품 박스에 표시된 상품 일련번호는 4569-4086-8338-9217입니다.",
+    "type": "card",
+    "start": 20,
+    "end": 39,
+    "label": 0,
+    "group_id": "fp0915_card_neg_18"
+  },
+  {
+    "text": "본인확인용 인증 식별번호 4699-6367-1401-2407를 외부에 공유하지 마세요.",
+    "type": "card",
+    "start": 14,
+    "end": 33,
+    "label": 0,
+    "group_id": "fp0915_card_neg_19"
+  },
+  {
+    "text": "숙박 예약번호 4179-3744-2213-6057로 예약 내역을 조회할 수 있습니다.",
+    "type": "card",
+    "start": 8,
+    "end": 27,
+    "label": 0,
+    "group_id": "fp0915_card_neg_20"
+  }
+]
