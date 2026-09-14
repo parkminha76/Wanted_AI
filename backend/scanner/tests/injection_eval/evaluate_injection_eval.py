@@ -12,8 +12,9 @@
 
 실행(저장소 루트):
     uv run python backend/scanner/tests/injection_eval/evaluate_injection_eval.py
+    # 파일 하나만: --eval backend/scanner/tests/injection_eval/injection_eval_B_0914_002.json
 
-종료 코드: 스키마 오류가 있거나 학습 데이터와 같은 문장이 있으면 1.
+종료 코드: 스키마 오류(파일 사이 group_id 중복 포함)가 있거나 학습 데이터와 같은 문장이 있으면 1.
 """
 
 from __future__ import annotations
@@ -31,7 +32,10 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from backend.scanner.detectors import models  # noqa: E402
 
-DEFAULT_EVAL = Path(__file__).with_name("injection_eval_B_0914.json")
+DEFAULT_EVAL = [
+    Path(__file__).with_name("injection_eval_B_0914.json"),
+    Path(__file__).with_name("injection_eval_B_0914_002.json"),
+]
 TRAIN_GLOB = str(REPO_ROOT / "sample_data" / "injection" / "injection_*.json")
 REQUIRED = ("text", "label", "level", "source", "group_id")
 MODEL_THRESHOLDS = (0.5, 0.6, 0.65, 0.7, 0.75)
@@ -99,14 +103,21 @@ def prf(labels: list[int], predicted: list[int]) -> tuple[float, float, float]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="B 인젝션 평가셋 검사·측정")
-    parser.add_argument("--eval", type=Path, default=DEFAULT_EVAL)
+    parser.add_argument("--eval", type=Path, nargs="+", default=DEFAULT_EVAL,
+                        help="평가 파일(여러 개면 합쳐서 잰다). 기본값은 1차·2차 전체")
     args = parser.parse_args()
 
-    with args.eval.open(encoding="utf-8") as fh:
-        rows = json.load(fh)
+    rows = []
+    for path in args.eval:
+        with path.open(encoding="utf-8") as fh:
+            part = json.load(fh)
+        print(f"  {path.name}: {len(part)}건")
+        rows += part
     print(f"평가셋 {len(rows)}건 — {dict(Counter(r['label'] for r in rows))} (1=공격, 0=정상)")
 
     errors = validate(rows)
+    group_ids = Counter(r.get("group_id") for r in rows)
+    errors += [f"group_id 중복: {g}" for g, n in group_ids.items() if n > 1]
     print(f"[스키마] 오류 {len(errors)}건", errors[:5])
 
     ov = overlap_with_training(rows)
