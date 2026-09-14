@@ -33,9 +33,11 @@ mask.py가 쓰는 두 함수:
 
 분류기 연결 상태(_ENABLE_CLASSIFIER_STAGE = True, 2026-09-12):
     인젝션    ml/models/injection_classifier_v1.pkl로 판정한다.
-    오탐 제거  ml/models/fp_filter_v1.pkl로 판정한다. 단 그 모델이 학습한 네 타입
-              (account·biz_reg·card·phone)만 물어본다. emp_no는 합성 문장 표현을
-              외우는 문제가 있어 모델에서 제외했고, 기존 탐지 결과를 통과시킨다.
+    오탐 제거  ml/models/fp_filter_v1.pkl로 판정한다. 단 그 모델이 학습한 세 타입
+              (account·biz_reg·card)만 물어본다. emp_no·phone은 A가 학습에서 뺐고,
+              기존 탐지 결과를 통과시킨다(사번 예시 문장만 models.py 규칙이 거른다).
+    지역명     NER이 잡은 지역명 중 번지가 뒤따르지 않는 것은 가리지 않고 제외 목록으로
+              보낸다(_split_place_mentions).
 """
 
 from __future__ import annotations
@@ -235,6 +237,82 @@ def _sentence_around(text: str, start: int, end: int) -> str:
     return text[left:right]
 
 
+# NER이 지역명(LC -> address)으로 본 조각 바로 뒤에 번지가 오는지 본다. 조사·도로명 끝
+# 몇 글자("테헤란" + "로 152", "동판교" + "로52번길")를 건너 숫자가 나오면 번지로 본다.
+_PLACE_FOLLOWED_BY_NUMBER = re.compile(r"[가-힣A-Za-z·]{0,4}\s*(?:지하\s*|산\s*)?\d")
+_PLACE_TAIL_WINDOW = 8
+_FIRST_NUMBER = re.compile(r"\d+(?:-\d+)?")
+
+# 이 확신도 아래인 NER 지역명은 "오탐으로 제외한 항목"에도 올리지 않는다. 가리지도 않는다.
+# 실측(2026-09-14, 문서·평가 문장 전체에서 제외 목록에 뜬 서로 다른 말 26개): 잡음인
+# "세금계산"(세금계산서의 일부)이 0.479, 진짜 지명 중 가장 낮은 "두바이"가 0.710이었다.
+# 다만 잡음 사례가 하나뿐이라 근거가 약하다 — 확신도 높은 잡음이 나오면 다시 봐야 한다.
+_PLACE_MIN_CONFIDENCE_TO_LIST = 0.6
+
+
+def _split_place_mentions(
+    findings: list[Finding], raw_text: str
+) -> tuple[list[Finding], list[Finding]]:
+    """NER이 잡은 지역명을 주소 조각과 장소 언급으로 나눈다.
+
+    "출장지는 대구로 결정되었습니다"의 "대구"는 개인정보가 아니다. 가리면 사본이 읽기 어려워지고,
+    주소 가중치(10점)가 붙어 위험 점수만 오른다. 그렇다고 NER 지역명을 통째로 끄면, 규칙이 못
+    잡은 주소("역삼동 737-12 302호")의 이름까지 드러난다(실측: 시·도·구 없는 주소 150건 중
+    전부 노출이 18건에서 85건으로 늘었다). 그래서 조각마다 따로 판단한다.
+
+    계속 가리는 것:
+      - 규칙이 잡은 상세 주소 안에 든 조각 — 뒤의 _dedupe가 규칙 쪽 전체 구간만 남긴다. 여기서
+        제외 목록으로 보내면 이미 가려진 주소의 조각("서울특별시")이 화면 03의 "오탐으로 제외한
+        항목"에 잘못 뜬다.
+      - 바로 뒤에 번지가 오는 조각 — 규칙이 못 잡은 주소의 일부로 보고, **번지·동호수까지 구간을
+        늘려서** 가린다. 조각만 가리면 "[주소] 278-24"처럼 번지가 샌다. 실측(시·도·구 없는
+        주소 150건): 번지가 새는 주소 26건 -> 0건, 전부 가림 114건 -> 138건.
+
+    제외 목록으로 보내는 것(가리지 않음):
+      - 뒤에 번지가 오지 않는 지역명("대구로 결정", "광주 인근").
+      - 번지 자리 숫자 바로 뒤에 "번"이 붙은 경우("버스 노선표에는 해운대로 175번 구간").
+        주소 번지 뒤에는 "번"이 붙지 않는다("번지", "번길"은 주소라 예외). 이 조건이 없으면
+        구간을 늘리면서 노선 번호까지 가리게 된다(실측: 주소 아닌 문장 3건 -> 0건).
+      - 단, 확신도가 _PLACE_MIN_CONFIDENCE_TO_LIST 미만이면 목록에도 올리지 않는다.
+
+    이미지 신분증 CNN이 낸 address(source="cnn")는 건드리지 않는다.
+    """
+    rule_spans = [(f.start, f.end) for f in findings if f.type == "address" and f.source == "rule"]
+    kept: list[Finding] = []
+    excluded: list[Finding] = []
+    for f in findings:
+        if f.type != "address" or f.source != "ner":
+            kept.append(f)
+            continue
+        if any(s < f.end and f.start < e for s, e in rule_spans):
+            kept.append(f)
+            continue
+
+        if _PLACE_FOLLOWED_BY_NUMBER.match(raw_text[f.end : f.end + _PLACE_TAIL_WINDOW]):
+            continuation = rules.ADDRESS_CONTINUATION_AFTER_PLACE.match(raw_text, f.start)
+            number = (
+                _FIRST_NUMBER.search(raw_text, f.end, continuation.end()) if continuation else None
+            )
+            after = raw_text[number.end() : number.end() + 2] if number else ""
+            if after.startswith("번") and not after.startswith(("번지", "번길")):
+                reason = "번지 자리 숫자 뒤에 '번'이 붙은 노선·구간 번호 — 주소로 보지 않고 가리지 않음"
+            else:
+                if continuation and continuation.end() > f.end:
+                    f.end = continuation.end()
+                    f.text = raw_text[f.start : f.end]
+                    f.reason = "지역명 뒤에 번지가 이어져 번지·동호수까지 주소로 가림"
+                kept.append(f)
+                continue
+        else:
+            reason = "번지가 뒤따르지 않는 지역명 — 주소가 아닌 장소 언급으로 보고 가리지 않음"
+
+        if f.confidence < _PLACE_MIN_CONFIDENCE_TO_LIST:
+            continue
+        f.reason = reason
+        excluded.append(f)
+    return kept, excluded
+
+
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
@@ -403,7 +481,7 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     # 1. 정규식 + 체크섬
     findings += [_raw_to_finding(d, "rule") for d in rules.find_all(text)]
 
-    # 2. NER — 모델이 아직 없으면(ner.py가 비어 있으면) 건너뛴다.
+    # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다.
     if ner is not None and hasattr(ner, "detect"):
         findings += [_raw_to_finding(d, "ner") for d in ner.detect(text)]
 
@@ -417,11 +495,16 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
         elif hasattr(hidden, "detect_text"):
             findings += [_raw_to_finding(d, "format") for d in hidden.detect_text(text)]
 
-    # 4. 인젝션 + 5. 오탐 제거 — models.py 연결은 다음 단계로 미뤄뒀다(_ENABLE_CLASSIFIER_STAGE).
+    # 4. 인젝션 + 5. 오탐 제거 — models.py 분류기(_ENABLE_CLASSIFIER_STAGE 스위치).
     filtered_out: list[Finding] = []
     if _ENABLE_CLASSIFIER_STAGE:
         findings += _find_injections(text)
         findings, filtered_out = _apply_classifier_filters(findings, text)
+
+    # 5-1. NER 지역명 중 주소가 아닌 장소 언급은 가리지 않고 제외 목록으로 보낸다.
+    # 분류기 스위치와 무관하게 돈다 — 모델이 아니라 원문 위치를 보는 규칙이다.
+    findings, place_mentions = _split_place_mentions(findings, text)
+    filtered_out += place_mentions
 
     # 6. 숨겨진 텍스트가 AI 지시문이면 injection으로 승격(25점 -> 50점).
     # dedupe보다 먼저 해야 한다 — 승격되면 가중치가 바뀌고, dedupe는 가중치로

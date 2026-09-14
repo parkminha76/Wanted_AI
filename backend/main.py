@@ -6,6 +6,7 @@
     GET  /download/all    배치 전체 .zip
     GET  /samples         심사위원용 샘플을 미리 검사한 결과
     GET  /health          살아있는지 확인
+    /training/*           훈련 모드(C, backend/training/router.py). 붙지 못하면 /health에 사유 표시
 
 지켜야 하는 것
 --------------
@@ -49,18 +50,20 @@ from backend.shared import schema
 
 # 훈련 모드 라우터(C). **임시 조치 — C가 고치면 이 try/except를 걷어낸다.**
 #
-# backend/training/training_flow.py가 모듈 최상단에서 AttackerService()를 즉시
-# 만들고, 그 안에서 ANTHROPIC_API_KEY가 없으면 ValueError를 던진다. 그 예외가
-# 여기까지 타고 올라와 **app 객체 자체가 만들어지지 않았다** — 훈련 모드만이
-# 아니라 /health·/scan·/download까지 전부 죽었다(2026-09-13 실측).
+# backend/training/의 두 모듈이 import 순간 외부 AI 클라이언트를 만든다 —
+# training_flow.py(AttackerService, ANTHROPIC_API_KEY 필요)와 defender.py(OpenAI,
+# OPENAI_API_KEY 필요). 키가 없으면 그 예외가 여기까지 타고 올라와 **app 객체 자체가
+# 만들어지지 않았다** — 훈련 모드만이 아니라 /health·/scan·/download까지 전부
+# 죽었다(2026-09-13·14 실측).
 #
 # 이 파일 맨 위에 적어둔 "DB는 없어도 돈다. .env가 없는 환경에서도 스캔은 되어야
 # 한다"는 원칙이 깨지는 자리다. 스캐너는 키 없이도 떠야 하므로, 훈련 모드를 못
 # 붙이면 그 단계만 건너뛴다 — ner.py·models.py·id_detector.py가 모델을 지연
 # 로딩하는 것과 같은 이유다.
 #
-# 근본 해결은 C 쪽에서 AttackerService()를 첫 호출 때 만드는 것이다. 그렇게
-# 바뀌면 여기서 예외가 나지 않으므로 이 코드는 그대로 둬도 정상 동작한다.
+# 근본 해결은 C 쪽에서 두 클라이언트를 첫 호출 때 만드는 것이다. 그렇게 바뀌면
+# 여기서 예외가 나지 않으므로 이 코드는 그대로 둬도 정상 동작한다. 지금 붙었는지와
+# 못 붙은 이유는 /health의 training_mode·training_mode_error로 확인한다.
 try:
     from backend.training.router import router as training_router
 except Exception as exc:  # 키 없음, DB 미설정, C 모듈 오류 등 무엇이든
