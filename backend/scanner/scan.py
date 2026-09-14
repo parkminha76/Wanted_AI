@@ -223,18 +223,23 @@ def _find_injections(text: str) -> list[Finding]:
     return findings
 
 
-def _sentence_around(text: str, start: int, end: int) -> str:
-    """오프셋 구간이 들어 있는 문장을 돌려준다. 오탐 제거 분류기에 넘길 context다.
+def _sentence_around(text: str, start: int, end: int) -> tuple[str, int]:
+    """오프셋 구간이 들어 있는 문장과, 그 문장이 원문에서 시작하는 자리를 돌려준다.
 
-    학습 데이터가 문장 단위(평균 33자)라 문장을 통째로 주는 게 가장 잘 맞는다.
-    값이 문장 경계를 넘어가면(줄바꿈이 낀 계좌번호 등) 앞뒤 고정 폭으로 잘라 쓴다.
+    오탐 제거 분류기에 넘길 context다. 학습 데이터가 문장 단위(평균 33자)라 문장을
+    통째로 주는 게 가장 잘 맞는다. 값이 문장 경계를 넘어가면(줄바꿈이 낀 계좌번호 등)
+    앞뒤 고정 폭으로 잘라 쓴다.
+
+    시작 자리도 함께 주는 이유: 분류기는 문장 속 값 자리를 __VALUE__로 바꿔 판단하는데,
+    같은 값이 한 문장에 두 번 나오면 문장만으로는 어느 쪽인지 알 수 없다.
+    호출부가 f.start - 시작 자리로 문장 안 위치를 바로 계산해 넘긴다.
     """
     for sentence, s, e in _iter_sentences(text):
         if s <= start and end <= e:
-            return sentence
+            return sentence, s
     left = max(0, start - _CLASSIFIER_CONTEXT_RADIUS)
     right = min(len(text), end + _CLASSIFIER_CONTEXT_RADIUS)
-    return text[left:right]
+    return text[left:right], left
 
 
 # NER이 지역명(LC -> address)으로 본 조각 바로 뒤에 번지가 오는지 본다. 조사·도로명 끝
@@ -323,8 +328,10 @@ def _apply_classifier_filters(
         if f.type == "injection":
             kept.append(f)
             continue
-        context = _sentence_around(raw_text, f.start, f.end)
-        is_real, prob_positive = models.filter_false_positive(f.text, context, f.type)
+        context, context_start = _sentence_around(raw_text, f.start, f.end)
+        is_real, prob_positive = models.filter_false_positive(
+            f.text, context, f.type, value_start=f.start - context_start
+        )
         # prob_positive는 "진짜 개인정보일 확률" 하나의 뜻만 갖는다(models.py 참고).
         # 예전에는 걸러낸 쪽에서 1.0 - x로 뒤집었는데, 같은 이름의 값이 두 가지 뜻을
         # 갖게 돼서 화면이 무엇을 보고 있는지 알 수 없었다.

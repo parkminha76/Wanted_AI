@@ -4,8 +4,8 @@
     인젝션     ml/models/injection_classifier_v1.pkl
                학습 코드 ml/training/injection_classifier/ — C의 합성 문장 587건(그룹 501개,
                Lv.1~5, 영문 번역 20건 포함). 그룹 분리 5-fold 교차검증 F1 0.937.
-               단 우리 독립 평가셋(backend/scanner/tests/injection_eval, 100건)에서는 스캐너
-               실제 동작 기준 F1 0.687이다 — INJECTION_THRESHOLD 주석 참고.
+               단 우리 독립 평가셋(backend/scanner/tests/injection_eval, 1·2차 200건)에서는
+               스캐너 실제 동작 기준 F1 0.701이다 — INJECTION_THRESHOLD 주석 참고.
     오탐 제거   ml/models/fp_filter_v1.pkl
                학습 코드 ml/training/false_positive_classifier/ — 합성 데이터 190건(그룹 95개).
                그룹 분리 5-fold 교차검증 F1 0.945. 운영 임계값은 모델이 들고 온다(0.45).
@@ -19,9 +19,12 @@
 모델을 못 읽으면 그 사실을 기억해두고 다시 시도하지 않는다 — 문장마다 파일을
 열려다 실패하면 문서 한 건에 수백 번 같은 예외가 난다.
 
-시그니처는 9/9에 A와 합의해 고정한 것이다. 인젝션 쪽에만 threshold 선택 인자를
-덧붙였다(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다) — hidden.py가 자기
-쪽 판정 조건과 함께 더 낮은 문턱을 쓰기 때문이다. 아래 상수 설명 참고.
+시그니처는 9/9에 A와 합의해 고정한 것이다. 양쪽에 선택 인자를 하나씩만 덧붙였다
+(뒤에 붙는 키워드 인자라 기존 호출은 그대로 동작한다).
+  - is_injection(threshold=)            hidden.py가 자기 쪽 판정 조건과 함께 더 낮은
+                                         문턱을 쓴다. 아래 상수 설명 참고.
+  - filter_false_positive(value_start=)  같은 값이 한 문장에 두 번 나올 때 각자 제 자리
+                                         문맥으로 판정한다. _value_position 설명 참고.
 """
 
 from __future__ import annotations
@@ -50,12 +53,14 @@ FALSE_POSITIVE_MODEL_NAME = "fp_filter_v1"
 #
 # 0.70을 유지하는 근거(재학습 모델 587건 기준 재측정, 2026-09-14). 모델 확률만이 아니라
 # 키워드 보조 판정까지 포함한 is_injection() 전체 결과다:
-#   임계값   독립 평가셋 100건 (정밀도/재현율/F1)   테스트·데모 문서 오탐   문서 속 진짜 인젝션
-#    0.60        0.829 / 0.725 / 0.773                  13                  19/19
-#    0.65        0.900 / 0.675 / 0.771                   5                  19/19
-#    0.70        0.917 / 0.550 / 0.687                   1                  19/19   <- 선택
-# 독립 평가셋만 보면 0.65가 낫다. 그러나 0.65~0.70 구간에서 새로 걸리는 문서 문장이 전부
-# 데모 문서의 머리말·꼬리말이었다 — "블루웨이브 솔루션 | 내부 검토용 1 / 3"(0.655),
+#   임계값   독립 평가셋 1·2차 200건 (정밀도/재현율/F1)   테스트·데모 문서 오탐   문서 속 진짜 인젝션
+#    0.60           0.789 / 0.750 / 0.769                       13                  19/19
+#    0.65           0.821 / 0.688 / 0.748                        5                  19/19
+#    0.70           0.842 / 0.600 / 0.701                        1                  19/19   <- 선택
+# (1차 100건만: 0.60 F1 0.773, 0.65 0.771, 0.70 0.687 / 2차 100건만: 0.765, 0.727, 0.712)
+# 독립 평가셋만 보면 더 낮은 임계값이 낫다. 그러나 낮출수록 문서 오탐이 1 -> 5 -> 13으로 늘어나고,
+# 0.65~0.70 구간에서 새로 걸리는 문서 문장은 전부 데모 문서의 머리말·꼬리말이었다
+# — "블루웨이브 솔루션 | 내부 검토용 1 / 3"(0.655),
 # "*블루웨이브 솔루션 내부 검토용 · 모든 인증정보는 합성값*"(0.650). 인젝션이 없는
 # 계약서.pdf·개발문서.md가 100점이 되어 "숨은 명령"으로 표시된다. 반대로 문서 속 진짜
 # 인젝션 19개는 모두 확률 0.817 이상이거나 키워드로 이미 잡혀서, 낮춰도 얻는 것이 없었다.
@@ -64,7 +69,7 @@ FALSE_POSITIVE_MODEL_NAME = "fp_filter_v1"
 # 모델이 문서 머리말을 공격 문구처럼 배운 것이라 임계값으로 맞추지 않는다 — 정상 학습
 # 데이터에 머리말·꼬리말 문장이 들어가야 풀린다.
 #
-# 독립 평가셋 재현율 0.55는 공격 절반 가까이를 놓친다는 뜻이다. 교차검증 F1 0.937과 차이가
+# 독립 평가셋 재현율 0.60은 공격 열 건 중 네 건을 놓친다는 뜻이다. 교차검증 F1 0.937과 차이가
 # 커서, 발표 수치에는 평가 방식을 함께 적어야 한다.
 #
 # 정밀도를 사는 이유: 오탐 1건이 50점짜리 빨간 항목으로 올라가고, 마스킹 사본에서는
@@ -97,9 +102,11 @@ HIDDEN_TEXT_INJECTION_THRESHOLD = 0.5
 # (ml/training/injection_classifier/README.md가 "영문 키워드 fallback은 백엔드 통합 시
 # 별도로 유지한다"고 명시).
 #
-# 한계(독립 평가셋 100건, 2026-09-14): 키워드만으로 잡힌 공격은 0건이었고, 오히려 공격
-# 문구를 **인용**한 보안교육 문장 2건("공격자는 '이전 지시를 무시하고…' 같은 문장을 숨긴다")을
-# 인젝션으로 잘못 잡았다. 인용 여부를 보지 않는 단순 포함 검사라서다.
+# 한계(독립 평가셋 1·2차 200건, 2026-09-14): 키워드만으로 잡힌 공격은 1건이었고, 반대로
+# 정상 문장 8건을 인젝션으로 잘못 잡았다. 공격 문구를 **인용**한 보안교육 문장 6건("공격자는
+# 'ignore previous instructions'라는 문구를 숨깁니다")과, 사람에게 하는 개발 문서 지시 2건
+# ("캐시를 무시하고 강제로 다시 빌드하려면…")이다. 인용·수신자를 보지 않는 단순 포함 검사라서다.
+# 영문 공격도 키워드 문구가 그대로 들어간 것만 잡혀서, 2차의 영문 공격 8건 중 5건을 놓쳤다.
 _INJECTION_KEYWORDS = (
     "무시하고",
     "이전 지시",
@@ -209,9 +216,27 @@ _EMPLOYEE_EXAMPLE_WINDOW = 12
 _EMPLOYEE_EXAMPLE_PROBABILITY = 0.1
 
 
-def _declares_example(value: str, sentence: str) -> bool:
+def _value_position(value: str, sentence: str, value_start: int | None) -> int:
+    """문장 안에서 값이 시작하는 자리. 못 찾으면 -1.
+
+    호출부가 준 value_start가 실제로 그 값을 가리킬 때만 쓴다. 같은 값이 한 문장에 두 번
+    나오면("계좌 512-55-9401-22268 ... 전표 512-55-9401-22268") find()는 항상 첫 번째를
+    돌려줘서, 두 번째 값이 첫 번째 자리의 문맥으로 판정된다. 실측(2026-09-14,
+    tests/classifier_position_check.py): 입금 계좌와 전표번호가 둘 다 0.698을 받았다.
+    value_start가 없거나 어긋나면(값이 문장 경계를 넘어 붙여 넘긴 경우 등) 예전처럼 find()로 찾는다.
+    """
+    if (
+        value_start is not None
+        and 0 <= value_start
+        and sentence[value_start : value_start + len(value)] == value
+    ):
+        return value_start
+    return sentence.find(value)
+
+
+def _declares_example(value: str, sentence: str, value_start: int | None = None) -> bool:
     """값 바로 뒤에서 "이건 예시다"라고 말하는 문구가 오는가."""
-    position = sentence.find(value)
+    position = _value_position(value, sentence, value_start)
     if position < 0:
         return False
     end = position + len(value)
@@ -253,12 +278,17 @@ def false_positive_model_ready(risk_type: str | None = None) -> bool:
     return risk_type in (getattr(model, "risk_types", None) or ())
 
 
-def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
+def filter_false_positive(
+    text, context, risk_type, *, value_start: int | None = None
+) -> tuple[bool, float]:
     """이 값이 진짜 개인정보인가? 반환: (진짜면 True, 진짜일 확률 0~1)
 
-    text     탐지된 값 자체. 예: "512-55-9401-22268"
-    context  그 값이 들어 있는 **문장 전체**(값을 포함한다).
-             예: "입금 계좌는 512-55-9401-22268입니다. 확인 후 송금 부탁드립니다"
+    text         탐지된 값 자체. 예: "512-55-9401-22268"
+    context      그 값이 들어 있는 **문장 전체**(값을 포함한다).
+                 예: "입금 계좌는 512-55-9401-22268입니다. 확인 후 송금 부탁드립니다"
+    value_start  context 안에서 값이 시작하는 자리(선택). 같은 값이 한 문장에 두 번 나오면
+                 이게 있어야 각자 제 자리 문맥으로 판정된다. 없으면 context.find(text)로
+                 찾는다 — 9/9에 A와 맞춘 앞의 세 인자는 그대로라 기존 호출은 바뀌지 않는다.
 
     context에 값 뒷부분까지 담는 이유: 학습 데이터(sample_data/false_positive/,
     408건)를 재보니 값 앞 평균 8.2자, **뒤 평균 12.0자**였다. "입니다. 확인 후 송금
@@ -274,7 +304,7 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
     말해주는 경우가 있어서, 그것만 규칙으로 거른다(_declares_example 주석 참고).
     """
     # 모델보다 먼저 본다 — 모델 파일이 없는 환경에서도 이 규칙은 돌아야 한다.
-    if risk_type == "emp_no" and _declares_example(text, context):
+    if risk_type == "emp_no" and _declares_example(text, context, value_start):
         return (False, _EMPLOYEE_EXAMPLE_PROBABILITY)
 
     model = _get_false_positive_model()
@@ -304,7 +334,7 @@ def filter_false_positive(text, context, risk_type) -> tuple[bool, float]:
 
     # 호출부가 문장을 못 찾아 값만 넘겼을 때를 대비한다(값이 문장 경계를 넘어간 경우).
     sentence = context if text and text in context else f"{context}{text}"
-    start = sentence.find(text)
+    start = _value_position(text, sentence, value_start)
     if start < 0:
         start = 0
     end = start + len(text)
