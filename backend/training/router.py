@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -14,6 +16,7 @@ from backend.training.training_flow import (
     process_user_reply,
 )
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/training",
@@ -62,28 +65,36 @@ def start_training_api(
         )
 
         db.add(progress)
-        db.commit()
-        db.refresh(progress)
+
+        # 아직 최종 저장(commit)하지 않고 ID만 생성
+        db.flush()
 
         session = create_training_session()
 
-        _training_sessions[progress.id] = session
-
+        # Claude 호출
         attacker_message = generate_attacker_message(session)
 
+        # Claude 호출까지 성공했을 때만 DB 최종 저장
+        db.commit()
+        db.refresh(progress)
+
+        _training_sessions[progress.id] = session
+
         return {
-                "training_progress_id": progress.id,
-                "level": request.level,
-                "state": session["state"],
-                "turn_no": session["turn_no"],
-                "attacker_message": attacker_message,
+            "training_progress_id": progress.id,
+            "level": request.level,
+            "state": session["state"],
+            "turn_no": session["turn_no"],
+            "attacker_message": attacker_message,
         }
 
-    except Exception as exc:
+    except Exception:
         db.rollback()
+        logger.exception("훈련 시작 중 오류 발생")
+
         raise HTTPException(
             status_code=500,
-            detail=f"훈련 시작 중 오류가 발생했습니다: {exc}",
+            detail="훈련 시작 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         )
 
 
@@ -123,11 +134,13 @@ def reply_training_api(
                 "attacker_message": next_message,
         }
 
-    except Exception as exc:
+    except Exception:
         db.rollback()
+        logger.exception("훈련 답장 처리 중 오류 발생")
+
         raise HTTPException(
             status_code=500,
-            detail=f"답장 처리 중 오류가 발생했습니다: {exc}",
+            detail="답장 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         )
 
 # ---------------------------------------------------------
@@ -170,8 +183,10 @@ def get_training_report_api(
             "report": report,
         }
 
-    except Exception as exc:
+    except Exception:
+        logger.exception("훈련 리포트 생성 중 오류 발생")
+
         raise HTTPException(
             status_code=500,
-            detail=f"훈련 리포트 생성 중 오류가 발생했습니다: {exc}",
+            detail="훈련 리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         )
