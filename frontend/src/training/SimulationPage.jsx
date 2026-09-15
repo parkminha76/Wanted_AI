@@ -3,13 +3,6 @@ import { api } from '../shared/api.js'
 import { Button, Card } from '../shared/components/index.js'
 import './training.css'
 
-const STAGES = {
-  S1_APPROACH: { step: 1, label: '대화 진행 중' },
-  S2_INFO_REQUEST: { step: 2, label: '대화 진행 중' },
-  S3_URGENCY_PRESSURE: { step: 3, label: '대화 진행 중' },
-  END: { step: 4, label: '종료' },
-}
-
 const LEVEL_INFO = {
   1: {
     title: '일상형 사기',
@@ -40,10 +33,8 @@ export default function SimulationPage({ training, navigate }) {
       : [],
   )
 
-  const [stage, setStage] = useState(training?.state ?? 'S1_APPROACH')
   const [turnNo, setTurnNo] = useState(training?.turnNo ?? 1)
   const [draft, setDraft] = useState('')
-  const [warning, setWarning] = useState(null)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [finished, setFinished] = useState(false)
@@ -75,12 +66,11 @@ export default function SimulationPage({ training, navigate }) {
   }
 
   const busy = status !== 'idle'
-  const current = STAGES[stage] ?? STAGES.S1_APPROACH
   const levelInfo = LEVEL_INFO[training.level] ?? LEVEL_INFO[1]
 
   const progress = finished
     ? 100
-    : (current.step / 4) * 100
+    : Math.min((turnNo / 5) * 100, 95)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -90,31 +80,10 @@ export default function SimulationPage({ training, navigate }) {
     if (!text || busy || finished) return
 
     setError('')
-    setStatus('checking')
-
-    try {
-      const checked = await api.scanText(text)
-
-      if (checked.findings.length > 0) {
-        setWarning({
-          text,
-          result: checked,
-        })
-
-        setStatus('idle')
-        return
-      }
-    } catch (err) {
-      setError(err.message)
-      setStatus('idle')
-      return
-    }
-
-    await send(text, false)
+    await send(text)
   }
 
-  async function send(text, flagged) {
-    setWarning(null)
+  async function send(text) {
     setError('')
     setStatus('sending')
 
@@ -126,7 +95,6 @@ export default function SimulationPage({ training, navigate }) {
         id,
         role: 'user',
         text,
-        flagged,
       },
     ])
 
@@ -138,11 +106,8 @@ export default function SimulationPage({ training, navigate }) {
         text,
       )
 
-      const done =
-        Boolean(response.scan_result?.is_finished) ||
-        response.state === 'END'
+      const done = Boolean(response.is_finished)
 
-      setStage(response.state)
       setTurnNo(response.turn_no)
 
       if (!done && response.attacker_message) {
@@ -169,16 +134,6 @@ export default function SimulationPage({ training, navigate }) {
     }
   }
 
-  const warningLabels = warning
-    ? [
-        ...new Set(
-          warning.result.findings.map(
-            (finding) => finding.label,
-          ),
-        ),
-      ].join(', ')
-    : ''
-
   return (
     <div className="container simulation-page">
       <button
@@ -200,6 +155,13 @@ export default function SimulationPage({ training, navigate }) {
           <p className="page-desc">
             {levelInfo.description}
           </p>
+
+          {training.scenarioTitle && (
+            <p className="scenario-chip">
+              <span>이번 시나리오</span>
+              <b>{training.scenarioTitle}</b>
+            </p>
+          )}
         </div>
 
         <div className="sim-progress">
@@ -265,11 +227,6 @@ export default function SimulationPage({ training, navigate }) {
                   {message.text}
                 </p>
 
-                {message.flagged && (
-                  <span className="thread__flag">
-                    ⚠ 개인정보가 포함된 상태로 전송함
-                  </span>
-                )}
               </li>
             ))}
 
@@ -338,61 +295,6 @@ export default function SimulationPage({ training, navigate }) {
                 </p>
               </div>
 
-              {warning && (
-                <div
-                  className="reply-warning"
-                  role="alert"
-                >
-                  <p className="reply-warning__title">
-                    ⚠ 전송 전에 확인하세요
-                  </p>
-
-                  <p className="text-sm">
-                    DocX-ray가 답장에서 개인정보를
-                    감지했습니다
-                    {warningLabels
-                      ? `: ${warningLabels}`
-                      : '.'}
-                  </p>
-
-                  <p className="reply-warning__preview">
-                    {warning.result.masked_text}
-                  </p>
-
-                  <div className="response__actions response__actions--end">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setWarning(null)
-                      }
-                    >
-                      답장 수정
-                    </Button>
-
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setDraft(
-                          warning.result.masked_text,
-                        )
-                        setWarning(null)
-                      }}
-                    >
-                      개인정보 가리기
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      onClick={() =>
-                        send(warning.text, true)
-                      }
-                    >
-                      그대로 전송
-                    </Button>
-                  </div>
-                </div>
-              )}
-
               <label
                 htmlFor="reply-input"
                 className="visually-hidden"
@@ -404,10 +306,7 @@ export default function SimulationPage({ training, navigate }) {
                 id="reply-input"
                 className="response__input response__input--chat"
                 value={draft}
-                onChange={(event) => {
-                  setDraft(event.target.value)
-                  setWarning(null)
-                }}
+                onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (
                     event.key === 'Enter' &&
@@ -424,18 +323,14 @@ export default function SimulationPage({ training, navigate }) {
 
               <div className="response__actions">
                 <span className="text-muted text-sm">
-                  {status === 'checking'
-                    ? 'DocX-ray가 개인정보를 검사하고 있습니다…'
-                    : 'Enter 전송 · Shift+Enter 줄바꿈'}
+                  Enter 전송 · Shift+Enter 줄바꿈
                 </span>
 
                 <Button
                   type="submit"
                   disabled={busy || !draft.trim()}
                 >
-                  {status === 'checking'
-                    ? '검사 중...'
-                    : '전송'}
+                  전송
                 </Button>
               </div>
             </form>
@@ -470,6 +365,13 @@ export default function SimulationPage({ training, navigate }) {
             <span>03</span>
             <p>
               훈련이 끝난 뒤 AI가 대응 과정을 분석합니다.
+            </p>
+          </div>
+
+          <div className="privacy-note">
+            <span aria-hidden="true">◆</span>
+            <p>
+              명확한 개인정보 형식은 외부 AI 전달 전에 자동으로 치환됩니다.
             </p>
           </div>
         </aside>

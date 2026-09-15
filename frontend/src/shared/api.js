@@ -96,14 +96,14 @@ export const api = {
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
   downloadAllUrl: (batchId) => `${BASE_URL}/download/all?batch_id=${encodeURIComponent(batchId)}`,
 
-  /** POST /training/start — { training_progress_id, level, state, turn_no, attacker_message } */
+  /** POST /training/start — { training_progress_id, level, scenario_id, scenario_title, turn_no, attacker_message } */
   startTraining: ({ userId, level }) =>
     request('/training/start', { method: 'POST', json: { user_id: userId, level }, timeoutMs: TIMEOUT_MS.training }),
 
-  /** POST /training/{id}/reply — { state, turn_no, scan_result: { scan_result, is_finished, ... }, attacker_message } */
+  /** POST /training/{id}/reply — { training_progress_id, turn_no, is_finished, attacker_message } */
   replyTraining: (trainingId, text) =>
     request(`/training/${trainingId}/reply`, { method: 'POST', json: { text }, timeoutMs: TIMEOUT_MS.training }),
 
-  /** GET /training/{id}/report — { level, final_score, turns, report } */
+  /** GET /training/{id}/report — { training_progress_id, level, score, grade, risky_actions, good_actions, improvements, summary } */
   trainingReport: (trainingId) => request(`/training/${trainingId}/report`, { timeoutMs: TIMEOUT_MS.training }),
 }

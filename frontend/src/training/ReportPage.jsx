@@ -9,8 +9,8 @@ export default function ReportPage({ training, navigate }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // 리포트 요청은 외부 AI(Defender)를 호출한다. 개발 모드(StrictMode)에서 effect가 두 번 돌아
-  // 같은 리포트를 두 번 만드는 일이 없게, 이미 요청한 훈련 id를 기억한다.
+  // 완료된 리포트를 조회한다. 개발 모드(StrictMode)에서 effect가 두 번 돌아
+  // 같은 요청을 중복 전송하지 않도록 이미 요청한 훈련 id를 기억한다.
   const requestedId = useRef(null)
   const trainingId = training?.id
 
@@ -56,7 +56,7 @@ export default function ReportPage({ training, navigate }) {
       {loading && (
         <Card tone="muted">
           <p className="report-loading" aria-live="polite">
-            <span className="spinner" aria-hidden="true" /> 리포트를 만드는 중입니다… AI가 대화 기록을 분석하고 있어요.
+            <span className="spinner" aria-hidden="true" /> 훈련 결과를 불러오고 있습니다…
           </p>
         </Card>
       )}
@@ -76,15 +76,50 @@ export default function ReportPage({ training, navigate }) {
 
       {report && (
         <>
-          <Card title="대응 점수" description={`Level ${report.level} · ${report.turns?.length ?? 0}번 주고받음`}>
-            <p className="report-score">
-              <b>{report.final_score}</b>
-              <span>점</span>
-            </p>
-          </Card>
-          <Card title="AI 대응 분석">
-            <p className="report-text">{report.report}</p>
-          </Card>
+          <section className={`report-hero report-hero--${report.grade}`}>
+            <div>
+              <p className="eyebrow">SECURITY SCORE</p>
+              <p className="report-score">
+                <b>{report.score}</b>
+                <span>/ 100</span>
+              </p>
+            </div>
+            <div className="report-grade">
+              <span>Level {report.level}</span>
+              <strong>{report.grade}</strong>
+              <small>대응 등급</small>
+            </div>
+          </section>
+
+          <section className="report-summary" aria-labelledby="report-summary-title">
+            <p className="eyebrow">AI DEFENDER</p>
+            <h2 id="report-summary-title">종합 분석</h2>
+            <p>{report.summary || '분석 결과가 없습니다.'}</p>
+          </section>
+
+          <div className="report-grid">
+            <section className="report-detail report-detail--risk">
+              <span className="report-detail__icon" aria-hidden="true">!</span>
+              <h2>위험했던 행동</h2>
+              {report.risky_actions?.length ? (
+                <ul>{report.risky_actions.map((item) => <li key={item}>{item}</li>)}</ul>
+              ) : <p>확인된 위험 행동이 없습니다.</p>}
+            </section>
+            <section className="report-detail report-detail--good">
+              <span className="report-detail__icon" aria-hidden="true">✓</span>
+              <h2>잘한 점</h2>
+              {report.good_actions?.length ? (
+                <ul>{report.good_actions.map((item) => <li key={item}>{item}</li>)}</ul>
+              ) : <p>확인된 항목이 없습니다.</p>}
+            </section>
+            <section className="report-detail report-detail--improve">
+              <span className="report-detail__icon" aria-hidden="true">→</span>
+              <h2>다음에는 이렇게</h2>
+              {report.improvements?.length ? (
+                <ul>{report.improvements.map((item) => <li key={item}>{item}</li>)}</ul>
+              ) : <p>추가 개선 권고가 없습니다.</p>}
+            </section>
+          </div>
         </>
       )}
 

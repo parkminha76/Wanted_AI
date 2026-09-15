@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -9,27 +8,24 @@ from sqlalchemy.orm import Session
 
 from backend.db.session import get_session
 from backend.db.tables import TrainingProgress
-from backend.db.converters import build_defender_payload
 from backend.shared.logging_config import get_logger, log_event
 from backend.training.defender import generate_defender_report
+from backend.training.scenarios import select_random_scenario
 from backend.training.training_flow import (
     create_training_session,
     generate_attacker_message,
     process_user_reply,
 )
-from backend.training.training_service import finish_training
-
-logger = get_logger(__name__)
-
-router = APIRouter(
-    prefix="/training",
-    tags=["training"],
+from backend.training.training_service import (
+    calculate_training_score,
+    finish_training,
+    grade_training_score,
 )
 
 
-# ---------------------------------------------------------
-# 요청 데이터 형식
-# ---------------------------------------------------------
+logger = get_logger(__name__)
+router = APIRouter(prefix="/training", tags=["training"])
+
 
 class TrainingStartRequest(BaseModel):
     user_id: int
@@ -40,19 +36,45 @@ class TrainingReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
 
 
-# ---------------------------------------------------------
-# 임시 세션 저장소
-# ---------------------------------------------------------
-# training_flow.py의 TrainingSession은 현재 DB 모델이 아니라
-# 파이썬 객체이므로 우선 메모리에 보관한다.
-#
-# 서버 재시작 시 사라지는 MVP용 구조.
-_training_sessions: dict[int, object] = {}
+# MVP 제한: 서버 재시작 시 진행 세션과 상세 리포트는 사라진다.
+_training_sessions: dict[int, dict] = {}
+_training_reports: dict[int, dict] = {}
 
 
-# ---------------------------------------------------------
-# 훈련 시작
-# ---------------------------------------------------------
+def _complete_training(
+    *,
+    db: Session,
+    training_progress_id: int,
+    session: dict,
+) -> dict:
+    defender_report = generate_defender_report(
+        level=session["level"],
+        scenario=session["scenario"],
+        history=session["history"],
+        shared_fields=session["shared_fields"],
+    )
+    score = calculate_training_score(defender_report)
+    grade = grade_training_score(score)
+    finish_training(
+        db=db,
+        training_progress_id=training_progress_id,
+        final_score=score,
+    )
+    report = {
+        "training_progress_id": training_progress_id,
+        "level": session["level"],
+        "score": score,
+        "grade": grade,
+        "risky_actions": defender_report["risky_actions"],
+        "good_actions": defender_report["good_actions"],
+        "improvements": defender_report["improvements"],
+        "summary": defender_report["summary"],
+    }
+    _training_reports[training_progress_id] = report
+    # 세션에는 치환된 대화만 있지만 완료 후 즉시 제거한다.
+    _training_sessions.pop(training_progress_id, None)
+    return report
+
 
 @router.post("/start")
 def start_training_api(
@@ -66,21 +88,15 @@ def start_training_api(
             status="진행중",
             score=0,
         )
-
         db.add(progress)
-
-        # 아직 최종 저장(commit)하지 않고 ID만 생성
         db.flush()
 
-        session = create_training_session(request.level)
-
-        # Claude 호출
+        scenario = select_random_scenario(request.level)
+        session = create_training_session(request.level, scenario)
         attacker_message = generate_attacker_message(session)
 
-        # Claude 호출까지 성공했을 때만 DB 최종 저장
         db.commit()
         db.refresh(progress)
-
         _training_sessions[progress.id] = session
 
         log_event(
@@ -88,18 +104,18 @@ def start_training_api(
             logging.INFO,
             "training.started",
             training_level=request.level,
+            scenario_id=scenario["id"],
             turn_no=session["turn_no"],
             training_status="in_progress",
         )
-
         return {
             "training_progress_id": progress.id,
             "level": request.level,
-            "state": session["state"],
+            "scenario_id": scenario["id"],
+            "scenario_title": scenario["name"],
             "turn_no": session["turn_no"],
             "attacker_message": attacker_message,
         }
-
     except Exception as exc:
         db.rollback()
         log_event(
@@ -109,16 +125,11 @@ def start_training_api(
             training_level=request.level,
             error_code=type(exc).__name__,
         )
-
         raise HTTPException(
             status_code=500,
             detail="훈련 시작 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        )
+        ) from exc
 
-
-# ---------------------------------------------------------
-# 사용자 답장 처리
-# ---------------------------------------------------------
 
 @router.post("/{training_progress_id}/reply")
 def reply_training_api(
@@ -127,7 +138,6 @@ def reply_training_api(
     db: Session = Depends(get_session),
 ):
     session = _training_sessions.get(training_progress_id)
-
     if session is None:
         raise HTTPException(
             status_code=404,
@@ -135,47 +145,47 @@ def reply_training_api(
         )
 
     try:
-        result = process_user_reply(
-            db=db,
-            training_progress_id=training_progress_id,
-            session=session,
-            user_reply=request.text,
-        )
-
-        # 훈련이 종료되면 점수를 계산·저장하고
-        # Attacker AI는 더 이상 호출하지 않는다.
-        if session["state"] == "END":
-            finish_training(
+        # Defender 호출만 실패한 경우 사용자가 같은 원문을 다시 보낼 필요 없이 재시도한다.
+        if session["status"] == "awaiting_report":
+            _complete_training(
                 db=db,
                 training_progress_id=training_progress_id,
+                session=session,
+            )
+            return {
+                "training_progress_id": training_progress_id,
+                "turn_no": session["turn_no"],
+                "is_finished": True,
+                "attacker_message": None,
+            }
+
+        result = process_user_reply(session=session, user_reply=request.text)
+        if result["is_finished"]:
+            _complete_training(
+                db=db,
+                training_progress_id=training_progress_id,
+                session=session,
             )
             next_message = None
         else:
             next_message = generate_attacker_message(session)
 
-        scan_result = result["scan_result"]
         log_event(
             logger,
             logging.INFO,
             "training.reply.processed",
             turn_no=result["turn_no"],
             training_status="finished" if result["is_finished"] else "in_progress",
-            total_findings=len(scan_result.findings),
-            filtered_out=len(scan_result.filtered_out),
-            finding_counts=dict(
-                sorted(Counter(f.type for f in scan_result.findings).items())
-            ),
-            risk_levels={scan_result.level: 1},
+            shared_field_types=result["shared_fields"],
         )
-
         return {
             "training_progress_id": training_progress_id,
-            "state": session["state"],
-            "turn_no": session["turn_no"],
-            "scan_result": result,
+            "turn_no": result["turn_no"],
+            "is_finished": result["is_finished"],
             "attacker_message": next_message,
         }
-
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         db.rollback()
         log_event(
@@ -184,68 +194,47 @@ def reply_training_api(
             "training.reply.failed",
             error_code=type(exc).__name__,
         )
-
         raise HTTPException(
             status_code=500,
             detail="답장 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        )
-# ---------------------------------------------------------
-# 훈련 결과 리포트 조회
-# ---------------------------------------------------------
+        ) from exc
+
 
 @router.get("/{training_progress_id}/report")
 def get_training_report_api(
     training_progress_id: int,
     db: Session = Depends(get_session),
 ):
-    # 1. 실제 존재하는 훈련인지 확인
     progress = db.get(TrainingProgress, training_progress_id)
-
     if progress is None:
-        raise HTTPException(
-            status_code=404,
-            detail="훈련 기록을 찾을 수 없습니다.",
-        )
+        raise HTTPException(status_code=404, detail="훈련 기록을 찾을 수 없습니다.")
 
-    try:
-        # 2. DB에서 비식별화된 훈련 기록 조회
-        payload = build_defender_payload(
-            db=db,
-            training_progress_id=training_progress_id,
-        )
+    report = _training_reports.get(training_progress_id)
+    if report is not None:
+        return report
 
-        # 3. Defender AI 최종 분석 생성
-        report = generate_defender_report(
-            db=db,
-            training_progress_id=training_progress_id,
-        )
+    session = _training_sessions.get(training_progress_id)
+    if session and session["status"] == "awaiting_report":
+        try:
+            return _complete_training(
+                db=db,
+                training_progress_id=training_progress_id,
+                session=session,
+            )
+        except Exception as exc:
+            db.rollback()
+            log_event(
+                logger,
+                logging.ERROR,
+                "training.report.failed",
+                error_code=type(exc).__name__,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="훈련 리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            ) from exc
 
-        log_event(
-            logger,
-            logging.INFO,
-            "training.report.generated",
-            training_level=payload["level"],
-            training_status="completed",
-        )
-
-        # 4. 프론트엔드용 응답
-        return {
-            "training_progress_id": training_progress_id,
-            "level": payload["level"],
-            "final_score": payload["final_score"],
-            "turns": payload["turns"],
-            "report": report,
-        }
-
-    except Exception as exc:
-        log_event(
-            logger,
-            logging.ERROR,
-            "training.report.failed",
-            error_code=type(exc).__name__,
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail="훈련 리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        )
+    raise HTTPException(
+        status_code=409,
+        detail="훈련이 아직 완료되지 않았거나 상세 리포트가 만료되었습니다.",
+    )

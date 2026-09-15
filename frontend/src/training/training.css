@@ -227,14 +227,34 @@
   transition: width 0.25s ease;
 }
 
-.sim-layout {
+.scenario-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-navy);
+  font-size: var(--font-size-sm);
+}
+
+.scenario-chip span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.sim-chat-layout {
   display: grid;
   gap: var(--space-4);
 }
 
-/* 좁은 화면에서는 시안처럼 안내 상자를 숨긴다. 같은 경고가 페이지 설명에 있다. */
-.scenario-note {
-  display: none;
+.training-tip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   align-self: start;
   padding: var(--space-5);
   border: 1px solid var(--color-border);
@@ -243,42 +263,57 @@
   box-shadow: var(--shadow-md);
 }
 
-.scenario-note__icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+.training-tip h3 {
+  font-size: var(--font-size-lg);
 }
 
-.scenario-note b,
-.scenario-note small,
-.scenario-note strong {
-  display: block;
-}
-
-.scenario-note p {
-  margin-top: var(--space-2);
+.training-tip > p:not(.eyebrow) {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
 }
 
-.scenario-note hr {
-  margin-block: var(--space-4);
+.training-tip__rule {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
-.scenario-note small {
+.training-tip__rule span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.training-tip__rule p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+.privacy-note {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-info-soft);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-relaxed);
 }
 
-.scenario-note strong {
-  margin-top: var(--space-1);
-  font-size: var(--font-size-sm);
+.privacy-note span {
+  flex: 0 0 auto;
+  color: var(--color-primary);
 }
 
 .message-panel {
@@ -504,18 +539,24 @@
 }
 
 @media (min-width: 960px) {
-  .sim-layout {
+  .sim-chat-layout {
     grid-template-columns: 260px minmax(0, 1fr);
   }
 
-  .scenario-note {
-    display: block;
+  .training-tip {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .message-panel--chat {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
 /* ---------- 리포트 ---------- */
 .report-page {
-  max-width: 760px;
+  max-width: 920px;
 }
 
 .report-loading {
@@ -543,6 +584,96 @@
   font-weight: var(--font-weight-bold);
 }
 
+.report-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-surface), var(--color-primary-soft));
+  box-shadow: var(--shadow-md);
+}
+
+.report-grade {
+  display: grid;
+  justify-items: center;
+  min-width: 112px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.report-grade span,
+.report-grade small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.report-grade strong {
+  color: var(--color-primary);
+  font-size: var(--font-size-xl);
+}
+
+.report-summary,
+.report-detail {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.report-summary h2,
+.report-detail h2 {
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: var(--font-size-lg);
+}
+
+.report-summary > p:last-child,
+.report-detail p,
+.report-detail li {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+.report-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.report-detail ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.report-detail__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: var(--font-weight-heavy);
+}
+
+.report-detail--risk .report-detail__icon {
+  background: var(--color-risk-high-soft);
+  color: var(--color-risk-high);
+}
+
+.report-detail--good .report-detail__icon {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.report-detail--improve .report-detail__icon {
+  background: var(--color-info-soft);
+  color: var(--color-primary);
+}
+
 .report-text {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
@@ -559,5 +690,9 @@
 @media (min-width: 768px) {
   .report-text {
     font-size: var(--font-size-md);
+  }
+
+  .report-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
