@@ -59,7 +59,12 @@ RESIDENT_REGISTRATION_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{6}[-\s]?[1-4]\d{6}
 FOREIGN_REGISTRATION_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{6}[-\s]?[5-8]\d{6}(?!\d)")
 
 # ---------- 사업자등록번호 ----------
-BUSINESS_REGISTRATION_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{3}-?\d{2}-?\d{5}(?!\d)")
+# 앞뒤 하이픈도 경계로 막는다. 숫자만 막으면 3-3-7 계좌번호
+# ``781-006-1980474`` 안의 ``006-1980474``처럼 우연히 체크섬을 통과한
+# 뒷부분이 사업자등록번호로 선점되어 전체 계좌번호가 사라질 수 있다.
+BUSINESS_REGISTRATION_NUMBER_PATTERN = re.compile(
+    r"(?<![\d-])\d{3}-?\d{2}-?\d{5}(?![\d-])"
+)
 
 # ---------- 법인등록번호 ----------
 CORPORATE_REGISTRATION_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{6}-?\d{7}(?!\d)")
@@ -115,6 +120,7 @@ _CARD_MIN_UNSEPARATED_DIGITS = 15
 # ---------- 계좌번호 ----------
 # 은행마다 자릿수가 달라 하나의 정규식으로 형식을 완전히 못 박을 수 없다.
 # 대시/공백으로 나뉜 숫자 그룹이거나, 구분자 없는 10~16자리 연속 숫자만 후보로 잡는다.
+# 지원 대상으로 확정한 3-3-7 형식도 이 범위에 포함한다.
 # 휴대폰 번호("010/011/016~019"로 시작하는 3그룹)는 앞쪽에서 미리 제외한다 —
 # 이게 없으면 "010-1234-5678"이 그대로 계좌번호 형식도 통과해버린다.
 #
