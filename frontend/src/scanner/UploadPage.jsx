@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { UPLOAD_LIMITS } from '../shared/api.js'
 import { Button } from '../shared/components/index.js'
 import './scanner.css'
@@ -22,16 +22,26 @@ function extensionOf(name) {
 }
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes}B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   const megabytes = bytes / 1024 / 1024
-  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)}MB`
+  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`
 }
 
+// 첫 화면. 주 버튼(CTA)이 상태에 따라 바뀐다.
+//   파일 고르기 전  "파일 선택하기"          — 업로드 영역이 크게 보인다.
+//   파일 고른 뒤    "AI 보안 검사 시작"      — 업로드 영역은 "파일 추가하기" 한 줄로 줄어든다.
+// 샘플 문서 체험은 파일이 없는 사람(심사위원 시연 등)을 위한 보조 버튼으로 항상 아래에 둔다.
 export default function UploadPage({ onScan, error, busy }) {
+  const inputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
   const [problems, setProblems] = useState([])
+  const hasFiles = files.length > 0
+
+  function openPicker() {
+    if (!busy) inputRef.current?.click()
+  }
 
   function addFiles(fileList) {
     const next = [...files]
@@ -91,9 +101,13 @@ export default function UploadPage({ onScan, error, busy }) {
         </div>
       </section>
 
-      <section className="dropzone-card" aria-labelledby="upload-title">
-        <label
-          className={`dropzone${dragging ? ' is-dragging' : ''}`}
+      <section className="dropzone-card" aria-label="문서 업로드">
+        {/* 파일 선택 창은 버튼으로 연다. 영역 빈 곳을 눌러도 열리지만 키보드 사용자는 버튼을 쓴다. */}
+        <div
+          className={`dropzone${hasFiles ? ' dropzone--compact' : ''}${dragging ? ' is-dragging' : ''}`}
+          onClick={(event) => {
+            if (!event.target.closest('button')) openPicker()
+          }}
           onDragOver={(event) => {
             event.preventDefault()
             setDragging(true)
@@ -106,27 +120,44 @@ export default function UploadPage({ onScan, error, busy }) {
           }}
         >
           <input
+            ref={inputRef}
             type="file"
             multiple
             accept={ACCEPTED_EXTENSIONS.join(',')}
             className="visually-hidden"
+            tabIndex={-1}
+            aria-hidden="true"
             disabled={busy}
             onChange={(event) => {
               addFiles(event.target.files)
               event.target.value = '' // 같은 파일을 빼고 다시 고를 수 있게
             }}
           />
-          <span className="dropzone__icon" aria-hidden="true">
-            ⌑
-          </span>
-          <span id="upload-title" className="dropzone__title">
-            문서를 드래그하거나 클릭하여 업로드하세요.
-          </span>
-          <span className="dropzone__hint">
-            PDF · Word · Excel · 텍스트 · 이미지 (최대 {UPLOAD_LIMITS.maxFiles}개, 파일당{' '}
-            {formatBytes(UPLOAD_LIMITS.maxFileBytes)})
-          </span>
-        </label>
+
+          {hasFiles ? (
+            <>
+              <p className="dropzone__compact-text">파일을 더 올리려면 이곳에 드롭하거나</p>
+              <Button variant="secondary" size="sm" disabled={busy} onClick={openPicker}>
+                파일 추가하기
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="dropzone__icon" aria-hidden="true">
+                ⌑
+              </span>
+              <h2 className="dropzone__title">문서를 업로드하세요</h2>
+              <p className="dropzone__hint">
+                PDF · Word · Excel · 텍스트 · 이미지 (최대 {UPLOAD_LIMITS.maxFiles}개, 파일당{' '}
+                {formatBytes(UPLOAD_LIMITS.maxFileBytes)})
+              </p>
+              <Button size="lg" disabled={busy} onClick={openPicker}>
+                파일 선택하기
+              </Button>
+              <p className="dropzone__drop">또는 파일을 이곳에 드롭</p>
+            </>
+          )}
+        </div>
 
         {messages.length > 0 && (
           <p className="alert alert--error" role="alert">
@@ -138,37 +169,46 @@ export default function UploadPage({ onScan, error, busy }) {
           </p>
         )}
 
-        {files.length > 0 && (
-          <ul className="file-list" aria-label="선택한 파일">
-            {files.map((file) => (
-              <li key={`${file.name}-${file.size}`} className="file-list__item">
-                <span className="file-list__name">{file.name}</span>
-                <span className="file-list__size">{formatBytes(file.size)}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy}
-                  aria-label={`${file.name} 빼기`}
-                  onClick={() => setFiles((prev) => prev.filter((picked) => picked !== file))}
-                >
-                  빼기
-                </Button>
-              </li>
-            ))}
-          </ul>
+        {hasFiles && (
+          <>
+            <ul className="file-list" aria-label="선택한 파일">
+              {files.map((file) => (
+                <li key={`${file.name}-${file.size}`} className="file-list__item">
+                  <span className="file-list__icon" aria-hidden="true">
+                    ⌑
+                  </span>
+                  <span className="file-list__info">
+                    <span className="file-list__name">{file.name}</span>
+                    <span className="file-list__size">{formatBytes(file.size)}</span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    aria-label={`${file.name} 빼기`}
+                    onClick={() => setFiles((prev) => prev.filter((picked) => picked !== file))}
+                  >
+                    빼기
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <Button size="lg" block disabled={busy} onClick={() => onScan('files', files)}>
+              AI 보안 검사 시작{files.length > 1 ? ` (${files.length}개)` : ''} →
+            </Button>
+          </>
         )}
 
-        <div className="dropzone-card__actions">
-          <Button size="lg" block disabled={files.length === 0 || busy} onClick={() => onScan('files', files)}>
-            문서 검사하기 →
-          </Button>
-          <Button variant="secondary" size="lg" block disabled={busy} onClick={() => onScan('samples')}>
-            샘플 문서로 체험하기
-          </Button>
-        </div>
         <p className="dropzone-card__note">
           올린 원본은 검사가 끝나면 서버에서 바로 삭제되고, 가린 사본은 30분 동안만 내려받을 수 있습니다.
         </p>
+
+        <div className="sample-cta">
+          <p className="sample-cta__text">문서가 없어도 바로 체험해 보세요</p>
+          <Button variant="ghost" disabled={busy} onClick={() => onScan('samples')}>
+            샘플 문서로 검사해보기 →
+          </Button>
+        </div>
       </section>
 
       <ul className="benefits">
