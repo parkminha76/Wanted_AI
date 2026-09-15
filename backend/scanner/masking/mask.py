@@ -53,6 +53,8 @@ import os
 import shutil
 import tempfile
 
+from backend.scanner.masking import policy as masking_policy
+
 # 지금 문자열 치환으로 처리할 수 있는 형식. 나머지는 아직 사본을 만들지 않는다.
 _TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log"}
 
@@ -117,7 +119,7 @@ def _plan(findings, text_len: int) -> list[tuple[int, int, str]]:
     return [(f.start, f.end, f.placeholder) for f in _ordered(findings, text_len)]
 
 
-def build(raw_text: str, findings) -> str:
+def build(raw_text: str, findings, policy: dict | None = None) -> str:
     """`ScanResult.masked_text` 용. 텍스트에서 탐지 구간을 placeholder로 바꾼다.
 
     하이라이트에는 쓸 수 없다 — 치환으로 길이가 달라져서 findings의 offset이
@@ -125,7 +127,8 @@ def build(raw_text: str, findings) -> str:
     """
     if not raw_text or not findings:
         return raw_text or ""
-    return _apply(raw_text, _plan(findings, len(raw_text)))
+    targets = masking_policy.apply_policy(findings, policy)
+    return _apply(raw_text, _plan(targets, len(raw_text)))
 
 
 def _apply(raw_text: str, plan) -> str:
@@ -679,7 +682,11 @@ def _mask_pdf(path: str, doc, findings, out_dir: str | None) -> str | None:
 
             for order, rect in enumerate(rects):
                 box = pymupdf.Rect(*rect)
-                placeholder = _PDF_PLACEHOLDERS.get(finding.type, "[마스킹]")
+                # 표준 부분 마스킹 대상은 실제 부분 마스킹 문자열을 넣고, 기존 전체
+                # 마스킹은 좁은 PDF 칸에 맞춘 짧은 유형 라벨을 그대로 쓴다.
+                placeholder = getattr(finding, "replacement", None) or _PDF_PLACEHOLDERS.get(
+                    finding.type, "[마스킹]"
+                )
                 if order == 0:
                     # 대체 문자열은 첫 사각형에만 넣는다. 두 줄에 걸친 값에 줄마다
                     # 넣으면 사본에 "[전화번호][전화번호]"가 찍힌다.
@@ -1100,7 +1107,13 @@ def _leaks_scanned_pdf(out_path: str, painted: list) -> bool:
     return False
 
 
-def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | None:
+def build_file(
+    path: str,
+    doc,
+    findings,
+    out_dir: str | None = None,
+    policy: dict | None = None,
+) -> str | None:
     """마스킹 사본 파일을 만들고 그 경로를 돌려준다. `ScanResult.masked_path`에 들어간다.
 
     `doc`은 `parse.load()`가 준 ParsedDoc이다. findings의 offset이 `doc.raw_text`
@@ -1111,6 +1124,8 @@ def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | No
     """
     if doc is None:
         return None
+
+    findings = masking_policy.apply_policy(findings, policy)
 
     ext = os.path.splitext(path)[1].lower()
 

@@ -70,9 +70,10 @@ except ImportError:
     locate = None
 
 try:
-    from backend.scanner.masking import mask
+    from backend.scanner.masking import mask, policy as mask_policy
 except ImportError:
     mask = None
+    mask_policy = None
 
 # 신분증 이미지 CNN 호출부. models.py와 같은 패턴이다 — B가 부르는 자리를 만들고
 # A가 알맹이를 채운다(backend/scanner/README.md: "ml/에서 학습된 모델을 갖다 쓰는 자리").
@@ -582,7 +583,11 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
     return findings
 
 
-def scan_text(text: str, meta: dict | None = None) -> ScanResult:
+def scan_text(
+    text: str,
+    meta: dict | None = None,
+    masking_policy: dict | None = None,
+) -> ScanResult:
     """텍스트 1건을 검사한다. 훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다."""
     meta = meta or {}
     findings: list[Finding] = []
@@ -645,7 +650,9 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
 
     # 마스킹 사본 — masking 모듈이 아직 없으면 원문 그대로 둔다.
     if mask is not None and hasattr(mask, "build"):
-        result.masked_text = mask.build(result.raw_text, result.findings)
+        result.masked_text = mask.build(
+            result.raw_text, result.findings, policy=masking_policy
+        )
 
     return result.finalize()  # 8. 위험 점수 계산
 
@@ -686,7 +693,12 @@ def _scan_image(doc) -> ScanResult:
     return result.finalize()
 
 
-def scan_file(path: str) -> ScanResult:
+def scan_file(
+    path: str,
+    masking_policy: dict | None = None,
+    masking_selection: list[dict] | None = None,
+    create_masked_copy: bool = True,
+) -> ScanResult:
     """파일 1개를 파싱해서 검사하고, 마스킹된 파일 사본까지 만든다.
 
     parse.load()가 형식을 판단해서 텍스트(pdf/docx/xlsx/txt)와 이미지(사진, 텍스트
@@ -694,6 +706,8 @@ def scan_file(path: str) -> ScanResult:
     파이프라인과 이미지 파이프라인으로 분기한다. parse가 없는 환경에서는 UTF-8
     텍스트로 직접 읽는 경로로 떨어진다.
     """
+    if masking_policy is not None and masking_selection is not None:
+        raise ValueError("유형별 정책과 항목별 선택을 동시에 적용할 수 없습니다")
     doc = None
     try:
         try:
@@ -705,12 +719,18 @@ def scan_file(path: str) -> ScanResult:
                     result = _scan_image(doc)
                 else:
                     result = scan_text(
-                        doc.raw_text, meta={"filename": path, "spans": doc.spans}
+                        doc.raw_text,
+                        meta={"filename": path, "spans": doc.spans},
+                        masking_policy=masking_policy,
                     )
             else:
                 with open(path, encoding="utf-8") as fh:
                     raw_text = fh.read()
-                result = scan_text(raw_text, meta={"filename": path})
+                result = scan_text(
+                    raw_text,
+                    meta={"filename": path},
+                    masking_policy=masking_policy,
+                )
         except _FILE_ERRORS as exc:
             # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계라, 못 읽는 파일은
             # 예외가 아니라 결과로 돌려준다(schema.ScanResult.error가 그 자리다).
@@ -738,10 +758,28 @@ def scan_file(path: str) -> ScanResult:
         if doc is not None and locate is not None and hasattr(locate, "fill_coords"):
             locate.fill_coords(doc, result.findings)
 
+        mask_findings = result.findings
+        if masking_selection is not None:
+            if mask_policy is None:
+                raise RuntimeError("마스킹 선택 모듈을 불러오지 못했습니다")
+            mask_findings = mask_policy.apply_selection(
+                result.findings, masking_selection
+            )
+            # 화면 미리보기와 다운로드 사본이 같은 선택을 사용하게 맞춘다.
+            if mask is not None and hasattr(mask, "build"):
+                result.masked_text = mask.build(result.raw_text, mask_findings)
+
         # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
         # 제품의 주 동작은 "마스킹된 파일 다운로드"다.
-        if doc is not None and mask is not None and hasattr(mask, "build_file"):
-            result.masked_path = mask.build_file(path, doc, result.findings)
+        if (
+            create_masked_copy
+            and doc is not None
+            and mask is not None
+            and hasattr(mask, "build_file")
+        ):
+            result.masked_path = mask.build_file(
+                path, doc, mask_findings, policy=masking_policy
+            )
 
         return result
     finally:
@@ -765,7 +803,11 @@ def scan_file(path: str) -> ScanResult:
             parse.cleanup(doc)
 
 
-def scan_files(paths: list[str]) -> ScanBatch:
+def scan_files(
+    paths: list[str],
+    masking_policy: dict | None = None,
+    create_masked_copy: bool = True,
+) -> ScanBatch:
     """파일 여러 개를 검사하고 위험도 순으로 정렬해 돌려준다.
 
     파일 하나가 예상 못 한 예외로 죽어도 배치는 끝까지 돈다 — 같이 올린 멀쩡한
@@ -776,7 +818,13 @@ def scan_files(paths: list[str]) -> ScanBatch:
     results = []
     for path in paths:
         try:
-            results.append(scan_file(path))
+            results.append(
+                scan_file(
+                    path,
+                    masking_policy=masking_policy,
+                    create_masked_copy=create_masked_copy,
+                )
+            )
         except Exception as exc:  # noqa: BLE001
             broken = ScanResult(filename=path, error=f"검사 중 오류 ({type(exc).__name__})")
             broken.file_type = _guess_file_type(path)
