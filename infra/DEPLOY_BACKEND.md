@@ -91,6 +91,16 @@ uv run python -m backend.db.session
 
 이 명령은 없는 테이블만 생성한다. `--reset`과 `--drop`은 배포 환경에서 실행하지 않는다.
 
+로그인 기능이 없는 제출 버전은 프론트가 `user_id=1`을 사용한다. 테이블 생성 후
+다음 명령을 한 번 실행해 데모 사용자를 준비한다.
+
+```bash
+uv run python -m backend.db.seed_demo_user
+```
+
+`id=1` 사용자가 없으면 `individual` 역할로 생성하고, 이미 있으면 어떤 값도 변경하지
+않는다. 출력에 `id=1, role=individual`이 표시되는지 확인한다.
+
 ## 7. 운영 주소에서 백엔드 확인
 
 순서대로 확인한다.
