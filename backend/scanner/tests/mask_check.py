@@ -25,6 +25,7 @@ import zipfile
 import shutil
 import sys
 import tempfile
+from types import SimpleNamespace
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 if REPO_ROOT not in sys.path:
@@ -32,6 +33,8 @@ if REPO_ROOT not in sys.path:
 
 from backend.scanner.masking import mask               # noqa: E402
 from backend.scanner.parser import locate, parse       # noqa: E402
+from backend.scanner.detectors import ner, rules       # noqa: E402
+from backend.scanner import scan as scanner             # noqa: E402
 from backend.shared.schema import Finding              # noqa: E402
 
 _failures: list[str] = []
@@ -163,6 +166,32 @@ def case_rules() -> None:
     # findings 없음
     check(mask.build(text, []) == text, "findings가 없으면 원문 그대로")
     check(mask.build("", []) == "", "빈 문자열도 터지지 않는다")
+
+    # 표 날짜가 계좌 후보로 잘려 들어가거나 XLSX 셀을 가로질러 NER이 합쳐지면
+    # 원문과 무관한 열까지 마스킹된다.
+    date_text = "일시 2026-03-15 00:00:00"
+    check(not rules.find_bank_account_numbers(date_text),
+          "날짜·시간을 계좌번호 후보로 만들지 않는다")
+    chunks = list(ner._iter_chunks("임건우\t우수\n블루웨이브 솔루션"))
+    check([chunk for chunk, _ in chunks] == ["임건우", "우수", "블루웨이브 솔루션"],
+          "NER 입력이 표 셀과 줄바꿈 경계를 넘지 않는다", str(chunks))
+
+    spans = [
+        SimpleNamespace(origin="명단!B5", text="고객명", start=0),
+        SimpleNamespace(origin="명단!B6", text="최하은", start=4),
+        SimpleNamespace(origin="명단!F5", text="주소", start=8),
+        SimpleNamespace(origin="명단!F6", text="대전광역시 유성구 대학로 99 연구관 3층", start=11),
+        SimpleNamespace(origin="요약!A5", text="담당자", start=40),
+        SimpleNamespace(origin="요약!A6", text="한지민", start=44),
+        SimpleNamespace(origin="요약!A8", text="VIP", start=48),
+    ]
+    structured = scanner._find_structured_xlsx_values(spans)
+    check([(item["field"], item["value"]) for item in structured] == [
+              ("person", "최하은"),
+              ("address", "대전광역시 유성구 대학로 99 연구관 3층"),
+              ("person", "한지민"),
+          ], "명확한 XLSX 열은 셀 전체를 탐지하고 빈 행 뒤 표는 건드리지 않는다",
+          str([(item["field"], item["value"]) for item in structured]))
 
     # 오프셋 기준 - 치환 후 길이가 달라지므로 masked_text로 하이라이트하면 안 된다
     masked = mask.build(text, [_finding("person", "홍길동", 3, 6)])
@@ -560,8 +589,8 @@ def case_pdf(tmp: str) -> None:
 
     check("[이름]" in joined, "placeholder가 한글로 찍힌다", "[이름]")
     check("????" not in joined, "물음표로 깨지지 않는다")
-    check(joined.count("[전화번호]") == 2, "줄이 갈라져도 placeholder는 값마다 하나",
-          f"{joined.count('[전화번호]')}회")
+    check(joined.count("[전화]") == 2, "줄이 갈라져도 placeholder는 값마다 하나",
+          f"{joined.count('[전화]')}회")
     check("담당자" in joined and "입니다" in joined, "가리지 않은 글자는 그대로다")
 
     check(len(masked[0].get_images()) == 1, "그림이 사본에 남아 있다",
@@ -626,7 +655,7 @@ def case_pdf_long_placeholder(tmp: str) -> None:
     text = masked[0].get_text()
     masked.close()
     check("1234567890123" not in text, "값이 지워졌다")
-    check("[주민등록번호]" in text, "긴 placeholder도 찍힌다 (글자 크기를 줄인다)",
+    check("[마스킹]" in text, "좁은 칸에도 짧은 placeholder가 찍힌다",
           text.strip().replace(chr(10), " | "))
 
 
