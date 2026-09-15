@@ -789,6 +789,32 @@ def _image_box(finding, width: int, height: int):
     return (left, top, right, bottom)
 
 
+def _padded_image_box(finding, box, width: int, height: int):
+    """CNN 박스 경계 밖으로 삐져나온 글자 획까지 포함한다.
+
+    YOLO 라벨은 글자의 중심 영역에 맞춰져 있어 받침·밑줄이나 여러 줄 주소의 마지막
+    줄이 몇 픽셀 남을 수 있다. 텍스트 필드는 높이에 비례해 넓히고, 얼굴은 주변 문서
+    내용을 과도하게 덮지 않도록 최소 여백만 준다.
+    """
+    left, top, right, bottom = box
+    if finding.type == "id_photo":
+        x_pad = y_pad = 2
+    elif finding.type == "address":
+        # 여러 줄 주소는 YOLO 박스가 마지막 줄의 중심까지만 잡아 받침이 아래로
+        # 남는 사례가 있다. 주소는 다른 짧은 필드보다 세로 여백을 넉넉히 둔다.
+        x_pad = max(4, round((right - left) * 0.03))
+        y_pad = max(8, round((bottom - top) * 0.55))
+    else:
+        x_pad = max(3, round((right - left) * 0.02))
+        y_pad = max(5, round((bottom - top) * 0.30))
+    return (
+        max(0, left - x_pad),
+        max(0, top - y_pad),
+        min(width, right + x_pad),
+        min(height, bottom + y_pad),
+    )
+
+
 def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
     """이미지 — CNN이 찾은 영역을 검게 칠한다.
 
@@ -837,6 +863,7 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
             box = _image_box(finding, width, height)
             if box is None:
                 return None               # 좌표가 이미지 밖이다. 가릴 수 없다.
+            box = _padded_image_box(finding, box, width, height)
             draw.rectangle(box, fill=fill)
             # 이미지 사본에는 유형 문구를 새기지 않는다. 같은 영역을 겹쳐 탐지하면
             # 문구도 겹치고, 얼굴처럼 큰 영역에서는 라벨이 원본보다 더 눈에 띈다.

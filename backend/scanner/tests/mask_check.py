@@ -867,7 +867,8 @@ def case_image(tmp: str) -> None:
     check(doc.kind == "image", "이미지로 분류된다", f"kind={doc.kind}")
 
     findings = [_box_finding("id_photo", (20, 20, 140, 160)),
-                _box_finding("rrn", (200, 40, 380, 80))]
+                _box_finding("rrn", (200, 40, 380, 80)),
+                _box_finding("address", (50, 190, 300, 210))]
 
     out = mask.build_file(src, doc, findings, out_dir=os.path.join(tmp, "out"))
     check(bool(out) and os.path.isfile(out), "사본 파일이 생성됐다", os.path.basename(out or ""))
@@ -888,6 +889,13 @@ def case_image(tmp: str) -> None:
             check(not leftover, f"{label} 자리에 원본 색이 남지 않았다", str(sorted(leftover)[:3]))
 
         check(masked.getpixel((390, 290))[:3] == (240, 240, 240), "가리지 않은 자리는 그대로다")
+
+        # CNN 박스 바로 아래로 글자 획이 삐져나오는 경우를 막기 위해 텍스트 박스는
+        # 조금 넓혀 칠한다. 주민번호 원래 박스 아래 5px도 검정이어야 한다.
+        check(masked.getpixel((250, 84))[:3] == (0, 0, 0),
+              "텍스트 박스 경계 밖의 글자 획도 가린다")
+        check(masked.getpixel((100, 220))[:3] == (0, 0, 0),
+              "여러 줄 주소는 아래쪽 여백을 더 넓게 가린다")
 
         # 이미지 사본에는 라벨을 새기지 않고 검은 리댁션만 남긴다. 구체적인 유형은
         # API findings에서 확인한다.
