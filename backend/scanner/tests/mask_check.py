@@ -889,14 +889,12 @@ def case_image(tmp: str) -> None:
 
         check(masked.getpixel((390, 290))[:3] == (240, 240, 240), "가리지 않은 자리는 그대로다")
 
-        # 유형 이름을 흰 글자로 적는다 (****로 뭉개지 않는다).
-        # 얼굴 상자는 세로로 길어서 "[얼굴 사진]"이 가로로 안 들어가고, 그때는
-        # 글자를 생략하고 검정만 남긴다 - 그 동작도 여기서 같이 본다.
+        # 이미지 사본에는 라벨을 새기지 않고 검은 리댁션만 남긴다. 구체적인 유형은
+        # API findings에서 확인한다.
         narrow = masked.crop((20, 20, 140, 160)).convert("L")
         wide = masked.crop((200, 40, 380, 80)).convert("L")
-        check(wide.getextrema()[1] > 200, "상자 안에 유형 이름이 적힌다",
-              f"가장 밝은 값 {wide.getextrema()[1]}")
-        check(narrow.getextrema() == (0, 0), "글자가 안 들어가는 상자는 검정만 남는다")
+        check(wide.getextrema() == (0, 0), "텍스트 필드는 검정만 남는다")
+        check(narrow.getextrema() == (0, 0), "얼굴도 검정만 남는다")
 
     check(_digest(src) == before, "원본 파일이 변하지 않았다")
 

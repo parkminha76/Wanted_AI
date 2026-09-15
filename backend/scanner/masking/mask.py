@@ -26,10 +26,11 @@
 PDF만 문자열 치환이 불가능하다. PDF 안의 글자는 "몇 번째 문자"로 들어있는 게 아니라
 페이지 위 좌표에 하나씩 박혀 있어서, 바꿔치기가 아니라 좌표로 지우는 수밖에 없다.
 
-치환 문자열은 손으로 쓰지 않는다
---------------------------------
+텍스트 치환 문자열은 손으로 쓰지 않는다
+--------------------------------------
 `Finding.placeholder`(= `schema.mask_placeholder()`)만 쓴다. **유형을 남긴다**:
 `홍길동` -> `[이름]`. `****`로 뭉개면 사본을 AI에 넣었을 때 문맥이 무너진다.
+이미지와 스캔본은 겹친 탐지 라벨이 사본을 훼손하지 않도록 검은 리댁션만 남긴다.
 
 PDF 리댁션의 한글 폰트 (해결됨 — `_PDF_FONT`)
 ---------------------------------------------
@@ -67,10 +68,6 @@ _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", "
 # 칠하는 색. 검정으로 덮는 이유는 PDF 리댁션과 같다 — 흐리게(blur) 처리하면
 # 원본을 되살리는 복원 공격이 알려져 있다. 불투명하게 덮어야 실제로 사라진다.
 _IMAGE_FILL = (0, 0, 0)
-_IMAGE_LABEL_COLOR = (255, 255, 255)
-
-# 상자 안에 유형 이름을 적을 때 쓰는 한글 폰트. 없으면 상자만 칠한다.
-_IMAGE_FONT_PATH = os.path.join("ml", "data_generation", "assets", "fonts", "NanumGothic.otf")
 
 # xml:space="preserve". 이게 없으면 워드가 run의 앞뒤 공백을 버린다.
 _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -792,45 +789,6 @@ def _image_box(finding, width: int, height: int):
     return (left, top, right, bottom)
 
 
-def _image_label_font(box_height: int):
-    """상자 높이에 맞는 한글 폰트. 못 불러오면 None (상자만 칠한다)."""
-    from PIL import ImageFont
-
-    size = int(box_height * 0.5)
-    if size < 9:
-        return None                       # 이 크기 아래로는 읽을 수 없다
-    try:
-        return ImageFont.truetype(_IMAGE_FONT_PATH, min(size, 28))
-    except OSError:
-        return None
-
-
-def _draw_image_label(draw, box, text: str) -> None:
-    """칠한 상자 안에 유형 이름을 적는다. 안 들어가면 적지 않는다.
-
-    `****`로 뭉개지 않고 유형을 남기는 원칙은 이미지에서도 같다. 검은 사각형만
-    있으면 사본을 받은 사람이 무엇이 가려졌는지 알 수 없다.
-    """
-    left, top, right, bottom = box
-    font = _image_label_font(bottom - top)
-    if font is None:
-        return
-    try:
-        x0, y0, x1, y1 = draw.textbbox((0, 0), text, font=font)
-    except Exception:      # noqa: BLE001
-        return
-    text_width, text_height = x1 - x0, y1 - y0
-    if text_width > (right - left) - 4 or text_height > (bottom - top) - 2:
-        return                            # 상자가 좁다. 글자 대신 검정만 남긴다.
-    draw.text(
-        (left + ((right - left) - text_width) / 2 - x0,
-         top + ((bottom - top) - text_height) / 2 - y0),
-        text,
-        fill=_IMAGE_LABEL_COLOR,
-        font=font,
-    )
-
-
 def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
     """이미지 — CNN이 찾은 영역을 검게 칠한다.
 
@@ -880,8 +838,9 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
             if box is None:
                 return None               # 좌표가 이미지 밖이다. 가릴 수 없다.
             draw.rectangle(box, fill=fill)
-            if image.mode != "L":
-                _draw_image_label(draw, box, finding.placeholder)
+            # 이미지 사본에는 유형 문구를 새기지 않는다. 같은 영역을 겹쳐 탐지하면
+            # 문구도 겹치고, 얼굴처럼 큰 영역에서는 라벨이 원본보다 더 눈에 띈다.
+            # 유형과 근거는 API findings에서 확인할 수 있다.
             painted.append(box)
 
         out_path = _out_path(path, out_dir)
@@ -916,9 +875,8 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
 def _leaks_image(out_path: str, painted_image, boxes) -> bool:
     """저장된 사본의 칠한 자리가 **칠한 그대로**인가.
 
-    "상자 안이 몇 퍼센트나 어두운가"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로
-    적기 때문에 작은 상자는 절반 넘게 밝을 수 있고, 그걸 "덜 지웠다"와 구분할 방법이
-    없다. 대신 메모리에서 칠한 그림과 파일에 쓰인 그림을 그 자리끼리 비교한다.
+    "상자 안이 몇 퍼센트나 어두운가"로 보지 않고, 메모리에서 칠한 그림과 파일에
+    쓰인 그림을 그 자리끼리 비교한다.
 
     평균 차이로 보는 이유: PNG는 그대로 저장되지만 JPEG은 다시 인코딩하면서 값이
     조금 흔들린다. 칠하기가 어긋났다면 차이가 그 정도로 작을 수 없다.
@@ -1040,7 +998,6 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
                        min(image.width, box[2] + _SCANNED_PAD_PX),
                        min(image.height, box[3] + _SCANNED_PAD_PX))
                 draw.rectangle(box, fill=_IMAGE_FILL)
-                _draw_image_label(draw, box, finding.placeholder)
 
             target = os.path.join(work_dir, f"page{index:03d}.png")
             image.save(target, format=_SCANNED_PAGE_FORMAT)
@@ -1071,11 +1028,8 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
 def _leaks_scanned_pdf(out_path: str, painted: list) -> bool:
     """사본의 페이지 그림이 **우리가 칠한 그림 그대로**인가.
 
-    "검은 픽셀이 몇 퍼센트냐"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로 적기
-    때문에 작은 상자는 밝은 픽셀이 15%까지 나오고(실측), 그걸 "덜 지웠다"와 구분할
-    방법이 없다.
-
-    대신 더 정확한 것을 본다: 칠하기는 PDF에 넣기 **전에** 끝났으므로, 사본에 박힌
+    "검은 픽셀이 몇 퍼센트냐"로 보지 않는다. 더 정확한 것을 본다: 칠하기는 PDF에
+    넣기 **전에** 끝났으므로, 사본에 박힌
     그림이 칠한 그림과 픽셀까지 같으면 지운 것이 그대로 들어간 것이 확실하다.
     PyMuPDF는 PNG를 무손실로 다시 담으므로 같아야 정상이다(실측 확인).
     """
