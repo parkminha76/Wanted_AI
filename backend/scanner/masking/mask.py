@@ -588,7 +588,22 @@ def _mask_xlsx(path: str, doc, findings, out_dir):
 #     기본/helv -> [????]      korea -> [전화번호]
 _PDF_FONT = "korea"
 _PDF_FONT_SIZE = 11.0
-_PDF_MIN_FONT_SIZE = 4.0
+_PDF_MIN_FONT_SIZE = 6.5
+
+# PDF는 원래 값의 좁은 사각형 안에 라벨을 넣어야 한다. 스키마의 긴 placeholder를
+# 그대로 쓰면 4pt까지 작아져 읽을 수 없으므로 PDF 화면에만 짧은 유형명을 쓴다.
+_PDF_PLACEHOLDERS = {
+    "person": "[이름]",
+    "org": "[회사]",
+    "address": "[주소]",
+    "phone": "[전화]",
+    "email": "[이메일]",
+    "account": "[계좌]",
+    "biz_reg": "[사업자]",
+    "card": "[카드]",
+    "emp_no": "[사번]",
+    "injection": "[숨은명령]",
+}
 
 
 def _pdf_rects(finding) -> list:
@@ -664,14 +679,17 @@ def _mask_pdf(path: str, doc, findings, out_dir: str | None) -> str | None:
 
             for order, rect in enumerate(rects):
                 box = pymupdf.Rect(*rect)
+                placeholder = _PDF_PLACEHOLDERS.get(finding.type, "[마스킹]")
                 if order == 0:
                     # 대체 문자열은 첫 사각형에만 넣는다. 두 줄에 걸친 값에 줄마다
                     # 넣으면 사본에 "[전화번호][전화번호]"가 찍힌다.
                     page.add_redact_annot(
                         box,
-                        text=finding.placeholder,
+                        text=placeholder,
                         fontname=_PDF_FONT,
-                        fontsize=_pdf_font_size(finding.placeholder, box.width),
+                        fontsize=_pdf_font_size(placeholder, box.width),
+                        fill=(0.09, 0.20, 0.32),
+                        text_color=(1.0, 1.0, 1.0),
                         cross_out=False,      # 기본값은 사각형에 X를 그린다
                     )
                 else:

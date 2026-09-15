@@ -318,6 +318,23 @@ def _split_place_mentions(
     return kept, excluded
 
 
+_EXPLICIT_POSITIVE_LABELS = {
+    "biz_reg": re.compile(r"(?:사업자등록번호|사업자번호)\s*[:：]?\s*$"),
+    "card": re.compile(r"(?:법인카드|카드번호)\s*[:：]?\s*$"),
+}
+
+
+def _has_explicit_positive_label(finding: Finding, raw_text: str) -> bool:
+    """체크섬 통과 값 바로 앞에 명시된 유형 라벨이 있는지 확인한다."""
+    if finding.evidence.get("checksum") != rules.CHECKSUM_PASS:
+        return False
+    pattern = _EXPLICIT_POSITIVE_LABELS.get(finding.type)
+    if pattern is None:
+        return False
+    prefix = raw_text[max(0, finding.start - 40) : finding.start]
+    return bool(pattern.search(prefix))
+
+
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
@@ -326,6 +343,12 @@ def _apply_classifier_filters(
     filtered_out: list[Finding] = []
     for f in findings:
         if f.type == "injection":
+            kept.append(f)
+            continue
+        # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
+        # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만
+        # 강한 문맥 근거로 보존한다.
+        if _has_explicit_positive_label(f, raw_text):
             kept.append(f)
             continue
         context, context_start = _sentence_around(raw_text, f.start, f.end)
@@ -449,7 +472,15 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     한다"와 "주민등록번호가 들어 있다"는 서로 다른 위험이고, 조치도 다르다(전자는
     문장 제거, 후자는 값 마스킹).
     """
-    by_weight = sorted(findings, key=lambda f: f.weight, reverse=True)
+    # 같은 가중치로 구간이 겹치면 XLSX의 명확한 열 제목에서 얻은 전체 셀 범위를
+    # 먼저 남긴다. 자유 문장 규칙·NER이 주소 앞부분만 잡아도 구조화된 주소 셀 전체가
+    # 밀리지 않아 건물명·동호수가 사본에 남지 않는다. 그 외에는 기존 입력 순서를
+    # 그대로 유지한다.
+    by_weight = sorted(
+        findings,
+        key=lambda f: (f.weight, bool(f.evidence.get("structured_header"))),
+        reverse=True,
+    )
     kept: list[Finding] = []
     for f in by_weight:
         overlapping = [
@@ -480,6 +511,77 @@ def _guess_file_type(path: str) -> str:
     return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "")
 
 
+_XLSX_CELL_ORIGIN = re.compile(
+    r"^(?P<sheet>.+)!(?P<column>[A-Z]+)(?P<row>\d+)(?:#(?P<kind>.+))?$"
+)
+_XLSX_SENSITIVE_HEADERS = {
+    "고객명": "person",
+    "이름": "person",
+    "성명": "person",
+    "담당자": "person",
+    "회사명": "org",
+    "업체명": "org",
+    "조직명": "org",
+    "주소": "address",
+    "사업장 주소": "address",
+    "반품 주소": "address",
+}
+
+
+def _find_structured_xlsx_values(spans) -> list[dict]:
+    """명확한 XLSX 열 제목 아래의 이름·회사·주소 셀 전체를 탐지한다.
+
+    자유 문장 NER은 드물게 고유 이름을 놓치거나 주소의 시·구 부분만 반환한다.
+    표에서는 열 제목 자체가 강한 문맥이므로, 같은 열 아래의 비어 있지 않은 셀을
+    해당 유형 전체 범위로 돌려준다. `검토 문장`처럼 민감정보 열이 아닌 곳에는
+    적용하지 않는다.
+    """
+    cells = []
+    for span in spans:
+        origin = getattr(span, "origin", "")
+        match = _XLSX_CELL_ORIGIN.match(origin)
+        if not match or (match.group("kind") not in (None, "", "cell")):
+            continue
+        cells.append(
+            (
+                match.group("sheet"),
+                match.group("column"),
+                int(match.group("row")),
+                span,
+            )
+        )
+
+    occupied = {(sheet, column, row) for sheet, column, row, _ in cells}
+    headers: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    for sheet, column, row, span in cells:
+        risk_type = _XLSX_SENSITIVE_HEADERS.get(span.text.strip())
+        if risk_type is None:
+            continue
+        headers.setdefault((sheet, column), []).append((row, risk_type))
+
+    findings = []
+    for sheet, column, row, span in cells:
+        candidates = [item for item in headers.get((sheet, column), []) if item[0] < row]
+        header = max(candidates, default=None, key=lambda item: item[0])
+        value = span.text.strip()
+        if header is None or not value:
+            continue
+        if not all((sheet, column, current) in occupied for current in range(header[0] + 1, row + 1)):
+            continue
+        start = span.start + span.text.index(value)
+        findings.append(
+            {
+                "field": header[1],
+                "value": value,
+                "start": start,
+                "end": start + len(value),
+                "confidence": 0.98,
+                "evidence": {"structured_header": True},
+            }
+        )
+    return findings
+
+
 def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     """텍스트 1건을 검사한다. 훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다."""
     meta = meta or {}
@@ -487,6 +589,10 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
 
     # 1. 정규식 + 체크섬
     findings += [_raw_to_finding(d, "rule") for d in rules.find_all(text)]
+    findings += [
+        _raw_to_finding(d, "rule")
+        for d in _find_structured_xlsx_values(meta.get("spans") or [])
+    ]
 
     # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다.
     if ner is not None and hasattr(ner, "detect"):
