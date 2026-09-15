@@ -127,7 +127,13 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
               <b>문서 미리보기</b>
               <small>{file.filename || '텍스트'}</small>
             </div>
-            <DocumentPreview title={file.filename} text={file.raw_text} findings={file.findings} selectedId={findingId} />
+            <DocumentPreview
+              title={file.filename}
+              text={file.raw_text}
+              findings={file.findings}
+              selectedId={findingId}
+              pages={file.pages}
+            />
           </div>
 
           <aside className="panel issues" aria-label="탐지된 항목">

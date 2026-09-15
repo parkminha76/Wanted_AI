@@ -96,6 +96,28 @@ export const api = {
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
   downloadAllUrl: (batchId) => `${BASE_URL}/download/all?batch_id=${encodeURIComponent(batchId)}`,
 
+  /** GET /masking/options — 마스킹 방식(full/standard)과 유형별 부분 마스킹 지원 여부·규칙 설명. */
+  maskingOptions: () => request('/masking/options'),
+
+  /**
+   * POST /mask — 고른 항목만 가린 사본을 만든다.
+   * 서버는 원본을 남기지 않으므로 브라우저가 들고 있는 File을 한 번 더 보내고, 서버가 다시 검사한 결과에
+   * 선택을 맞춰 적용한다. 파일이 바뀌었거나 다른 결과의 선택이면 409가 난다.
+   *   selections: [{ id, type, start, end, action: 'full' | 'standard' }] — 검사 결과의 finding 값을 그대로 쓴다.
+   *   응답: { file_id, filename, file_type, selected_findings, download_url, masked_text }
+   *   masked_text는 선택을 적용해 서버가 실제로 가린 텍스트(부분 마스킹 모양 포함)다.
+   */
+  maskSelected(file, selections) {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('masking_selection', JSON.stringify({ selections }))
+    return request('/mask', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scan })
+  },
+
+  /** POST /samples/mask — 샘플 문서는 브라우저에 원본 File이 없어서 서버에 있는 샘플을 파일 이름으로 지정한다. 응답은 maskSelected와 같다. */
+  maskSample: (filename, selections) =>
+    request('/samples/mask', { method: 'POST', json: { filename, selections }, timeoutMs: TIMEOUT_MS.scan }),
+
   /** POST /training/start — { training_progress_id, level, state, turn_no, attacker_message } */
   startTraining: ({ userId, level }) =>
     request('/training/start', { method: 'POST', json: { user_id: userId, level }, timeoutMs: TIMEOUT_MS.training }),
