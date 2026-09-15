@@ -1,0 +1,129 @@
+import { useState } from 'react'
+import { api } from './shared/api.js'
+import { AppHeader } from './shared/components/index.js'
+import { useHashRoute } from './shared/useHashRoute.js'
+import UploadPage from './scanner/UploadPage.jsx'
+import ScanningPage from './scanner/ScanningPage.jsx'
+import ResultsPage from './scanner/ResultsPage.jsx'
+import FindingDetailPage from './scanner/FindingDetailPage.jsx'
+import MaskPage from './scanner/MaskPage.jsx'
+import TrainingHomePage from './training/TrainingHomePage.jsx'
+import SimulationPage from './training/SimulationPage.jsx'
+import ReportPage from './training/ReportPage.jsx'
+import GuidePage from './guide/GuidePage.jsx'
+
+// 화면 주소(# 뒤)
+//   ''                 문서 업로드
+//   'scanning'         검사 중
+//   'results'          분석 결과 (문서 미리보기 + 탐지 항목, 숨은 명령 팝업)
+//   'results/detail'   탐지 항목 상세
+//   'results/mask'     마스킹 사본 미리보기·다운로드
+//   'training'         훈련 모드 소개 + 레벨 선택
+//   'training/play'    Attacker AI 대화
+//   'training/report'  훈련 결과 리포트
+//   'guide'            이용 가이드
+export default function App() {
+  const [route, navigate] = useHashRoute()
+
+  // 화면 사이에 넘기는 데이터는 메모리에만 둔다. 검사 결과에는 원문과 탐지 값이 들어 있어서
+  // localStorage 같은 브라우저 저장소에 남기지 않는다(privacy-first). 새로고침하면 사라진다.
+  const [batch, setBatch] = useState(null)
+  const [fileIndex, setFileIndex] = useState(0)
+  const [findingId, setFindingId] = useState(null)
+  const [scanJob, setScanJob] = useState(null) // { kind: 'files' | 'samples', fileCount, startedAt }
+  const [scanError, setScanError] = useState('')
+  const [training, setTraining] = useState(null) // { id, level, state, turnNo, firstMessage }
+
+  async function startScan(kind, files = []) {
+    setScanError('')
+    setScanJob({ kind, fileCount: files.length, startedAt: Date.now() })
+    navigate('scanning')
+    try {
+      const result = kind === 'samples' ? await api.samples() : await api.scanFiles(files)
+      setBatch(result)
+      setFileIndex(0)
+      setFindingId(null)
+      navigate('results')
+    } catch (err) {
+      setScanError(err.message)
+      navigate('')
+    } finally {
+      setScanJob(null)
+    }
+  }
+
+  // "이 파일 취소" — 화면 목록에서만 뺀다.
+  // TODO: 서버 배치에는 남아 있어서 "전체 사본 받기(.zip)"에는 아직 포함된다.
+  function cancelFile(target) {
+    setBatch((prev) => {
+      if (!prev) return prev
+      const results = prev.results.filter((result) => result !== target)
+      return {
+        ...prev,
+        results,
+        total_files: results.length,
+        total_findings: results.reduce((sum, result) => sum + result.findings.length, 0),
+      }
+    })
+    setFileIndex(0)
+    setFindingId(null)
+  }
+
+  const results = batch?.results ?? []
+  const scanProps = {
+    batch,
+    file: results[fileIndex] ?? results[0] ?? null,
+    fileIndex,
+    onSelectFile: (index) => {
+      setFileIndex(index)
+      setFindingId(null)
+    },
+    findingId,
+    onSelectFinding: setFindingId,
+    navigate,
+  }
+
+  let page
+  switch (route) {
+    case 'scanning':
+      page = <ScanningPage job={scanJob} navigate={navigate} />
+      break
+    case 'results':
+      page = <ResultsPage {...scanProps} onCancelFile={cancelFile} />
+      break
+    case 'results/detail':
+      page = <FindingDetailPage {...scanProps} />
+      break
+    case 'results/mask':
+      page = <MaskPage {...scanProps} />
+      break
+    case 'training':
+      page = (
+        <TrainingHomePage
+          onStarted={(started) => {
+            setTraining(started)
+            navigate('training/play')
+          }}
+        />
+      )
+      break
+    case 'training/play':
+      page = <SimulationPage training={training} navigate={navigate} />
+      break
+    case 'training/report':
+      page = <ReportPage training={training} navigate={navigate} />
+      break
+    case 'guide':
+      page = <GuidePage navigate={navigate} />
+      break
+    default:
+      page = <UploadPage onScan={startScan} error={scanError} busy={scanJob !== null} />
+  }
+
+  return (
+    <div className="app">
+      <AppHeader route={route} onNavigate={navigate} />
+      <main className="app-main">{page}</main>
+    </div>
+  )
+}
