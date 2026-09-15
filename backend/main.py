@@ -399,7 +399,7 @@ def masking_options() -> dict:
 @app.post("/scan")
 async def scan_upload(
     files: list[UploadFile],
-    masking_policy_json: str | None = Form(default=None, alias="masking_policy"),
+    masking_policy_json: str | None = Form('{"default":"full","rules":{}}', alias="masking_policy"),
     create_masked_copy: bool = Form(default=True),
 ) -> dict:
     """파일 여러 개를 검사해 위험도 순으로 돌려준다.
