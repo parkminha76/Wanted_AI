@@ -36,15 +36,19 @@ export default function App() {
   // 직접 올린 File 객체. 선택 마스킹(POST /mask)은 원본을 한 번 더 보내야 해서 메모리에만 들고 있는다.
   // 샘플 문서 검사에는 원본 File이 없으므로 빈 배열이다.
   const [uploads, setUploads] = useState([])
+  // 지금 결과가 직접 올린 파일인지 샘플 문서인지. 샘플은 선택 마스킹 때 POST /samples/mask를 쓴다.
+  const [batchSource, setBatchSource] = useState(null) // 'files' | 'samples'
 
   async function startScan(kind, files = []) {
     setScanError('')
     setScanJob({ kind, fileCount: files.length, startedAt: Date.now() })
-    setUploads(kind === 'files' ? files : [])
     navigate('scanning')
     try {
       const result = kind === 'samples' ? await api.samples() : await api.scanFiles(files)
       setBatch(result)
+      // 검사가 성공했을 때만 바꾼다 — 실패했는데 바꾸면 이전 결과의 원본 File이 사라진다.
+      setBatchSource(kind)
+      setUploads(kind === 'files' ? files : [])
       setFileIndex(0)
       setFindingId(null)
       navigate('results')
@@ -99,7 +103,7 @@ export default function App() {
       page = <FindingDetailPage {...scanProps} />
       break
     case 'results/mask':
-      page = <MaskPage {...scanProps} uploads={uploads} />
+      page = <MaskPage {...scanProps} uploads={uploads} batchSource={batchSource} />
       break
     case 'training':
       page = (

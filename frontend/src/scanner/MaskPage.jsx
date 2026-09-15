@@ -15,7 +15,7 @@ function defaultChoices(findings = []) {
 
 const IDLE = { loading: false, error: '', result: null }
 
-export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigate, uploads = [] }) {
+export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigate, uploads = [], batchSource = null }) {
   const [mode, setMode] = useState('full') // 'full' | 'select'
   const [showMasked, setShowMasked] = useState(true)
   const [options, setOptions] = useState(null)
@@ -54,6 +54,8 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
   const masking = maskState.key === fileKey ? maskState : IDLE
   // 서버가 돌려주는 filename은 올린 파일 이름(경로 성분 제거)이라 File.name과 같다.
   const sourceFile = uploads.find((upload) => upload.name === file.filename) ?? null
+  // 샘플 문서는 브라우저에 원본 File이 없어서 서버에 있는 샘플을 이름으로 지정한다(POST /samples/mask).
+  const canCreateCopy = Boolean(sourceFile) || batchSource === 'samples'
   const selectMode = mode === 'select'
 
   function actionOf(finding) {
@@ -99,7 +101,9 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
     }))
     setMaskState({ key: fileKey, loading: true, error: '', result: null })
     try {
-      const result = await api.maskSelected(sourceFile, selections)
+      const result = sourceFile
+        ? await api.maskSelected(sourceFile, selections)
+        : await api.maskSample(file.filename, selections)
       setMaskState({ key: fileKey, loading: false, error: '', result })
     } catch (err) {
       setMaskState({ key: fileKey, loading: false, error: err.message, result: null })
@@ -113,7 +117,12 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
   const downloadableCount = batch.results.filter((result) => result.file_id).length
 
   let previewTitle = '원문 (탐지 위치 표시)'
-  if (showMasked) previewTitle = selectMode ? '선택 마스킹 미리보기' : '마스킹 사본'
+  // 선택 마스킹 미리보기는 사본을 만든 뒤에도 화면에서 계산한 값을 그대로 쓴다. 서버 사본 텍스트(masked_text)와
+  // 글자 하나까지 같다는 것을 npm run check:masking으로 확인하고, 이렇게 해야 쪽 나누기가 유지된다.
+  if (showMasked) {
+    if (!selectMode) previewTitle = '마스킹 사본'
+    else previewTitle = masking.result ? '선택 마스킹 사본' : '선택 마스킹 미리보기'
+  }
 
   return (
     <div className="container mask-page">
@@ -187,7 +196,7 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
                 <span className="mask-token">[유형]</span> 전체 마스킹
               </li>
               <li>
-                <span className="hit hit--standard">값</span> 부분 마스킹 (모양은 사본에서 확인)
+                <span className="hit hit--standard">010-****</span> 부분 마스킹
               </li>
               <li>
                 <span className="hit-excluded">값</span> 가리지 않음
@@ -201,6 +210,7 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
             masked={showMasked}
             maskedText={file.masked_text}
             selection={selectMode && showMasked ? previewSelection : null}
+            pages={file.pages}
           />
         </div>
 
@@ -227,9 +237,9 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
               />
             )}
 
-            {!sourceFile && file.findings.length > 0 && (
+            {!canCreateCopy && file.findings.length > 0 && (
               <p className="alert alert--info">
-                선택 마스킹 사본은 직접 올린 파일로만 만들 수 있습니다. 샘플 문서이거나 새로고침한 뒤라면 파일을 다시 올려 주세요.
+                올린 원본 파일이 브라우저에 없어 사본을 만들 수 없습니다. 새로고침한 뒤라면 파일을 다시 올려 주세요.
               </p>
             )}
             {masking.error && (
@@ -241,7 +251,7 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
             {masking.result ? (
               <div className="stack stack--tight">
                 <p className="alert alert--info" role="status">
-                  선택한 항목 {masking.result.selected_findings}개를 가린 사본을 만들었습니다.
+                  선택한 항목 {masking.result.selected_findings}개를 가린 사본을 만들었습니다. 미리보기와 같은 내용입니다.
                 </p>
                 <Button size="lg" block href={api.downloadUrl(masking.result.file_id)}>
                   선택 마스킹 사본 다운로드
@@ -251,7 +261,7 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
               <Button
                 size="lg"
                 block
-                disabled={!sourceFile || selectedFindings.length === 0 || masking.loading}
+                disabled={!canCreateCopy || selectedFindings.length === 0 || masking.loading}
                 onClick={applySelection}
               >
                 {masking.loading ? (

@@ -88,20 +88,54 @@ export function lineNumberAt(text = '', offset = 0) {
   return line
 }
 
-// 원문을 [일반 글, 탐지 구간, 일반 글, ...] 조각으로 나눈다. 구간이 겹치면 먼저 시작한 쪽만 칠한다.
+// 원문을 [일반 글, 탐지 구간, 일반 글, ...] 조각으로 나눈다. 조각마다 start/end(원문 기준 위치)를 함께 준다.
+// 겹침 규칙은 서버 mask.py의 _ordered()와 같다 — 먼저 시작한 쪽, 같은 자리면 긴 쪽이 남고 겹친 뒤 구간은 버린다.
+//
+// 서버 오프셋은 파이썬 문자열 기준(코드포인트)이다. 이모지·유니코드 태그 문자처럼 JS가 두 칸(UTF-16)으로 세는
+// 글자가 있으면 JS 인덱스와 어긋나므로, 그런 글자가 있을 때만 코드포인트 배열로 자른다.
 export function buildSegments(text = '', findings = []) {
+  const units = /[\uD800-\uDFFF]/.test(text) ? Array.from(text) : null
+  const length = units ? units.length : text.length
+  const slice = (start, end) => (units ? units.slice(start, end).join('') : text.slice(start, end))
+
   const sorted = [...findings]
-    .filter((finding) => finding.start >= 0 && finding.end > finding.start && finding.end <= text.length)
+    .filter((finding) => finding.start >= 0 && finding.end > finding.start && finding.end <= length)
     .sort((a, b) => a.start - b.start || b.end - a.end)
 
   const segments = []
   let cursor = 0
   for (const finding of sorted) {
     if (finding.start < cursor) continue
-    if (finding.start > cursor) segments.push({ text: text.slice(cursor, finding.start) })
-    segments.push({ text: text.slice(finding.start, finding.end), finding })
+    if (finding.start > cursor) segments.push({ text: slice(cursor, finding.start), start: cursor, end: finding.start })
+    segments.push({ text: slice(finding.start, finding.end), start: finding.start, end: finding.end, finding })
     cursor = finding.end
   }
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) })
+  if (cursor < length) segments.push({ text: slice(cursor, length), start: cursor, end: length })
   return segments
+}
+
+// 조각 목록을 쪽별로 나눈다. pages는 서버 ScanResult.pages([{ page, start, end, label }]).
+//   - 일반 글 조각이 쪽 경계를 넘으면 경계에서 자른다.
+//   - 탐지·마스킹 조각은 자르지 않고 시작한 쪽에 넣는다(가린 값이 두 쪽으로 쪼개져 보이지 않게).
+// 반환: [{ ...page, segments }]
+export function splitByPages(segments, pages) {
+  const buckets = pages.map((page) => ({ ...page, segments: [] }))
+  const bucketAt = (offset) => buckets.find((bucket) => offset >= bucket.start && offset < bucket.end) ?? buckets[buckets.length - 1]
+
+  for (const segment of segments) {
+    if (segment.finding || segment.kind) {
+      bucketAt(segment.start).segments.push(segment)
+      continue
+    }
+    const units = /[\uD800-\uDFFF]/.test(segment.text) ? Array.from(segment.text) : null
+    for (const bucket of buckets) {
+      const from = Math.max(segment.start, bucket.start)
+      const to = Math.min(segment.end, bucket.end)
+      if (from >= to) continue
+      const a = from - segment.start
+      const b = to - segment.start
+      bucket.segments.push({ ...segment, start: from, end: to, text: units ? units.slice(a, b).join('') : segment.text.slice(a, b) })
+    }
+  }
+  return buckets
 }

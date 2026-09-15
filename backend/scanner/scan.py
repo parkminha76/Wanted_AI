@@ -709,6 +709,45 @@ def _scan_image(doc) -> ScanResult:
     return result.finalize()
 
 
+def _page_ranges(doc) -> list[dict]:
+    """파서의 page_map(글자마다 쪽 번호)을 [{"page", "start", "end", "label"}] 구간으로 묶는다.
+
+    schema.ScanResult.pages에 들어간다. 화면 미리보기가 쪽별로 나눠 그릴 때 쓰고,
+    오프셋은 findings와 같은 raw_text 기준이다.
+      - PDF: 쪽 번호 -> "3쪽"
+      - XLSX: 시트 번호 -> 시트 이름(span.origin "Sheet1!B3"의 앞부분). 못 찾으면 "시트 2"
+      - DOCX·텍스트: 파서가 전부 1로 둔다(렌더링 전에는 쪽을 알 수 없다) -> 구간 하나
+    이미지 파이프라인으로 간 파일은 글자가 없어 빈 목록이다. page_map과 원문 길이가
+    다르면(파서 계약이 깨진 경우) 엉뚱한 자리에서 자르지 않도록 빈 목록을 돌려준다.
+    """
+    page_map = getattr(doc, "page_map", None) or []
+    raw_text = getattr(doc, "raw_text", "") or ""
+    if not page_map or len(page_map) != len(raw_text):
+        return []
+
+    file_type = getattr(doc, "file_type", "")
+    sheet_names: dict[int, str] = {}
+    if file_type == "xlsx":
+        for span in getattr(doc, "spans", None) or []:
+            origin = getattr(span, "origin", "") or ""
+            if "!" in origin:
+                sheet_names.setdefault(span.page, origin.split("!", 1)[0])
+
+    ranges: list[dict] = []
+    for offset, page in enumerate(page_map):
+        if ranges and ranges[-1]["page"] == page:
+            ranges[-1]["end"] = offset + 1
+        else:
+            ranges.append({"page": page, "start": offset, "end": offset + 1})
+
+    for item in ranges:
+        if file_type == "xlsx":
+            item["label"] = sheet_names.get(item["page"]) or f"시트 {item['page']}"
+        else:
+            item["label"] = f"{item['page']}쪽"
+    return ranges
+
+
 def scan_file(
     path: str,
     masking_policy: dict | None = None,
@@ -763,6 +802,9 @@ def scan_file(
         result.filename = path
         # 파서가 판단한 형식이 우선이다(스캔본 PDF를 image로 넘기는 등의 판단이 들어있다).
         result.file_type = getattr(doc, "file_type", "") or _guess_file_type(path)
+        # 쪽·시트 경계. 화면 미리보기가 쪽별로 나눠 보여줄 때 쓴다(schema.ScanResult.pages).
+        if doc is not None:
+            result.pages = _page_ranges(doc)
 
         # 오프셋 -> 페이지 좌표. 이걸 빼먹으면 Finding.bbox가 영원히 null로 남아
         # PDF 마스킹 사본이 아예 만들어지지 않고, 화면도 미리보기에 하이라이트 박스를

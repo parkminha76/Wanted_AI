@@ -2,6 +2,7 @@
 
     POST /scan            파일 여러 개 업로드 -> ScanBatch JSON   (D가 호출)
     POST /mask            화면에서 고른 항목만 마스킹한 사본 생성
+    POST /samples/mask    샘플 문서에서 고른 항목만 마스킹한 사본 생성
     POST /scan/text       문장 하나 -> ScanResult JSON            (C의 실시간 답장 스캔)
     GET  /masking/options 화면용 마스킹 방식·유형 기준표
     GET  /download/{id}   마스킹 사본 파일 하나
@@ -484,12 +485,23 @@ async def mask_selected_findings(
         total_findings=len(selections),
         finding_counts=dict(sorted(Counter(row["type"] for row in selections).items())),
     )
+    return _selected_copy_response(result, _safe_basename(result.filename), selections)
+
+
+def _selected_copy_response(result: schema.ScanResult, filename: str, selections: list[dict]) -> dict:
+    """/mask와 /samples/mask가 같은 모양으로 돌려주는 응답.
+
+    masked_text는 선택을 적용해 다시 만든 텍스트 사본이다(scan.scan_file이 masking_selection으로
+    채운다). 부분 마스킹 모양("김**")은 서버 규칙(policy.py)이 정하므로, 화면은 규칙을 복사하지
+    않고 이 값으로 미리보기를 보여준다.
+    """
     return {
         "file_id": result.file_id,
-        "filename": _safe_basename(result.filename),
+        "filename": filename,
         "file_type": result.file_type,
         "selected_findings": len(selections),
         "download_url": f"/download/{result.file_id}",
+        "masked_text": result.masked_text,
     }
 
 
@@ -666,3 +678,55 @@ def samples() -> dict:
         total_findings=sum(len(result.findings) for result in batch.results),
     )
     return _sample_cache
+
+
+class SampleMaskRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    selections: list[dict] = Field(min_length=1)
+
+
+@app.post("/samples/mask")
+def mask_selected_sample(request: SampleMaskRequest) -> dict:
+    """샘플 문서에서 화면이 고른 항목만 가린 사본을 만든다.
+
+    /mask는 브라우저가 원본 File을 다시 보내는 방식인데, "샘플로 체험하기"는 브라우저에 원본이
+    없다. 샘플은 저장소(sample_data/demo)에 있는 가상 데이터라 서버에 있는 파일을 다시 검사한다.
+
+    경로를 사용자 입력으로 만들지 않는다 — filename은 _sample_paths() 목록의 파일 이름과
+    정확히 같을 때만 받는다. "../backend/main.py" 같은 값은 목록에 없으므로 404가 된다.
+    """
+    try:
+        selections = mask_policy.normalize_selection({"selections": request.selections})
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    path = {os.path.basename(p): p for p in _sample_paths()}.get(request.filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="샘플 문서를 찾을 수 없습니다")
+
+    started = time.perf_counter()
+    _sweep_expired()
+    try:
+        result = scan.scan_file(path, masking_selection=selections, create_masked_copy=True)
+    except ValueError as exc:
+        # 화면이 다른 결과의 선택을 보냈거나, 샘플 파일이 바뀌어 재검사 결과가 달라진 경우.
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    if result.error:
+        raise HTTPException(status_code=422, detail="샘플 문서를 다시 검사하지 못했습니다")
+    if not result.masked_path or not os.path.exists(result.masked_path):
+        raise HTTPException(status_code=500, detail="마스킹 사본을 만들지 못했습니다")
+
+    _register_masked(result)
+    log_event(
+        logger,
+        logging.INFO,
+        "samples.mask.completed",
+        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        file_count=1,
+        file_types=[result.file_type or "unknown"],
+        masked_file_count=1,
+        total_findings=len(selections),
+        finding_counts=dict(sorted(Counter(row["type"] for row in selections).items())),
+    )
+    return _selected_copy_response(result, request.filename, selections)
