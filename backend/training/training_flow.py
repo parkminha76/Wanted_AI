@@ -18,16 +18,9 @@ from backend.training.training_service import (
 # 1. Training 대화 세션 시작
 # =========================
 
-def create_training_session() -> dict:
-    """
-    Attacker AI 대화를 위한 임시 세션 상태를 만든다.
-
-    주의:
-    messages에는 실제 대화 원문이 들어가지만
-    DB에는 저장하지 않고 실행 중 메모리에서만 사용한다.
-    """
-
+def create_training_session(level: int) -> dict:
     return {
+        "level": level,
         "state": STATE_S1,
         "turn_no": 1,
         "messages": [],
@@ -64,6 +57,7 @@ def generate_attacker_message(
 
     attacker_message = attacker_service.generate_message(
         state=session["state"],
+        level=session["level"],
         messages=messages_for_llm,
     )
 

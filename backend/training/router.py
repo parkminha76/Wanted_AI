@@ -15,6 +15,7 @@ from backend.training.training_flow import (
     generate_attacker_message,
     process_user_reply,
 )
+from backend.training.training_service import finish_training
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ def start_training_api(
         # 아직 최종 저장(commit)하지 않고 ID만 생성
         db.flush()
 
-        session = create_training_session()
+        session = create_training_session(request.level)
 
         # Claude 호출
         attacker_message = generate_attacker_message(session)
@@ -124,14 +125,23 @@ def reply_training_api(
             user_reply=request.text,
         )
 
-        next_message = generate_attacker_message(session)
+        # 훈련이 종료되면 점수를 계산·저장하고
+        # Attacker AI는 더 이상 호출하지 않는다.
+        if session["state"] == "END":
+            finish_training(
+                db=db,
+                training_progress_id=training_progress_id,
+            )
+            next_message = None
+        else:
+            next_message = generate_attacker_message(session)
 
         return {
-                "training_progress_id": training_progress_id,
-                "state": session["state"],
-                "turn_no": session["turn_no"],
-                "scan_result": result,
-                "attacker_message": next_message,
+            "training_progress_id": training_progress_id,
+            "state": session["state"],
+            "turn_no": session["turn_no"],
+            "scan_result": result,
+            "attacker_message": next_message,
         }
 
     except Exception:
@@ -142,7 +152,6 @@ def reply_training_api(
             status_code=500,
             detail="답장 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         )
-
 # ---------------------------------------------------------
 # 훈련 결과 리포트 조회
 # ---------------------------------------------------------
