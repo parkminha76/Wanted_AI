@@ -1,0 +1,477 @@
+/* 공통 컴포넌트 스타일. 누를 수 있는 요소는 모두 --touch-target(44px) 이상. */
+
+/* ---------- Button ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn--primary {
+  background: var(--color-navy);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-button);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-navy-hover);
+}
+
+.btn--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-navy);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-strong);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+}
+
+.btn--danger {
+  background: var(--color-risk-high);
+  color: var(--color-on-primary);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--color-risk-high-hover);
+}
+
+/* sm도 높이는 44px을 지킨다. 글자와 좌우 여백만 줄인다. */
+.btn--sm {
+  padding: var(--space-1) var(--space-3);
+  font-weight: var(--font-weight-medium);
+}
+
+.btn--lg {
+  min-height: 52px;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-md);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+/* ---------- Card ---------- */
+.card {
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.card--danger {
+  border-color: var(--color-risk-high-border);
+}
+
+.card--muted {
+  background: var(--color-surface-muted);
+  box-shadow: none;
+}
+
+.card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.card__heading {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.card__title {
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-tight);
+  overflow-wrap: anywhere;
+}
+
+.card__description {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--space-6);
+  }
+}
+
+/* ---------- Modal ---------- */
+/* 모바일에서는 아래에서 올라오는 시트, 768px 이상에서는 가운데 창. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--color-overlay);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100dvh - 2 * var(--space-4));
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal__title {
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-tight);
+}
+
+.modal__close {
+  flex: none;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal__close:hover {
+  background: var(--color-surface-muted);
+}
+
+.modal__body {
+  min-height: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+.modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 600px) {
+  .modal__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (min-width: 768px) {
+  .modal-backdrop {
+    align-items: center;
+  }
+}
+
+/* ---------- RiskBadge / Chip ---------- */
+/* 색만으로 구분하지 않는다 — 항상 "높은 위험/주의/낮은 위험" 글자를 함께 쓴다. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.badge--high {
+  color: var(--color-risk-high);
+  background: var(--color-risk-high-soft);
+}
+
+.badge--medium {
+  color: var(--color-risk-medium);
+  background: var(--color-risk-medium-soft);
+}
+
+.badge--low {
+  color: var(--color-risk-low);
+  background: var(--color-risk-low-soft);
+}
+
+.badge__score {
+  font-weight: var(--font-weight-medium);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+/* ---------- Alert ---------- */
+.alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.alert--error {
+  color: var(--color-risk-high);
+  background: var(--color-risk-high-soft);
+}
+
+.alert--info {
+  color: var(--color-text);
+  background: var(--color-info-soft);
+}
+
+.alert__line {
+  display: block;
+}
+
+/* ---------- Spinner ---------- */
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- CTA ---------- */
+.cta-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-lg);
+  background: var(--gradient-cta);
+}
+
+.cta-card b {
+  font-size: var(--font-size-md);
+}
+
+.cta-card p {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 768px) {
+  .cta-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6) var(--space-7);
+  }
+}
+
+/* ---------- AppHeader ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(14px);
+}
+
+.app-header__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--header-height);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  color: var(--color-text);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--font-size-xs);
+  clip-path: polygon(50% 0, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+}
+
+.brand__accent {
+  color: var(--color-primary);
+}
+
+.app-header__menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-left: auto;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 1.375rem;
+}
+
+.app-header__menu:hover {
+  background: var(--color-surface-muted);
+}
+
+.app-header__nav {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: none;
+  flex-direction: column;
+  padding: var(--space-2) var(--container-padding) var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+.app-header__nav.is-open {
+  display: flex;
+}
+
+.app-header__link {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+}
+
+.app-header__link:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.app-header__link.is-active {
+  background: var(--color-primary-soft);
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+}
+
+@media (min-width: 768px) {
+  .app-header__menu {
+    display: none;
+  }
+
+  .app-header__nav {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    align-self: stretch;
+    gap: var(--space-5);
+    margin-left: var(--space-9);
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .app-header__link {
+    padding: 0 var(--space-2);
+    border-radius: 0;
+  }
+
+  .app-header__link:hover {
+    background: transparent;
+  }
+
+  .app-header__link.is-active {
+    background: transparent;
+    box-shadow: inset 0 -3px 0 var(--color-primary);
+  }
+}

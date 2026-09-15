@@ -1,0 +1,141 @@
+/*
+ * DocX-ray 디자인 토큰 — 색상·글꼴·간격의 기준값.
+ * 화면 CSS에서는 색상 코드나 px 값을 직접 쓰지 말고 여기 변수를 쓴다.
+ *
+ * 반응형 공통 기준
+ *   - 기준 폭 375px(모바일 우선). 넓어지는 구간은 600 / 768 / 960px. CSS 변수는 미디어 쿼리에 못 쓰므로 숫자로 적는다.
+ *   - 누를 수 있는 요소는 가로·세로 44px 이상(--touch-target).
+ *   - 가로 스크롤 금지. 긴 파일명·값은 줄바꿈하고(.break-anywhere), 코드처럼 줄바꿈하면 안 되는 것만 .scroll-x 안에서 넘친다.
+ *   - 글자는 12px(--font-size-xs) 미만으로 쓰지 않는다.
+ *
+ * 색 대비: 본문·보조 글자는 흰 바탕과 연한 배경 모두에서 4.5:1 이상이 되게 골랐다.
+ * 디자인 시안의 보조 글자색(#687a99)과 빨강(#f04453)은 작은 글자에서 대비가 모자라 한 단계 진하게 바꿨다.
+ */
+:root {
+  /* 브랜드 */
+  --color-navy: #10254a;
+  --color-navy-hover: #173a70;
+  --color-primary: #1769ed;
+  --color-primary-hover: #1257c7;
+  --color-primary-soft: #eaf3ff;
+  --color-on-primary: #ffffff;
+  --color-electric: #1788ff;
+
+  /* 바탕·면 */
+  --color-bg: #f5f8fd;
+  --gradient-page: linear-gradient(130deg, #f5f9ff 0%, #ffffff 46%, #f4f8ff 100%);
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f9fd;
+  --color-header-bg: rgba(255, 255, 255, 0.92);
+  --color-border: #dce6f4;
+  --color-border-strong: #c3d3ea;
+  --color-divider: #edf1f6;
+  --color-overlay: rgba(16, 37, 74, 0.5);
+
+  /* 글자 */
+  --color-text: #15284b;
+  --color-text-muted: #56688a;
+  --color-focus: #1769ed;
+
+  /* 위험도 — 서버의 level(high/medium/low)과 짝이다.
+     구간은 backend/shared/schema.py의 RISK_THRESHOLD_HIGH(60)·MEDIUM(25). 화면에서 점수로 다시 나누지 않는다. */
+  --color-risk-high: #d12c3c;
+  --color-risk-high-hover: #b32231;
+  --color-risk-high-soft: #fff1f2;
+  --color-risk-high-border: #f6d4d8;
+  --color-risk-medium: #9a4a00;
+  --color-risk-medium-soft: #fff5e6;
+  --color-risk-medium-border: #f5dfbf;
+  --color-risk-low: #0b7a4b;
+  --color-risk-low-soft: #e8f6ee;
+  --color-risk-low-border: #c9e8d6;
+
+  --color-success: #0f8a52;
+  --color-success-soft: #e3f5eb;
+  --color-info-soft: #eef5ff;
+  --color-info-border: #d9e8fc;
+
+  /* 부품별 색 */
+  --color-tab-bg: #eef4fc;
+  --color-ring-track: #e5edf8;
+  --color-switch-off: #c3d0e2;
+  --color-dropzone-border: #a9cdfc;
+  --color-paper-text: #334157;
+  --color-paper-rule: #6a7180;
+  --color-hit-bg: #ffd5d9;
+  --color-hit-text: #7b2533;
+  --color-hit-hidden-bg: #ffc2a8;
+  --color-hit-other-bg: #e3ebf7;
+  --color-art-border: #d4e8ff;
+  --color-art-chip: #c6ddf7;
+  --color-art-chip-text: #4f6f99;
+  --color-art-line: #d4e4f6;
+
+  --gradient-doc: linear-gradient(120deg, #e6f3ff, #fafdff);
+  --gradient-glow: radial-gradient(circle at 50% 60%, #dceeff 0%, transparent 60%);
+  --gradient-summary: linear-gradient(145deg, #f1f7ff, #ffffff);
+  --gradient-cta: linear-gradient(100deg, #eff6ff, #ffffff);
+
+  /* 글꼴 — 외부 폰트를 불러오지 않는다. 설치된 한글 글꼴 순서로 쓴다. */
+  --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  --font-size-xs: 0.75rem;   /* 12px — 최소 */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-md: 1rem;      /* 16px — 입력칸은 16px 미만이면 iOS가 확대한다 */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.375rem;  /* 22px */
+  --font-size-2xl: 1.75rem;  /* 28px */
+  --font-size-3xl: 2.25rem;  /* 36px */
+  --font-size-display: clamp(2rem, 1.4rem + 2.6vw, 3.25rem); /* 32~52px, 첫 화면 제목 */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+
+  --line-height-tight: 1.3;
+  --line-height-body: 1.6;
+  --line-height-relaxed: 1.8;
+
+  /* 간격 — 4px 단위 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* 모양 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 2px 10px rgba(154, 168, 184, 0.12);
+  --shadow-md: 0 9px 25px rgba(174, 196, 223, 0.22);
+  --shadow-lg: 0 16px 40px rgba(16, 37, 74, 0.18);
+  --shadow-button: 0 5px 10px rgba(15, 49, 84, 0.13);
+  --shadow-art: 0 20px 40px rgba(185, 215, 250, 0.5);
+  --shadow-glow: 0 0 12px 4px rgba(70, 177, 255, 0.6);
+
+  /* 반응형 공통 기준 */
+  --touch-target: 44px;
+  --header-height: 64px;
+  --container-max: 1200px;
+  --container-padding: 16px;
+
+  --z-header: 20;
+  --z-modal: 1000;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --header-height: 72px;
+    --container-padding: 24px;
+  }
+}

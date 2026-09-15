@@ -1,0 +1,83 @@
+/* 이용 가이드 화면 전용 스타일. 값은 tokens.css 변수만 쓴다. */
+
+.guide-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.guide-intro {
+  max-width: 600px;
+}
+
+.guide-steps {
+  display: grid;
+  gap: var(--space-4);
+  list-style: none;
+}
+
+.guide-step {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.guide-step__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guide-step__number {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-heavy);
+}
+
+.guide-step__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-heavy);
+}
+
+.guide-step__title {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--font-size-lg);
+  letter-spacing: -0.03em;
+}
+
+.guide-step__copy {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  word-break: keep-all;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .guide-step:hover {
+    transform: translateY(-3px);
+  }
+}
+
+@media (min-width: 600px) {
+  .guide-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .guide-steps {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .guide-step {
+    min-height: 220px;
+  }
+}

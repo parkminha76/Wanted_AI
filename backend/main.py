@@ -504,12 +504,30 @@ def _sample_paths() -> list[str]:
     )
 
 
+def _sample_copies_alive(cached: dict) -> bool:
+    """캐시된 샘플 결과의 마스킹 사본이 아직 내려받을 수 있는 상태인지.
+
+    결과(JSON)는 캐시에 계속 남지만 사본 파일은 MASKED_FILE_TTL_SECONDS가 지나면
+    _sweep_expired가 지운다. 확인 없이 캐시를 돌려주면 화면의 다운로드 버튼이 전부
+    404가 된다(실측 2026-09-14: 서버를 띄우고 30분이 지난 뒤 /download/{file_id}와
+    /download/all 모두 "보관 기간이 지났습니다").
+    """
+    file_ids = _batches.get(cached.get("batch_id", ""))
+    return bool(file_ids) and all(fid in _masked_files for fid in file_ids)
+
+
 @app.get("/samples")
 def samples() -> dict:
-    """샘플을 미리 검사한 결과. 두 번째 호출부터는 캐시에서 즉시 나간다."""
+    """샘플을 미리 검사한 결과. 두 번째 호출부터는 캐시에서 즉시 나간다.
+
+    캐시한 결과의 사본이 보관 기간을 넘겨 지워졌으면 다시 검사해서 새 사본을 만든다.
+    그때는 모델이 이미 올라와 있어서 첫 호출만큼 오래 걸리지 않는다.
+    """
     global _sample_cache
     if _sample_cache is not None:
         log_event(logger, logging.INFO, "samples.returned", cache_hit=True)
+    _sweep_expired()
+    if _sample_cache is not None and _sample_copies_alive(_sample_cache):
         return _sample_cache
 
     paths = _sample_paths()

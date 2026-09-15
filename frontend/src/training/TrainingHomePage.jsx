@@ -1,0 +1,143 @@
+import { useEffect, useState } from 'react'
+import { api } from '../shared/api.js'
+import { Button } from '../shared/components/index.js'
+import './training.css'
+
+// TODO: 로그인 기능이 없어 임시 사용자 id를 쓴다. /training/start는 이 id로 DB에 훈련 기록을 만들므로
+// backend/db의 사용자 테이블에 이 id가 있어야 한다 — C와 확인 필요.
+const DEMO_USER_ID = 1
+
+// TODO: 레벨 설명은 C의 인젝션 학습 데이터 레벨 주제를 옮긴 임시 문구다. 훈련 기획이 확정되면 바꾼다.
+const LEVELS = [
+  { level: 1, title: '일상형 사기', description: '공공기관·택배·지인을 사칭한 메시지' },
+  { level: 2, title: '직장 내부 사칭', description: 'IT팀·인사팀·동료를 사칭한 업무 요청' },
+  { level: 3, title: '거래·금전 요구', description: '계좌 변경·긴급 송금을 요구하는 거래처' },
+  { level: 4, title: '임원 사칭', description: '대표·임원 이름으로 오는 긴급 지시' },
+  { level: 5, title: 'AI 도구·문서 공격', description: '문서와 AI 도구를 이용한 정교한 공격' },
+]
+
+const FEATURES = [
+  { icon: '▣', title: '실전 대화 시뮬레이션', copy: 'AI가 연기하는 사기범의 메시지에 직접 답장하며 대응해 봅니다.' },
+  { icon: '◈', title: '보내기 전 답장 검사', copy: '답장에 개인정보가 들어 있으면 보내기 전에 알려 드립니다.' },
+  { icon: '▤', title: 'AI 대응 리포트', copy: '대화가 끝나면 잘한 점과 위험했던 순간을 정리해 드립니다.' },
+]
+
+export default function TrainingHomePage({ onStarted }) {
+  const [trainingMode, setTrainingMode] = useState(null) // 'on' | 'off' | null(확인 전·확인 실패)
+  const [startingLevel, setStartingLevel] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .health()
+      .then((health) => {
+        if (!cancelled) setTrainingMode(health.training_mode ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function start(level) {
+    setStartingLevel(level)
+    setError('')
+    try {
+      const started = await api.startTraining({ userId: DEMO_USER_ID, level })
+      onStarted({
+        id: started.training_progress_id,
+        level: started.level,
+        state: started.state,
+        turnNo: started.turn_no,
+        firstMessage: started.attacker_message,
+      })
+    } catch (err) {
+      setError(err.message)
+      setStartingLevel(null)
+    }
+  }
+
+  const unavailable = trainingMode === 'off'
+
+  return (
+    <div className="container training-page">
+      <section className="training-hero">
+        <div>
+          <p className="eyebrow">SECURITY READINESS</p>
+          <h1 className="training-hero__title">
+            <em>AI</em> 보안 대응 훈련
+          </h1>
+          <p className="training-hero__desc">
+            실제 업무에서 일어날 수 있는 피싱·정보유출 상황을 AI 사기범과의 대화로 직접 겪어 보며 대응 감각을 길러 보세요.
+          </p>
+          <Button
+            size="lg"
+            onClick={() => document.getElementById('training-levels')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            훈련 시작하기 →
+          </Button>
+        </div>
+        <div className="training-art" aria-hidden="true">
+          <div className="training-art__person">👨🏻‍💼</div>
+          <div className="training-art__bubble">
+            이 요청,
+            <br />
+            믿어도 될까요?
+          </div>
+        </div>
+      </section>
+
+      <ul className="feature-cards">
+        {FEATURES.map((feature) => (
+          <li key={feature.title} className="feature-card">
+            <span className="feature-card__icon" aria-hidden="true">
+              {feature.icon}
+            </span>
+            <h2 className="feature-card__title">{feature.title}</h2>
+            <p className="feature-card__copy">{feature.copy}</p>
+          </li>
+        ))}
+      </ul>
+
+      <section id="training-levels" className="stack" aria-labelledby="levels-title">
+        <h2 id="levels-title" className="section-title">
+          레벨을 골라 시작하세요
+        </h2>
+        {unavailable && (
+          <p className="alert alert--info">지금은 훈련 서버가 연결되지 않아 훈련을 시작할 수 없습니다. 문서 검사는 그대로 쓸 수 있어요.</p>
+        )}
+        {error && (
+          <p className="alert alert--error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="level-grid">
+          {LEVELS.map((item) => (
+            <button
+              key={item.level}
+              type="button"
+              className="level-card"
+              onClick={() => start(item.level)}
+              disabled={startingLevel !== null || unavailable}
+            >
+              <span className="level-card__level">Level {item.level}</span>
+              <span className="level-card__title">{item.title}</span>
+              <span className="level-card__desc">{item.description}</span>
+              {startingLevel === item.level && (
+                <span className="level-card__status">
+                  <span className="spinner" aria-hidden="true" /> 시작하는 중…
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <blockquote className="quote">
+        “작은 경각심이
+        <br />더 안전한 일상을 만듭니다.”
+      </blockquote>
+    </div>
+  )
+}
