@@ -115,16 +115,22 @@ async def lifespan(app: FastAPI):
     log_event(logger, logging.INFO, "service.stopped")
 
 
-app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
+app = FastAPI(title="docXray API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
 
 # Training Mode API 연결. 못 붙였으면 스캐너만 띄운다(위 import 주석 참고).
 if training_router is not None:
     app.include_router(training_router)
 
-# 프론트(D)가 다른 포트에서 부른다. 배포 도메인이 정해지면 그 도메인만 남긴다.
+# 쉼표로 구분한 프론트 주소만 허용한다. 로컬 기본값은 Vite 개발 서버이고,
+# Railway에서는 ALLOWED_ORIGINS=https://<vercel-domain> 형태로 넣는다.
+_allowed_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
