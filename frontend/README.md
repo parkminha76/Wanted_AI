@@ -28,6 +28,7 @@ TypeScript·CSS 프레임워크(Tailwind 등)·UI 라이브러리·라우터 라
 frontend/
 ├── index.html
 ├── vite.config.js
+├── scripts/check-masking-rules.mjs   부분 마스킹 미리보기 ↔ 서버 사본 대조 (npm run check:masking)
 ├── .env.example                 VITE_API_BASE_URL 키 이름만
 └── src/
     ├── main.jsx                 CSS 불러오는 순서: tokens -> base -> components
@@ -35,6 +36,7 @@ frontend/
     ├── shared/
     │   ├── api.js               FastAPI 호출은 전부 여기로
     │   ├── findings.js          탐지 유형 묶음(개인정보·민감정보·숨겨진 명령어·기타), 위험 설명
+    │   ├── maskingRules.js      표준 부분 마스킹 규칙 (policy.py 이식, npm run check:masking으로 서버와 대조)
     │   ├── useHashRoute.js
     │   ├── styles/tokens.css    색상·글꼴·간격 기준값 (DocX-ray 디자인)
     │   ├── styles/base.css      기본 스타일·레이아웃 유틸리티
@@ -49,9 +51,9 @@ frontend/
 |---|---|---|
 | `#/` | 문서 업로드, 샘플 문서로 체험하기 | — |
 | `#/scanning` | 검사 중 (지난 시간 표시) | `POST /scan`, `GET /samples` |
-| `#/results` | 위험도 요약, 문서 미리보기 + 탐지 항목, 오탐으로 제외한 항목, 숨은 명령 팝업 | (검사 결과 사용) |
+| `#/results` | 위험도 요약, 쪽·시트별 문서 미리보기(서버 `pages`) + 탐지 항목, 오탐으로 제외한 항목, 숨은 명령 팝업 | (검사 결과 사용) |
 | `#/results/detail` | 탐지 항목 상세 (왜 위험한가 · 판단 근거) | (검사 결과 사용) |
-| `#/results/mask` | 마스킹 사본 미리보기, 다운로드 | `GET /download/{file_id}`, `GET /download/all` |
+| `#/results/mask` | 마스킹 사본 미리보기·다운로드. 전체 마스킹 / 선택 마스킹(항목별 선택, 유형별 전체·부분) | `GET /download/*`, `GET /masking/options`, `POST /mask`, `POST /samples/mask` |
 | `#/training` | 훈련 소개, 레벨 선택 | `GET /health`, `POST /training/start` |
 | `#/training/play` | AI 사기범과 대화 (보내기 전 답장 검사) | `POST /scan/text`, `POST /training/{id}/reply` |
 | `#/training/report` | 결과 리포트 (하단에 스캐너 전환) | `GET /training/{id}/report` |
@@ -93,6 +95,13 @@ try {
 - **숨은 명령 "이 문장을 제거하고 사본 만들기"** — 문장 하나만 지우는 API가 없다. 마스킹 사본이 숨은 명령을 이미
   `[숨은 명령]`으로 바꿔 두므로 사본 화면으로 보낸다.
 - **"이 파일 취소"** — 화면 목록에서만 뺀다. 서버 배치에는 남아 있어 전체 사본 zip에는 포함된다.
+- **선택 마스킹 사본** — 직접 올린 파일은 `POST /mask`로 원본 File을 한 번 더 보내고(서버는 원본을 남기지 않는다),
+  샘플 문서는 `POST /samples/mask`로 서버에 있는 샘플을 이름으로 지정한다. 업로드한 File은 이 용도로 메모리에만
+  들고 있어서, 새로고침한 뒤에는 파일을 다시 올려야 사본을 만들 수 있다.
+- **부분 마스킹 미리보기** — 체크하는 즉시 `010-2310-****` 모양을 보여주려고 서버 규칙
+  (`backend/scanner/masking/policy.py`의 `standard_mask`)을 `src/shared/maskingRules.js`로 옮겼다.
+  **policy.py를 고치면 이 파일도 같이 고치고**, 백엔드를 켠 상태에서 `npm run check:masking`으로 샘플 문서의
+  서버 사본과 미리보기가 글자 하나까지 같은지 확인한다. 사본을 만든 뒤에는 서버가 돌려준 `masked_text`로 미리보기를 바꾼다.
 - **검사 진행률** — 서버가 알려주지 않아 가짜 퍼센트 대신 지난 시간과 검사 순서만 보여준다.
 - **훈련 사용자** — 로그인이 없어 `DEMO_USER_ID = 1`로 시작한다(`training/TrainingHomePage.jsx`). DB에 이 사용자가 있어야 한다.
 

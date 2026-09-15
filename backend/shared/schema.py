@@ -24,7 +24,8 @@ from typing import Literal, Optional
 # 응답 JSON에 실려 나가므로, 화면이 이상하게 나올 때 "누가 옛날 규격을 쓰고 있나"를
 # 바로 확인할 수 있다.
 # 1.1 -> 1.2: RiskType에 "emp_no"(사번) 추가, LABEL_TO_TYPE 역매핑 추가 (A, 09-09)
-SCHEMA_VERSION = "1.2"
+# 1.2 -> 1.3: ScanResult.pages(쪽·시트 경계) 추가 — 화면 미리보기 쪽 나누기용 (B, 09-15)
+SCHEMA_VERSION = "1.3"
 
 
 # ---------------------------------------------------------------------------
@@ -330,6 +331,12 @@ class ScanResult:
     file_id: str = ""
     file_type: str = ""              # "pdf" | "docx" | "xlsx" | "txt" | "md" | "image"
     masked_path: Optional[str] = None  # 서버 임시 경로. 응답 후 삭제된다. 화면에 노출 금지.
+
+    # 쪽·시트 경계. 화면 미리보기를 쪽별로 나눌 때 쓴다(PDF는 쪽, XLSX는 시트, 그 외는 1쪽 하나).
+    #   [{"page": 1, "start": 0, "end": 551, "label": "1쪽"}, ...]
+    # start/end는 findings와 같은 raw_text 기준 오프셋이다. 파서의 page_map(글자마다 쪽 번호)을
+    # scan.scan_file이 구간으로 묶어 채운다. 파일이 아닌 텍스트 검사(scan_text)는 빈 목록이다.
+    pages: list[dict] = field(default_factory=list)
 
     def finalize(self) -> "ScanResult":
         """findings를 다 채운 뒤 마지막에 한 번 호출한다. 점수를 계산해 넣는다."""
