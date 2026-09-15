@@ -22,6 +22,16 @@ MODEL_PATH = os.path.join("ml", "models", "infoguard_cnn_v1.pt")
 # 잡혀 오탐이 되고, 높게 두면 기울어진 사진에서 주민번호를 놓친다.
 CONFIDENCE_THRESHOLD = 0.25
 
+# 주소는 글자가 여러 줄이고 바탕 무늬와 겹쳐 다른 필드보다 신뢰도가 낮게 나온다.
+# 실제 주민등록증 샘플에서 주소 첫 줄은 0.208, 이어지는 두 줄은 0.062로 나뉘어
+# 검출됐다. 첫 줄만 가리면 상세 주소가 그대로 남으므로 주소 클래스만 낮은 후보까지
+# 받는다. 전체 기준을 낮추면 다른 클래스 오탐도 함께 늘어나므로 나머지는 0.25다.
+# MRZ가 있는 여권에서는 아래 문서 규칙으로 address 후보를 전부 제거한다.
+_CLASS_CONFIDENCE_THRESHOLDS: dict[str, float] = {"address": 0.05}
+_INFERENCE_CONFIDENCE_FLOOR = min(
+    [CONFIDENCE_THRESHOLD, *_CLASS_CONFIDENCE_THRESHOLDS.values()]
+)
+
 # 같은 영역을 겹쳐 잡은 박스를 합치는 기준(NMS). ultralytics 기본값 0.7로 두면
 # 같은 주민등록번호 자리가 두 건으로 잡혀서, 화면에 같은 항목이 두 번 뜨고
 # type_counts가 "주민등록번호 2건"으로 틀어진다(발표 자료에 그대로 실린다).
@@ -79,6 +89,85 @@ _CLASS_LABELS: dict[str, str] = {
 _model = None
 
 
+def _class_threshold(class_name: str) -> float:
+    return _CLASS_CONFIDENCE_THRESHOLDS.get(class_name, CONFIDENCE_THRESHOLD)
+
+
+def _filter_passport_incompatible(findings: list[dict]) -> list[dict]:
+    """MRZ가 있는 여권에서 문서 구조상 불가능한 필드 오탐을 제거한다.
+
+    여권에는 주소·주민등록번호·운전면허번호가 인쇄되지 않는다. 또한 펼친 여권에서
+    얼굴이 위아래 두 개 잡힌 경우, 실제 성명은 MRZ와 같은 아래쪽 인적사항 면에
+    있고 위쪽 안내문·천공번호에서 나온 name 후보는 오탐이다.
+    """
+    classes = [item.get("evidence", {}).get("cnn_class") for item in findings]
+    if "mrz" not in classes:
+        return findings
+
+    incompatible = {"address", "resident_number", "license_number"}
+    filtered = [
+        item
+        for item in findings
+        if item.get("evidence", {}).get("cnn_class") not in incompatible
+    ]
+
+    faces = sorted(
+        (item for item in filtered if item.get("evidence", {}).get("cnn_class") == "face"),
+        key=lambda item: item["bbox"][1],
+    )
+    if len(faces) >= 2:
+        data_page_top = faces[-1]["bbox"][1]
+        filtered = [
+            item
+            for item in filtered
+            if not (
+                item.get("evidence", {}).get("cnn_class") == "name"
+                and ((item["bbox"][1] + item["bbox"][3]) / 2) < data_page_top
+            )
+        ]
+    return filtered
+
+
+def _add_license_secondary_face(
+    findings: list[dict], width: int, height: int
+) -> list[dict]:
+    """국내 운전면허증 우측의 작은 보조 얼굴 사진을 추가로 가린다.
+
+    작은 홀로그램 얼굴은 현재 YOLO가 후보로 내지 않는 경우가 있다. 면허번호와
+    주민번호·주소가 함께 검출되고 큰 얼굴이 하나뿐일 때만 국내 면허증 레이아웃으로
+    판단해 우측 보조 사진 영역을 추가한다. 이미 두 얼굴이 잡혔거나 문서 유형이
+    불확실하면 고정 좌표를 적용하지 않는다.
+    """
+    classes = [item.get("evidence", {}).get("cnn_class") for item in findings]
+    required = {"license_number", "resident_number", "address"}
+    if not required.issubset(classes) or classes.count("face") != 1:
+        return findings
+
+    confidence = min(
+        item["confidence"]
+        for item in findings
+        if item.get("evidence", {}).get("cnn_class") in required
+    )
+    return [
+        *findings,
+        {
+            "field": "id_photo",
+            "value": "얼굴 사진",
+            "start": 0,
+            "end": 0,
+            "confidence": round(confidence, 3),
+            "bbox": (width * 0.81, height * 0.43, width * 0.98, height * 0.79),
+            "page": 1,
+            "reason": "운전면허증 우측 보조 얼굴 영역을 찾았다",
+            "evidence": {
+                "cnn_class": "face",
+                "model": "infoguard_cnn_v1",
+                "layout_rule": "kr_driver_license_secondary_face",
+            },
+        },
+    ]
+
+
 def _get_model():
     """첫 호출 때 한 번만 로드하고 캐싱한다. import 시점에 불러오면 모델 파일이
     없는 환경에서 `import id_detector` 자체가 실패해 scan.py 전체가 멎는다."""
@@ -103,12 +192,17 @@ def detect(path: str) -> list[dict]:
     """
     model = _get_model()
     findings: list[dict] = []
+    image_width = image_height = 0
     for result in model.predict(
-        path, conf=CONFIDENCE_THRESHOLD, iou=_NMS_IOU_THRESHOLD, verbose=False
+        path, conf=_INFERENCE_CONFIDENCE_FLOOR, iou=_NMS_IOU_THRESHOLD, verbose=False
     ):
+        image_height, image_width = result.orig_shape
         names = result.names
         for box in result.boxes:
             class_name = names[int(box.cls)]
+            confidence = float(box.conf)
+            if confidence < _class_threshold(class_name):
+                continue
             risk_type = _CLASS_TO_RISK_TYPE.get(class_name)
             if risk_type is None:
                 continue
@@ -120,11 +214,12 @@ def detect(path: str) -> list[dict]:
                     "value": label,
                     "start": 0,
                     "end": 0,
-                    "confidence": round(float(box.conf), 3),
+                    "confidence": round(confidence, 3),
                     "bbox": (x0, y0, x1, y1),
                     "page": 1,
                     "reason": f"신분증 이미지에서 {label}을 찾았다",
                     "evidence": {"cnn_class": class_name, "model": "infoguard_cnn_v1"},
                 }
             )
-    return findings
+    findings = _filter_passport_incompatible(findings)
+    return _add_license_secondary_face(findings, image_width, image_height)

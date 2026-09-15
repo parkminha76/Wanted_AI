@@ -676,10 +676,24 @@ def _scan_image(doc) -> ScanResult:
         # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
         # 비어 있으므로 doc.path로 떨어진다.
         findings = []
+        quality_errors = []
         for page_number, image_path in enumerate(
             getattr(doc, "image_paths", None) or [doc.path], start=1
         ):
-            for raw in id_detector.detect(image_path):
+            page_findings = id_detector.detect(image_path)
+
+            # 이 모델은 신분증 한 장 또는 여권 한 면을 기준으로 학습했다. 얼굴이
+            # 세 곳 이상 잡힌 콜라주에서는 작은 주민번호를 놓치면서 여권 표지 무늬를
+            # 주소로 잡는 실패를 실제로 확인했다. 그런 결과로 사본을 만들면 '마스킹됨'
+            # 이라는 표시가 오히려 위험하므로, 문서별 재업로드를 요구한다.
+            face_count = sum(1 for raw in page_findings if raw.get("field") == "id_photo")
+            if face_count >= 3:
+                quality_errors.append(
+                    f"{page_number}쪽에 여러 신분증 또는 얼굴 사진이 함께 있습니다. "
+                    "문서 한 장씩 나누어 업로드해 주세요."
+                )
+
+            for raw in page_findings:
                 # id_detector는 그림 한 장만 받아서 자기가 몇 쪽인지 모른다.
                 # page를 1로 고정해 돌려주므로 여기서 실제 쪽 번호로 덮어쓴다 —
                 # 안 그러면 3쪽의 주민번호가 화면에서 1쪽으로 표시되고, 마스킹도
@@ -688,6 +702,8 @@ def _scan_image(doc) -> ScanResult:
                 findings.append(_raw_to_finding(raw, "cnn"))
         result.findings = findings
         _reassign_ids(result.findings)
+        if quality_errors:
+            result.error = " ".join(quality_errors)
     else:
         result.error = "이미지 파일은 아직 검사할 수 없습니다 (신분증 검사기 연결 전)"
     return result.finalize()
@@ -774,6 +790,7 @@ def scan_file(
         if (
             create_masked_copy
             and doc is not None
+            and result.error is None
             and mask is not None
             and hasattr(mask, "build_file")
         ):
