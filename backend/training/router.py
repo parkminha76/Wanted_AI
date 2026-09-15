@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.db.session import get_session
 from backend.db.tables import TrainingProgress
 from backend.db.converters import build_defender_payload
+from backend.shared.logging_config import get_logger, log_event
 from backend.training.defender import generate_defender_report
 from backend.training.training_flow import (
     create_training_session,
@@ -17,7 +19,7 @@ from backend.training.training_flow import (
 )
 from backend.training.training_service import finish_training
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/training",
@@ -81,6 +83,15 @@ def start_training_api(
 
         _training_sessions[progress.id] = session
 
+        log_event(
+            logger,
+            logging.INFO,
+            "training.started",
+            training_level=request.level,
+            turn_no=session["turn_no"],
+            training_status="in_progress",
+        )
+
         return {
             "training_progress_id": progress.id,
             "level": request.level,
@@ -89,9 +100,15 @@ def start_training_api(
             "attacker_message": attacker_message,
         }
 
-    except Exception:
+    except Exception as exc:
         db.rollback()
-        logger.exception("훈련 시작 중 오류 발생")
+        log_event(
+            logger,
+            logging.ERROR,
+            "training.start.failed",
+            training_level=request.level,
+            error_code=type(exc).__name__,
+        )
 
         raise HTTPException(
             status_code=500,
@@ -136,6 +153,21 @@ def reply_training_api(
         else:
             next_message = generate_attacker_message(session)
 
+        scan_result = result["scan_result"]
+        log_event(
+            logger,
+            logging.INFO,
+            "training.reply.processed",
+            turn_no=result["turn_no"],
+            training_status="finished" if result["is_finished"] else "in_progress",
+            total_findings=len(scan_result.findings),
+            filtered_out=len(scan_result.filtered_out),
+            finding_counts=dict(
+                sorted(Counter(f.type for f in scan_result.findings).items())
+            ),
+            risk_levels={scan_result.level: 1},
+        )
+
         return {
             "training_progress_id": training_progress_id,
             "state": session["state"],
@@ -144,9 +176,14 @@ def reply_training_api(
             "attacker_message": next_message,
         }
 
-    except Exception:
+    except Exception as exc:
         db.rollback()
-        logger.exception("훈련 답장 처리 중 오류 발생")
+        log_event(
+            logger,
+            logging.ERROR,
+            "training.reply.failed",
+            error_code=type(exc).__name__,
+        )
 
         raise HTTPException(
             status_code=500,
@@ -183,6 +220,14 @@ def get_training_report_api(
             training_progress_id=training_progress_id,
         )
 
+        log_event(
+            logger,
+            logging.INFO,
+            "training.report.generated",
+            training_level=payload["level"],
+            training_status="completed",
+        )
+
         # 4. 프론트엔드용 응답
         return {
             "training_progress_id": training_progress_id,
@@ -192,8 +237,13 @@ def get_training_report_api(
             "report": report,
         }
 
-    except Exception:
-        logger.exception("훈련 리포트 생성 중 오류 발생")
+    except Exception as exc:
+        log_event(
+            logger,
+            logging.ERROR,
+            "training.report.failed",
+            error_code=type(exc).__name__,
+        )
 
         raise HTTPException(
             status_code=500,

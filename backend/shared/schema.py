@@ -413,7 +413,11 @@ def make_finding_id(index: int) -> str:
     return f"f_{index:03d}"
 
 
-def scan_text(text: str, meta: dict | None = None) -> ScanResult:
+def scan_text(
+    text: str,
+    meta: dict | None = None,
+    masking_policy: dict | None = None,
+) -> ScanResult:
     """텍스트 1건을 검사한다.
 
     훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다.
@@ -422,11 +426,20 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
     raise NotImplementedError
 
 
-def scan_file(path: str) -> ScanResult:
+def scan_file(
+    path: str,
+    masking_policy: dict | None = None,
+    masking_selection: list[dict] | None = None,
+    create_masked_copy: bool = True,
+) -> ScanResult:
     """파일 1개를 파싱해서 검사한다."""
     raise NotImplementedError
 
 
-def scan_files(paths: list[str]) -> ScanBatch:
+def scan_files(
+    paths: list[str],
+    masking_policy: dict | None = None,
+    create_masked_copy: bool = True,
+) -> ScanBatch:
     """파일 여러 개를 검사하고 위험도 순으로 정렬해 돌려준다."""
     raise NotImplementedError

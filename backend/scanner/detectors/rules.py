@@ -141,6 +141,13 @@ BANK_ACCOUNT_NUMBER_PATTERN = re.compile(
     r"(?:\d{2,7}(?:[-\s]\d{2,7}){1,3}(?:[-\s]\d{1,7})?|\d{10,16})(?!\d)"
 )
 
+# 스프레드시트 날짜는 파서에서 "2026-03-15 00:00:00" 같은 문자열이 된다.
+# 계좌 형식 정규식은 그 앞의 "2026-03-15 00"도 후보로 잡으므로, 완전한 날짜와
+# 시각의 앞부분인 경우 계좌 후보에서 제외한다.
+_DATE_TIME_ACCOUNT_FALSE_POSITIVE = re.compile(
+    r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:[ T]\d{1,2})?"
+)
+
 # ---------- 사번 ----------
 # 사번은 회사마다 형식이 완전히 달라서(2024-0317 / A0317 / EMP-00317 / 24-04821)
 # 표준 형식이 없다. 이걸 다 잡는 값 정규식을 쓰면 문서번호·버전·좌석번호까지 전부
@@ -603,6 +610,8 @@ def find_bank_account_numbers(text: str) -> list[dict]:
     """
     matches = []
     for m in BANK_ACCOUNT_NUMBER_PATTERN.finditer(text):
+        if _DATE_TIME_ACCOUNT_FALSE_POSITIVE.fullmatch(m.group()):
+            continue
         digits = re.sub(r"\D", "", m.group())
         if not (10 <= len(digits) <= 16):
             continue

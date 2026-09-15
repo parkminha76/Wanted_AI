@@ -26,10 +26,11 @@
 PDF만 문자열 치환이 불가능하다. PDF 안의 글자는 "몇 번째 문자"로 들어있는 게 아니라
 페이지 위 좌표에 하나씩 박혀 있어서, 바꿔치기가 아니라 좌표로 지우는 수밖에 없다.
 
-치환 문자열은 손으로 쓰지 않는다
---------------------------------
+텍스트 치환 문자열은 손으로 쓰지 않는다
+--------------------------------------
 `Finding.placeholder`(= `schema.mask_placeholder()`)만 쓴다. **유형을 남긴다**:
 `홍길동` -> `[이름]`. `****`로 뭉개면 사본을 AI에 넣었을 때 문맥이 무너진다.
+이미지와 스캔본은 겹친 탐지 라벨이 사본을 훼손하지 않도록 검은 리댁션만 남긴다.
 
 PDF 리댁션의 한글 폰트 (해결됨 — `_PDF_FONT`)
 ---------------------------------------------
@@ -53,6 +54,8 @@ import os
 import shutil
 import tempfile
 
+from backend.scanner.masking import policy as masking_policy
+
 # 지금 문자열 치환으로 처리할 수 있는 형식. 나머지는 아직 사본을 만들지 않는다.
 _TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log"}
 
@@ -65,10 +68,6 @@ _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", "
 # 칠하는 색. 검정으로 덮는 이유는 PDF 리댁션과 같다 — 흐리게(blur) 처리하면
 # 원본을 되살리는 복원 공격이 알려져 있다. 불투명하게 덮어야 실제로 사라진다.
 _IMAGE_FILL = (0, 0, 0)
-_IMAGE_LABEL_COLOR = (255, 255, 255)
-
-# 상자 안에 유형 이름을 적을 때 쓰는 한글 폰트. 없으면 상자만 칠한다.
-_IMAGE_FONT_PATH = os.path.join("ml", "data_generation", "assets", "fonts", "NanumGothic.otf")
 
 # xml:space="preserve". 이게 없으면 워드가 run의 앞뒤 공백을 버린다.
 _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -117,7 +116,7 @@ def _plan(findings, text_len: int) -> list[tuple[int, int, str]]:
     return [(f.start, f.end, f.placeholder) for f in _ordered(findings, text_len)]
 
 
-def build(raw_text: str, findings) -> str:
+def build(raw_text: str, findings, policy: dict | None = None) -> str:
     """`ScanResult.masked_text` 용. 텍스트에서 탐지 구간을 placeholder로 바꾼다.
 
     하이라이트에는 쓸 수 없다 — 치환으로 길이가 달라져서 findings의 offset이
@@ -125,7 +124,8 @@ def build(raw_text: str, findings) -> str:
     """
     if not raw_text or not findings:
         return raw_text or ""
-    return _apply(raw_text, _plan(findings, len(raw_text)))
+    targets = masking_policy.apply_policy(findings, policy)
+    return _apply(raw_text, _plan(targets, len(raw_text)))
 
 
 def _apply(raw_text: str, plan) -> str:
@@ -588,7 +588,22 @@ def _mask_xlsx(path: str, doc, findings, out_dir):
 #     기본/helv -> [????]      korea -> [전화번호]
 _PDF_FONT = "korea"
 _PDF_FONT_SIZE = 11.0
-_PDF_MIN_FONT_SIZE = 4.0
+_PDF_MIN_FONT_SIZE = 6.5
+
+# PDF는 원래 값의 좁은 사각형 안에 라벨을 넣어야 한다. 스키마의 긴 placeholder를
+# 그대로 쓰면 4pt까지 작아져 읽을 수 없으므로 PDF 화면에만 짧은 유형명을 쓴다.
+_PDF_PLACEHOLDERS = {
+    "person": "[이름]",
+    "org": "[회사]",
+    "address": "[주소]",
+    "phone": "[전화]",
+    "email": "[이메일]",
+    "account": "[계좌]",
+    "biz_reg": "[사업자]",
+    "card": "[카드]",
+    "emp_no": "[사번]",
+    "injection": "[숨은명령]",
+}
 
 
 def _pdf_rects(finding) -> list:
@@ -664,14 +679,21 @@ def _mask_pdf(path: str, doc, findings, out_dir: str | None) -> str | None:
 
             for order, rect in enumerate(rects):
                 box = pymupdf.Rect(*rect)
+                # 표준 부분 마스킹 대상은 실제 부분 마스킹 문자열을 넣고, 기존 전체
+                # 마스킹은 좁은 PDF 칸에 맞춘 짧은 유형 라벨을 그대로 쓴다.
+                placeholder = getattr(finding, "replacement", None) or _PDF_PLACEHOLDERS.get(
+                    finding.type, "[마스킹]"
+                )
                 if order == 0:
                     # 대체 문자열은 첫 사각형에만 넣는다. 두 줄에 걸친 값에 줄마다
                     # 넣으면 사본에 "[전화번호][전화번호]"가 찍힌다.
                     page.add_redact_annot(
                         box,
-                        text=finding.placeholder,
+                        text=placeholder,
                         fontname=_PDF_FONT,
-                        fontsize=_pdf_font_size(finding.placeholder, box.width),
+                        fontsize=_pdf_font_size(placeholder, box.width),
+                        fill=(0.09, 0.20, 0.32),
+                        text_color=(1.0, 1.0, 1.0),
                         cross_out=False,      # 기본값은 사각형에 X를 그린다
                     )
                 else:
@@ -767,42 +789,29 @@ def _image_box(finding, width: int, height: int):
     return (left, top, right, bottom)
 
 
-def _image_label_font(box_height: int):
-    """상자 높이에 맞는 한글 폰트. 못 불러오면 None (상자만 칠한다)."""
-    from PIL import ImageFont
+def _padded_image_box(finding, box, width: int, height: int):
+    """CNN 박스 경계 밖으로 삐져나온 글자 획까지 포함한다.
 
-    size = int(box_height * 0.5)
-    if size < 9:
-        return None                       # 이 크기 아래로는 읽을 수 없다
-    try:
-        return ImageFont.truetype(_IMAGE_FONT_PATH, min(size, 28))
-    except OSError:
-        return None
-
-
-def _draw_image_label(draw, box, text: str) -> None:
-    """칠한 상자 안에 유형 이름을 적는다. 안 들어가면 적지 않는다.
-
-    `****`로 뭉개지 않고 유형을 남기는 원칙은 이미지에서도 같다. 검은 사각형만
-    있으면 사본을 받은 사람이 무엇이 가려졌는지 알 수 없다.
+    YOLO 라벨은 글자의 중심 영역에 맞춰져 있어 받침·밑줄이나 여러 줄 주소의 마지막
+    줄이 몇 픽셀 남을 수 있다. 텍스트 필드는 높이에 비례해 넓히고, 얼굴은 주변 문서
+    내용을 과도하게 덮지 않도록 최소 여백만 준다.
     """
     left, top, right, bottom = box
-    font = _image_label_font(bottom - top)
-    if font is None:
-        return
-    try:
-        x0, y0, x1, y1 = draw.textbbox((0, 0), text, font=font)
-    except Exception:      # noqa: BLE001
-        return
-    text_width, text_height = x1 - x0, y1 - y0
-    if text_width > (right - left) - 4 or text_height > (bottom - top) - 2:
-        return                            # 상자가 좁다. 글자 대신 검정만 남긴다.
-    draw.text(
-        (left + ((right - left) - text_width) / 2 - x0,
-         top + ((bottom - top) - text_height) / 2 - y0),
-        text,
-        fill=_IMAGE_LABEL_COLOR,
-        font=font,
+    if finding.type == "id_photo":
+        x_pad = y_pad = 2
+    elif finding.type == "address":
+        # 여러 줄 주소는 YOLO 박스가 마지막 줄의 중심까지만 잡아 받침이 아래로
+        # 남는 사례가 있다. 주소는 다른 짧은 필드보다 세로 여백을 넉넉히 둔다.
+        x_pad = max(4, round((right - left) * 0.03))
+        y_pad = max(8, round((bottom - top) * 0.55))
+    else:
+        x_pad = max(3, round((right - left) * 0.02))
+        y_pad = max(5, round((bottom - top) * 0.30))
+    return (
+        max(0, left - x_pad),
+        max(0, top - y_pad),
+        min(width, right + x_pad),
+        min(height, bottom + y_pad),
     )
 
 
@@ -854,9 +863,11 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
             box = _image_box(finding, width, height)
             if box is None:
                 return None               # 좌표가 이미지 밖이다. 가릴 수 없다.
+            box = _padded_image_box(finding, box, width, height)
             draw.rectangle(box, fill=fill)
-            if image.mode != "L":
-                _draw_image_label(draw, box, finding.placeholder)
+            # 이미지 사본에는 유형 문구를 새기지 않는다. 같은 영역을 겹쳐 탐지하면
+            # 문구도 겹치고, 얼굴처럼 큰 영역에서는 라벨이 원본보다 더 눈에 띈다.
+            # 유형과 근거는 API findings에서 확인할 수 있다.
             painted.append(box)
 
         out_path = _out_path(path, out_dir)
@@ -891,9 +902,8 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
 def _leaks_image(out_path: str, painted_image, boxes) -> bool:
     """저장된 사본의 칠한 자리가 **칠한 그대로**인가.
 
-    "상자 안이 몇 퍼센트나 어두운가"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로
-    적기 때문에 작은 상자는 절반 넘게 밝을 수 있고, 그걸 "덜 지웠다"와 구분할 방법이
-    없다. 대신 메모리에서 칠한 그림과 파일에 쓰인 그림을 그 자리끼리 비교한다.
+    "상자 안이 몇 퍼센트나 어두운가"로 보지 않고, 메모리에서 칠한 그림과 파일에
+    쓰인 그림을 그 자리끼리 비교한다.
 
     평균 차이로 보는 이유: PNG는 그대로 저장되지만 JPEG은 다시 인코딩하면서 값이
     조금 흔들린다. 칠하기가 어긋났다면 차이가 그 정도로 작을 수 없다.
@@ -1015,7 +1025,6 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
                        min(image.width, box[2] + _SCANNED_PAD_PX),
                        min(image.height, box[3] + _SCANNED_PAD_PX))
                 draw.rectangle(box, fill=_IMAGE_FILL)
-                _draw_image_label(draw, box, finding.placeholder)
 
             target = os.path.join(work_dir, f"page{index:03d}.png")
             image.save(target, format=_SCANNED_PAGE_FORMAT)
@@ -1046,11 +1055,8 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
 def _leaks_scanned_pdf(out_path: str, painted: list) -> bool:
     """사본의 페이지 그림이 **우리가 칠한 그림 그대로**인가.
 
-    "검은 픽셀이 몇 퍼센트냐"로 보지 않는다. 상자 안에 유형 이름을 흰 글자로 적기
-    때문에 작은 상자는 밝은 픽셀이 15%까지 나오고(실측), 그걸 "덜 지웠다"와 구분할
-    방법이 없다.
-
-    대신 더 정확한 것을 본다: 칠하기는 PDF에 넣기 **전에** 끝났으므로, 사본에 박힌
+    "검은 픽셀이 몇 퍼센트냐"로 보지 않는다. 더 정확한 것을 본다: 칠하기는 PDF에
+    넣기 **전에** 끝났으므로, 사본에 박힌
     그림이 칠한 그림과 픽셀까지 같으면 지운 것이 그대로 들어간 것이 확실하다.
     PyMuPDF는 PNG를 무손실로 다시 담으므로 같아야 정상이다(실측 확인).
     """
@@ -1082,7 +1088,13 @@ def _leaks_scanned_pdf(out_path: str, painted: list) -> bool:
     return False
 
 
-def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | None:
+def build_file(
+    path: str,
+    doc,
+    findings,
+    out_dir: str | None = None,
+    policy: dict | None = None,
+) -> str | None:
     """마스킹 사본 파일을 만들고 그 경로를 돌려준다. `ScanResult.masked_path`에 들어간다.
 
     `doc`은 `parse.load()`가 준 ParsedDoc이다. findings의 offset이 `doc.raw_text`
@@ -1093,6 +1105,8 @@ def build_file(path: str, doc, findings, out_dir: str | None = None) -> str | No
     """
     if doc is None:
         return None
+
+    findings = masking_policy.apply_policy(findings, policy)
 
     ext = os.path.splitext(path)[1].lower()
 

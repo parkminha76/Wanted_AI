@@ -38,6 +38,8 @@
 
 from __future__ import annotations
 
+import re
+
 MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
 
 # 한 번에 모델에 넣을 최대 글자 수. 한국어는 대략 2글자당 1토큰이라 400자면
@@ -68,15 +70,13 @@ def _get_pipeline():
     return _pipeline
 
 
-def _iter_chunks(text: str):
-    """모델 입력 한도를 넘지 않게 자르고, 각 조각의 원문 시작 위치도 같이 돌려준다.
-    문장 경계(.!?/줄바꿈)에서 끊고, 그런 경계가 없으면 공백에서 끊는다 —
-    단어 중간에서 자르면 그 자리의 개체명을 놓친다."""
-    start, length = 0, len(text)
-    while start < length:
-        end = min(start + _MAX_CHARS_PER_CHUNK, length)
-        if end < length:
-            boundary = max(text.rfind(c, start, end) for c in ".!?\n")
+def _iter_segment_chunks(text: str, segment_start: int, segment_end: int):
+    """탭·줄바꿈으로 분리된 한 구간을 모델 입력 크기에 맞춰 나눈다."""
+    start = segment_start
+    while start < segment_end:
+        end = min(start + _MAX_CHARS_PER_CHUNK, segment_end)
+        if end < segment_end:
+            boundary = max(text.rfind(c, start, end) for c in ".!?")
             if boundary <= start:
                 boundary = text.rfind(" ", start, end)
             if boundary > start:
@@ -85,6 +85,65 @@ def _iter_chunks(text: str):
         if chunk.strip():
             yield chunk, start
         start = end
+
+
+def _iter_chunks(text: str):
+    """모델 입력 한도를 넘지 않게 자르고, 각 조각의 원문 시작 위치도 같이 돌려준다.
+
+    탭과 줄바꿈은 먼저 강제 경계로 취급한다. XLSX의 서로 다른 셀은 파서에서 탭으로
+    이어지므로 한 번에 모델에 넣으면 이름과 다음 셀을 하나의 인물명으로 합칠 수 있다.
+    셀·문단을 넘는 NER 결과는 마스킹 범위까지 넓혀 실제 내용을 지우므로 입력 단계에서
+    차단한다.
+    """
+    for segment in re.finditer(r"[^\t\r\n]+", text):
+        yield from _iter_segment_chunks(text, segment.start(), segment.end())
+
+
+_REPEAT_MIN_LENGTH = {"person": 3, "org": 4}
+
+_ORG_SUFFIX_PATTERN = re.compile(
+    r"(?<![가-힣A-Za-z0-9])"
+    r"(?:주식회사\s+)?[가-힣A-Za-z0-9·]{2,}"
+    r"\s+(?:솔루션|테크놀로지|테크|글로벌|그룹)"
+    r"(?:\s+주식회사)?(?![가-힣A-Za-z0-9])"
+)
+
+
+def _expand_repeated_entities(text: str, findings: list[dict]) -> list[dict]:
+    """확실히 잡힌 이름·회사명의 동일 문서 내 반복 표기를 함께 반환한다."""
+    expanded = list(findings)
+    seeds: dict[tuple[str, str], float] = {}
+    for item in findings:
+        risk_type = item["field"]
+        value = item["value"].strip()
+        if len(value) < _REPEAT_MIN_LENGTH.get(risk_type, 10**9):
+            continue
+        key = (risk_type, value)
+        seeds[key] = max(seeds.get(key, 0.0), float(item["confidence"]))
+
+    for (risk_type, value), confidence in seeds.items():
+        for match in re.finditer(re.escape(value), text):
+            expanded.append(
+                {
+                    "field": risk_type,
+                    "value": text[match.start() : match.end()],
+                    "start": match.start(),
+                    "end": match.end(),
+                    "confidence": round(confidence, 3),
+                }
+            )
+
+    for match in _ORG_SUFFIX_PATTERN.finditer(text):
+        expanded.append(
+            {
+                "field": "org",
+                "value": match.group(),
+                "start": match.start(),
+                "end": match.end(),
+                "confidence": 0.85,
+            }
+        )
+    return expanded
 
 
 def detect(text: str) -> list[dict]:
@@ -98,6 +157,35 @@ def detect(text: str) -> list[dict]:
                 continue
             start = offset + entity["start"]
             end = offset + entity["end"]
+
+            # 모델이 표의 "서명" 열 제목까지 인물명으로 합치는 경우가 있다.
+            # 실제 이름 뒤의 UI/문서 라벨은 마스킹하지 않도록 경계를 되돌린다.
+            if risk_type == "person":
+                for suffix in (" 서명", " 날인"):
+                    if text[start:end].endswith(suffix):
+                        end -= len(suffix)
+                        break
+
+            # 영문 토큰 중간에서 시작·끝난 조직명(InfoGuard -> foGuard)은 모델의
+            # 토큰 경계 오류다. 한 글자 조직명 "주"도 회사명으로 쓰지 않는다.
+            if risk_type == "org":
+                # 표의 필드명까지 조직명으로 합치는 결과("수행사 주식회사")에서는
+                # 발주사·수행사 같은 라벨을 남기고 실제 조직 부분만 사용한다.
+                leading_label = re.match(
+                    r"(?:발주사|수행사|공급사|협력사|회사명|업체명|조직명)\s+",
+                    text[start:end],
+                )
+                if leading_label:
+                    start += leading_label.end()
+                if end - start < 2:
+                    continue
+                if start > 0 and text[start - 1].isalnum() and text[start].isalnum():
+                    continue
+                if end < len(text) and text[end - 1].isalnum() and text[end].isalnum():
+                    continue
+
+            if end <= start:
+                continue
             findings.append(
                 {
                     "field": risk_type,
@@ -110,4 +198,20 @@ def detect(text: str) -> list[dict]:
                     "confidence": round(float(entity["score"]), 3),
                 }
             )
-    return findings
+    # "주식회사"와 바로 뒤 회사명이 별도 개체로 나온 경우 한 범위로 합친다.
+    # 공백 외 문자가 사이에 있으면 서로 다른 조직일 수 있으므로 합치지 않는다.
+    merged = []
+    for item in sorted(findings, key=lambda finding: finding["start"]):
+        if (
+            merged
+            and item["field"] == "org"
+            and merged[-1]["field"] == "org"
+            and not text[merged[-1]["end"] : item["start"]].strip()
+            and "\n" not in text[merged[-1]["end"] : item["start"]]
+        ):
+            merged[-1]["end"] = item["end"]
+            merged[-1]["value"] = text[merged[-1]["start"] : item["end"]]
+            merged[-1]["confidence"] = max(merged[-1]["confidence"], item["confidence"])
+        else:
+            merged.append(dict(item))
+    return _expand_repeated_entities(text, merged)

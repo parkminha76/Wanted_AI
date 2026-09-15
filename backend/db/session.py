@@ -19,6 +19,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
 
 from backend.db.tables import Base
@@ -31,10 +32,14 @@ DB_USERNAME = os.environ.get("DB_USERNAME", "")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 DB_DATABASE = os.environ.get("DB_DATABASE", "infoguard")
 
-DATABASE_URL = (
-    f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}"
-    f"@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"
-    f"?ssl_verify_cert=true&ssl_verify_identity=true"
+DATABASE_URL = URL.create(
+    "mysql+pymysql",
+    username=DB_USERNAME,
+    password=DB_PASSWORD,
+    host=DB_HOST,
+    port=int(DB_PORT),
+    database=DB_DATABASE,
+    query={"ssl_verify_cert": "true", "ssl_verify_identity": "true"},
 )
 
 # 로컬 도커 MySQL로 개발할 땐 이걸로 덮어써서 쓴다 (SSL 옵션 없이).

@@ -70,9 +70,10 @@ except ImportError:
     locate = None
 
 try:
-    from backend.scanner.masking import mask
+    from backend.scanner.masking import mask, policy as mask_policy
 except ImportError:
     mask = None
+    mask_policy = None
 
 # 신분증 이미지 CNN 호출부. models.py와 같은 패턴이다 — B가 부르는 자리를 만들고
 # A가 알맹이를 채운다(backend/scanner/README.md: "ml/에서 학습된 모델을 갖다 쓰는 자리").
@@ -318,6 +319,23 @@ def _split_place_mentions(
     return kept, excluded
 
 
+_EXPLICIT_POSITIVE_LABELS = {
+    "biz_reg": re.compile(r"(?:사업자등록번호|사업자번호)\s*[:：]?\s*$"),
+    "card": re.compile(r"(?:법인카드|카드번호)\s*[:：]?\s*$"),
+}
+
+
+def _has_explicit_positive_label(finding: Finding, raw_text: str) -> bool:
+    """체크섬 통과 값 바로 앞에 명시된 유형 라벨이 있는지 확인한다."""
+    if finding.evidence.get("checksum") != rules.CHECKSUM_PASS:
+        return False
+    pattern = _EXPLICIT_POSITIVE_LABELS.get(finding.type)
+    if pattern is None:
+        return False
+    prefix = raw_text[max(0, finding.start - 40) : finding.start]
+    return bool(pattern.search(prefix))
+
+
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
@@ -326,6 +344,12 @@ def _apply_classifier_filters(
     filtered_out: list[Finding] = []
     for f in findings:
         if f.type == "injection":
+            kept.append(f)
+            continue
+        # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
+        # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만
+        # 강한 문맥 근거로 보존한다.
+        if _has_explicit_positive_label(f, raw_text):
             kept.append(f)
             continue
         context, context_start = _sentence_around(raw_text, f.start, f.end)
@@ -449,7 +473,15 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     한다"와 "주민등록번호가 들어 있다"는 서로 다른 위험이고, 조치도 다르다(전자는
     문장 제거, 후자는 값 마스킹).
     """
-    by_weight = sorted(findings, key=lambda f: f.weight, reverse=True)
+    # 같은 가중치로 구간이 겹치면 XLSX의 명확한 열 제목에서 얻은 전체 셀 범위를
+    # 먼저 남긴다. 자유 문장 규칙·NER이 주소 앞부분만 잡아도 구조화된 주소 셀 전체가
+    # 밀리지 않아 건물명·동호수가 사본에 남지 않는다. 그 외에는 기존 입력 순서를
+    # 그대로 유지한다.
+    by_weight = sorted(
+        findings,
+        key=lambda f: (f.weight, bool(f.evidence.get("structured_header"))),
+        reverse=True,
+    )
     kept: list[Finding] = []
     for f in by_weight:
         overlapping = [
@@ -480,13 +512,92 @@ def _guess_file_type(path: str) -> str:
     return _FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), "")
 
 
-def scan_text(text: str, meta: dict | None = None) -> ScanResult:
+_XLSX_CELL_ORIGIN = re.compile(
+    r"^(?P<sheet>.+)!(?P<column>[A-Z]+)(?P<row>\d+)(?:#(?P<kind>.+))?$"
+)
+_XLSX_SENSITIVE_HEADERS = {
+    "고객명": "person",
+    "이름": "person",
+    "성명": "person",
+    "담당자": "person",
+    "회사명": "org",
+    "업체명": "org",
+    "조직명": "org",
+    "주소": "address",
+    "사업장 주소": "address",
+    "반품 주소": "address",
+}
+
+
+def _find_structured_xlsx_values(spans) -> list[dict]:
+    """명확한 XLSX 열 제목 아래의 이름·회사·주소 셀 전체를 탐지한다.
+
+    자유 문장 NER은 드물게 고유 이름을 놓치거나 주소의 시·구 부분만 반환한다.
+    표에서는 열 제목 자체가 강한 문맥이므로, 같은 열 아래의 비어 있지 않은 셀을
+    해당 유형 전체 범위로 돌려준다. `검토 문장`처럼 민감정보 열이 아닌 곳에는
+    적용하지 않는다.
+    """
+    cells = []
+    for span in spans:
+        origin = getattr(span, "origin", "")
+        match = _XLSX_CELL_ORIGIN.match(origin)
+        if not match or (match.group("kind") not in (None, "", "cell")):
+            continue
+        cells.append(
+            (
+                match.group("sheet"),
+                match.group("column"),
+                int(match.group("row")),
+                span,
+            )
+        )
+
+    occupied = {(sheet, column, row) for sheet, column, row, _ in cells}
+    headers: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    for sheet, column, row, span in cells:
+        risk_type = _XLSX_SENSITIVE_HEADERS.get(span.text.strip())
+        if risk_type is None:
+            continue
+        headers.setdefault((sheet, column), []).append((row, risk_type))
+
+    findings = []
+    for sheet, column, row, span in cells:
+        candidates = [item for item in headers.get((sheet, column), []) if item[0] < row]
+        header = max(candidates, default=None, key=lambda item: item[0])
+        value = span.text.strip()
+        if header is None or not value:
+            continue
+        if not all((sheet, column, current) in occupied for current in range(header[0] + 1, row + 1)):
+            continue
+        start = span.start + span.text.index(value)
+        findings.append(
+            {
+                "field": header[1],
+                "value": value,
+                "start": start,
+                "end": start + len(value),
+                "confidence": 0.98,
+                "evidence": {"structured_header": True},
+            }
+        )
+    return findings
+
+
+def scan_text(
+    text: str,
+    meta: dict | None = None,
+    masking_policy: dict | None = None,
+) -> ScanResult:
     """텍스트 1건을 검사한다. 훈련 모드(C)의 실시간 답장 스캔이 이 함수를 직접 호출한다."""
     meta = meta or {}
     findings: list[Finding] = []
 
     # 1. 정규식 + 체크섬
     findings += [_raw_to_finding(d, "rule") for d in rules.find_all(text)]
+    findings += [
+        _raw_to_finding(d, "rule")
+        for d in _find_structured_xlsx_values(meta.get("spans") or [])
+    ]
 
     # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다.
     if ner is not None and hasattr(ner, "detect"):
@@ -539,7 +650,9 @@ def scan_text(text: str, meta: dict | None = None) -> ScanResult:
 
     # 마스킹 사본 — masking 모듈이 아직 없으면 원문 그대로 둔다.
     if mask is not None and hasattr(mask, "build"):
-        result.masked_text = mask.build(result.raw_text, result.findings)
+        result.masked_text = mask.build(
+            result.raw_text, result.findings, policy=masking_policy
+        )
 
     return result.finalize()  # 8. 위험 점수 계산
 
@@ -563,10 +676,24 @@ def _scan_image(doc) -> ScanResult:
         # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
         # 비어 있으므로 doc.path로 떨어진다.
         findings = []
+        quality_errors = []
         for page_number, image_path in enumerate(
             getattr(doc, "image_paths", None) or [doc.path], start=1
         ):
-            for raw in id_detector.detect(image_path):
+            page_findings = id_detector.detect(image_path)
+
+            # 이 모델은 신분증 한 장 또는 여권 한 면을 기준으로 학습했다. 얼굴이
+            # 세 곳 이상 잡힌 콜라주에서는 작은 주민번호를 놓치면서 여권 표지 무늬를
+            # 주소로 잡는 실패를 실제로 확인했다. 그런 결과로 사본을 만들면 '마스킹됨'
+            # 이라는 표시가 오히려 위험하므로, 문서별 재업로드를 요구한다.
+            face_count = sum(1 for raw in page_findings if raw.get("field") == "id_photo")
+            if face_count >= 3:
+                quality_errors.append(
+                    f"{page_number}쪽에 여러 신분증 또는 얼굴 사진이 함께 있습니다. "
+                    "문서 한 장씩 나누어 업로드해 주세요."
+                )
+
+            for raw in page_findings:
                 # id_detector는 그림 한 장만 받아서 자기가 몇 쪽인지 모른다.
                 # page를 1로 고정해 돌려주므로 여기서 실제 쪽 번호로 덮어쓴다 —
                 # 안 그러면 3쪽의 주민번호가 화면에서 1쪽으로 표시되고, 마스킹도
@@ -575,12 +702,19 @@ def _scan_image(doc) -> ScanResult:
                 findings.append(_raw_to_finding(raw, "cnn"))
         result.findings = findings
         _reassign_ids(result.findings)
+        if quality_errors:
+            result.error = " ".join(quality_errors)
     else:
         result.error = "이미지 파일은 아직 검사할 수 없습니다 (신분증 검사기 연결 전)"
     return result.finalize()
 
 
-def scan_file(path: str) -> ScanResult:
+def scan_file(
+    path: str,
+    masking_policy: dict | None = None,
+    masking_selection: list[dict] | None = None,
+    create_masked_copy: bool = True,
+) -> ScanResult:
     """파일 1개를 파싱해서 검사하고, 마스킹된 파일 사본까지 만든다.
 
     parse.load()가 형식을 판단해서 텍스트(pdf/docx/xlsx/txt)와 이미지(사진, 텍스트
@@ -588,6 +722,8 @@ def scan_file(path: str) -> ScanResult:
     파이프라인과 이미지 파이프라인으로 분기한다. parse가 없는 환경에서는 UTF-8
     텍스트로 직접 읽는 경로로 떨어진다.
     """
+    if masking_policy is not None and masking_selection is not None:
+        raise ValueError("유형별 정책과 항목별 선택을 동시에 적용할 수 없습니다")
     doc = None
     try:
         try:
@@ -599,12 +735,18 @@ def scan_file(path: str) -> ScanResult:
                     result = _scan_image(doc)
                 else:
                     result = scan_text(
-                        doc.raw_text, meta={"filename": path, "spans": doc.spans}
+                        doc.raw_text,
+                        meta={"filename": path, "spans": doc.spans},
+                        masking_policy=masking_policy,
                     )
             else:
                 with open(path, encoding="utf-8") as fh:
                     raw_text = fh.read()
-                result = scan_text(raw_text, meta={"filename": path})
+                result = scan_text(
+                    raw_text,
+                    meta={"filename": path},
+                    masking_policy=masking_policy,
+                )
         except _FILE_ERRORS as exc:
             # 업로드된 파일은 무엇이든 들어올 수 있는 시스템 경계라, 못 읽는 파일은
             # 예외가 아니라 결과로 돌려준다(schema.ScanResult.error가 그 자리다).
@@ -632,10 +774,29 @@ def scan_file(path: str) -> ScanResult:
         if doc is not None and locate is not None and hasattr(locate, "fill_coords"):
             locate.fill_coords(doc, result.findings)
 
+        mask_findings = result.findings
+        if masking_selection is not None:
+            if mask_policy is None:
+                raise RuntimeError("마스킹 선택 모듈을 불러오지 못했습니다")
+            mask_findings = mask_policy.apply_selection(
+                result.findings, masking_selection
+            )
+            # 화면 미리보기와 다운로드 사본이 같은 선택을 사용하게 맞춘다.
+            if mask is not None and hasattr(mask, "build"):
+                result.masked_text = mask.build(result.raw_text, mask_findings)
+
         # 마스킹된 **파일** 사본. scan_text가 채운 masked_text(텍스트 치환)와는 별개다 —
         # 제품의 주 동작은 "마스킹된 파일 다운로드"다.
-        if doc is not None and mask is not None and hasattr(mask, "build_file"):
-            result.masked_path = mask.build_file(path, doc, result.findings)
+        if (
+            create_masked_copy
+            and doc is not None
+            and result.error is None
+            and mask is not None
+            and hasattr(mask, "build_file")
+        ):
+            result.masked_path = mask.build_file(
+                path, doc, mask_findings, policy=masking_policy
+            )
 
         return result
     finally:
@@ -659,7 +820,11 @@ def scan_file(path: str) -> ScanResult:
             parse.cleanup(doc)
 
 
-def scan_files(paths: list[str]) -> ScanBatch:
+def scan_files(
+    paths: list[str],
+    masking_policy: dict | None = None,
+    create_masked_copy: bool = True,
+) -> ScanBatch:
     """파일 여러 개를 검사하고 위험도 순으로 정렬해 돌려준다.
 
     파일 하나가 예상 못 한 예외로 죽어도 배치는 끝까지 돈다 — 같이 올린 멀쩡한
@@ -670,7 +835,13 @@ def scan_files(paths: list[str]) -> ScanBatch:
     results = []
     for path in paths:
         try:
-            results.append(scan_file(path))
+            results.append(
+                scan_file(
+                    path,
+                    masking_policy=masking_policy,
+                    create_masked_copy=create_masked_copy,
+                )
+            )
         except Exception as exc:  # noqa: BLE001
             broken = ScanResult(filename=path, error=f"검사 중 오류 ({type(exc).__name__})")
             broken.file_type = _guess_file_type(path)

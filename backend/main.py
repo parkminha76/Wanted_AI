@@ -1,7 +1,9 @@
 """InfoGuard API — 바깥에서 부르는 창구.
 
     POST /scan            파일 여러 개 업로드 -> ScanBatch JSON   (D가 호출)
+    POST /mask            화면에서 고른 항목만 마스킹한 사본 생성
     POST /scan/text       문장 하나 -> ScanResult JSON            (C의 실시간 답장 스캔)
+    GET  /masking/options 화면용 마스킹 방식·유형 기준표
     GET  /download/{id}   마스킹 사본 파일 하나
     GET  /download/all    배치 전체 .zip
     GET  /samples         심사위원용 샘플을 미리 검사한 결과
@@ -30,23 +32,37 @@ DB는 없어도 돈다. .env가 없는 환경에서도 스캔은 되어야 하�
 
 from __future__ import annotations
 
+import logging
+import json
 import os
 import shutil
 import tempfile
 import time
 import uuid
 import zipfile
+from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 from backend.scanner import scan
+from backend.scanner.masking import policy as mask_policy
 from backend.shared import schema
+from backend.shared.logging_config import (
+    configure_logging,
+    get_logger,
+    log_event,
+    reset_request_id,
+    set_request_id,
+)
+
+configure_logging()
+logger = get_logger(__name__)
 
 # 훈련 모드 라우터(C). **임시 조치 — C가 고치면 이 try/except를 걷어낸다.**
 #
@@ -87,23 +103,78 @@ async def lifespan(app: FastAPI):
     남는 것이 마스킹된 사본이라 원본만큼 위험하진 않지만, 개인정보가 일부라도
     담긴 파일이 서버에 무기한 남아서는 안 된다.
     """
-    _sweep_orphan_dirs()
+    removed = _sweep_orphan_dirs()
+    log_event(
+        logger,
+        logging.INFO,
+        "service.started",
+        removed_count=removed,
+        training_mode="on" if training_router is not None else "off",
+    )
     yield
+    log_event(logger, logging.INFO, "service.stopped")
 
 
-app = FastAPI(title="InfoGuard API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
+app = FastAPI(title="docXray API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
 
 # Training Mode API 연결. 못 붙였으면 스캐너만 띄운다(위 import 주석 참고).
 if training_router is not None:
     app.include_router(training_router)
 
-# 프론트(D)가 다른 포트에서 부른다. 배포 도메인이 정해지면 그 도메인만 남긴다.
+# 쉼표로 구분한 프론트 주소만 허용한다. 로컬 기본값은 Vite 개발 서버이고,
+# Railway에서는 ALLOWED_ORIGINS=https://<vercel-domain> 형태로 넣는다.
+_allowed_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def privacy_safe_access_log(request: Request, call_next):
+    """Log request metadata without bodies, query strings, or opaque tokens."""
+    request_id = uuid.uuid4().hex
+    token = set_request_id(request_id)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        duration_ms = round((time.perf_counter() - started) * 1000, 1)
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        log_event(
+            logger,
+            logging.ERROR,
+            "http.request.failed",
+            method=request.method,
+            route=route,
+            status_code=500,
+            duration_ms=duration_ms,
+            error_code=type(exc).__name__,
+        )
+        raise
+    else:
+        duration_ms = round((time.perf_counter() - started) * 1000, 1)
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        level = logging.WARNING if response.status_code >= 400 else logging.INFO
+        log_event(
+            logger,
+            level,
+            "http.request.completed",
+            method=request.method,
+            route=route,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+        )
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        reset_request_id(token)
 
 # 업로드 1건 상한. 이걸 안 걸면 큰 파일 하나로 디스크를 채울 수 있다.
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -244,6 +315,27 @@ class ScanTextRequest(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
 
 
+def _parse_masking_policy(raw: str | None) -> dict:
+    """Parse the optional multipart JSON field without echoing it in errors."""
+    if raw is None or not raw.strip():
+        return mask_policy.normalize_policy(None)
+    try:
+        value = json.loads(raw)
+        return mask_policy.normalize_policy(value)
+    except (json.JSONDecodeError, ValueError) as exc:
+        # normalize_policy errors contain only field/type names, never document content.
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+def _parse_masking_selection(raw: str) -> list[dict]:
+    """Parse the per-finding choices returned by the result screen."""
+    try:
+        value = json.loads(raw)
+        return mask_policy.normalize_selection(value)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
 @app.get("/health")
 def health() -> dict:
     """배포 후 살아있는지 확인. 링크가 10/5까지 살아 있어야 해서 모니터링이 이걸 찍는다.
@@ -258,8 +350,18 @@ def health() -> dict:
     return body
 
 
+@app.get("/masking/options")
+def masking_options() -> dict:
+    """화면이 마스킹 방식 선택 UI를 만들 때 사용하는 단일 기준표."""
+    return mask_policy.options_payload()
+
+
 @app.post("/scan")
-async def scan_upload(files: list[UploadFile]) -> dict:
+async def scan_upload(
+    files: list[UploadFile],
+    masking_policy_json: str | None = Form(default=None, alias="masking_policy"),
+    create_masked_copy: bool = Form(default=True),
+) -> dict:
     """파일 여러 개를 검사해 위험도 순으로 돌려준다.
 
     업로드 원본은 이 함수를 벗어나기 전에 지운다. 마스킹 사본만 file_id로 남는다.
@@ -271,11 +373,19 @@ async def scan_upload(files: list[UploadFile]) -> dict:
             status_code=413, detail=f"한 번에 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다"
         )
 
+    selected_policy = _parse_masking_policy(masking_policy_json)
+    started = time.perf_counter()
     _sweep_expired()
     upload_dir = tempfile.mkdtemp(prefix="infoguard_upload_")
+    input_bytes = 0
     try:
         paths = [await _spool_upload(f, upload_dir) for f in files]
-        batch = scan.scan_files(paths)
+        input_bytes = sum(os.path.getsize(path) for path in paths)
+        batch = scan.scan_files(
+            paths,
+            masking_policy=selected_policy,
+            create_masked_copy=create_masked_copy,
+        )
     finally:
         # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
         shutil.rmtree(upload_dir, ignore_errors=True)
@@ -297,7 +407,90 @@ async def scan_upload(files: list[UploadFile]) -> dict:
         _register_masked(result)
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
 
-    return batch.to_dict()
+    finding_counts = Counter(
+        finding.type for result in batch.results for finding in result.findings
+    )
+    risk_levels = Counter(result.level for result in batch.results)
+    log_event(
+        logger,
+        logging.INFO,
+        "scan.files.completed",
+        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        file_count=len(files),
+        file_types=sorted(
+            {
+                os.path.splitext(_safe_basename(f.filename))[1].lower() or "unknown"
+                for f in files
+            }
+        ),
+        input_bytes=input_bytes,
+        masked_file_count=sum(bool(result.file_id) for result in batch.results),
+        total_findings=sum(finding_counts.values()),
+        filtered_out=sum(len(result.filtered_out) for result in batch.results),
+        finding_counts=dict(sorted(finding_counts.items())),
+        risk_levels=dict(sorted(risk_levels.items())),
+    )
+
+    body = batch.to_dict()
+    body["masking_policy"] = selected_policy
+    body["masked_copy_created"] = create_masked_copy
+    return body
+
+
+@app.post("/mask")
+async def mask_selected_findings(
+    file: UploadFile,
+    masking_selection_json: str = Form(alias="masking_selection"),
+) -> dict:
+    """Re-scan one file and create a copy from the user's finding selections.
+
+    The browser sends the original File object again. The server never keeps an
+    original between the preview and masking requests.
+    """
+    selections = _parse_masking_selection(masking_selection_json)
+    started = time.perf_counter()
+    _sweep_expired()
+    upload_dir = tempfile.mkdtemp(prefix="infoguard_upload_")
+    try:
+        path = await _spool_upload(file, upload_dir)
+        input_bytes = os.path.getsize(path)
+        try:
+            result = scan.scan_file(
+                path,
+                masking_selection=selections,
+                create_masked_copy=True,
+            )
+        except ValueError as exc:
+            # The file changed, or the UI sent selections from another result.
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+    finally:
+        shutil.rmtree(upload_dir, ignore_errors=True)
+
+    if result.error:
+        raise HTTPException(status_code=422, detail="파일을 다시 검사하지 못했습니다")
+    if not result.masked_path or not os.path.exists(result.masked_path):
+        raise HTTPException(status_code=500, detail="마스킹 사본을 만들지 못했습니다")
+
+    _register_masked(result)
+    log_event(
+        logger,
+        logging.INFO,
+        "mask.file.completed",
+        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        file_count=1,
+        file_types=[result.file_type or "unknown"],
+        input_bytes=input_bytes,
+        masked_file_count=1,
+        total_findings=len(selections),
+        finding_counts=dict(sorted(Counter(row["type"] for row in selections).items())),
+    )
+    return {
+        "file_id": result.file_id,
+        "filename": _safe_basename(result.filename),
+        "file_type": result.file_type,
+        "selected_findings": len(selections),
+        "download_url": f"/download/{result.file_id}",
+    }
 
 
 @app.post("/scan/text")
@@ -306,7 +499,20 @@ def scan_one_text(request: ScanTextRequest) -> dict:
 
     파일이 아니므로 사본도 file_id도 없다. masked_text는 응답에 그대로 들어간다.
     """
-    return scan.scan_text(request.text).to_dict()
+    started = time.perf_counter()
+    result = scan.scan_text(request.text)
+    log_event(
+        logger,
+        logging.INFO,
+        "scan.text.completed",
+        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        input_bytes=len(request.text.encode("utf-8")),
+        total_findings=len(result.findings),
+        filtered_out=len(result.filtered_out),
+        finding_counts=dict(sorted(Counter(f.type for f in result.findings).items())),
+        risk_levels={result.level: 1},
+    )
+    return result.to_dict()
 
 
 @app.get("/download/all")
@@ -342,6 +548,13 @@ def download_all(batch_id: str) -> FileResponse:
             used.add(name)
             archive.write(entry.path, arcname=name)
 
+    log_event(
+        logger,
+        logging.INFO,
+        "download.batch.ready",
+        file_count=len(entries),
+    )
+
     return FileResponse(
         zip_path,
         filename="infoguard_masked.zip",
@@ -359,6 +572,13 @@ def download_one(file_id: str) -> FileResponse:
     entry = _masked_files.get(file_id)
     if entry is None or not os.path.exists(entry.path):
         raise HTTPException(status_code=404, detail="사본이 없거나 보관 기간이 지났습니다")
+    log_event(
+        logger,
+        logging.INFO,
+        "download.file.ready",
+        file_count=1,
+        file_types=[os.path.splitext(entry.download_name)[1].lower() or "unknown"],
+    )
     return FileResponse(
         entry.path, filename=entry.download_name, media_type="application/octet-stream"
     )
@@ -409,6 +629,8 @@ def samples() -> dict:
     그때는 모델이 이미 올라와 있어서 첫 호출만큼 오래 걸리지 않는다.
     """
     global _sample_cache
+    if _sample_cache is not None:
+        log_event(logger, logging.INFO, "samples.returned", cache_hit=True)
     _sweep_expired()
     if _sample_cache is not None and _sample_copies_alive(_sample_cache):
         return _sample_cache
@@ -435,4 +657,12 @@ def samples() -> dict:
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
 
     _sample_cache = batch.to_dict()
+    log_event(
+        logger,
+        logging.INFO,
+        "samples.returned",
+        cache_hit=False,
+        file_count=len(batch.results),
+        total_findings=sum(len(result.findings) for result in batch.results),
+    )
     return _sample_cache
