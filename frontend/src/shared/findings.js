@@ -70,6 +70,11 @@ export function explanationFor(type) {
   return EXPLANATIONS[type] ?? '다른 정보와 합쳐지면 개인이나 조직을 특정하는 데 쓰일 수 있습니다.'
 }
 
+// 마스킹 사본에 들어가는 치환 문자열과 같은 모양. backend/shared/schema.py의 mask_placeholder()와 맞춘다.
+export function placeholderFor(finding) {
+  return `[${finding.label || '민감정보'}]`
+}
+
 export function formatPercent(value) {
   return `${Math.round((value ?? 0) * 100)}%`
 }

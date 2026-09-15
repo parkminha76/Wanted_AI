@@ -33,10 +33,14 @@ export default function App() {
   const [scanJob, setScanJob] = useState(null) // { kind: 'files' | 'samples', fileCount, startedAt }
   const [scanError, setScanError] = useState('')
   const [training, setTraining] = useState(null) // { id, level, state, turnNo, firstMessage }
+  // 직접 올린 File 객체. 선택 마스킹(POST /mask)은 원본을 한 번 더 보내야 해서 메모리에만 들고 있는다.
+  // 샘플 문서 검사에는 원본 File이 없으므로 빈 배열이다.
+  const [uploads, setUploads] = useState([])
 
   async function startScan(kind, files = []) {
     setScanError('')
     setScanJob({ kind, fileCount: files.length, startedAt: Date.now() })
+    setUploads(kind === 'files' ? files : [])
     navigate('scanning')
     try {
       const result = kind === 'samples' ? await api.samples() : await api.scanFiles(files)
@@ -95,7 +99,7 @@ export default function App() {
       page = <FindingDetailPage {...scanProps} />
       break
     case 'results/mask':
-      page = <MaskPage {...scanProps} />
+      page = <MaskPage {...scanProps} uploads={uploads} />
       break
     case 'training':
       page = (

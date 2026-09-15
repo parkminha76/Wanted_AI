@@ -51,7 +51,7 @@ frontend/
 | `#/scanning` | 검사 중 (지난 시간 표시) | `POST /scan`, `GET /samples` |
 | `#/results` | 위험도 요약, 문서 미리보기 + 탐지 항목, 오탐으로 제외한 항목, 숨은 명령 팝업 | (검사 결과 사용) |
 | `#/results/detail` | 탐지 항목 상세 (왜 위험한가 · 판단 근거) | (검사 결과 사용) |
-| `#/results/mask` | 마스킹 사본 미리보기, 다운로드 | `GET /download/{file_id}`, `GET /download/all` |
+| `#/results/mask` | 마스킹 사본 미리보기·다운로드. 전체 마스킹 / 선택 마스킹(항목별 선택, 유형별 전체·부분) | `GET /download/*`, `GET /masking/options`, `POST /mask` |
 | `#/training` | 훈련 소개, 레벨 선택 | `GET /health`, `POST /training/start` |
 | `#/training/play` | AI 사기범과 대화 (보내기 전 답장 검사) | `POST /scan/text`, `POST /training/{id}/reply` |
 | `#/training/report` | 결과 리포트 (하단에 스캐너 전환) | `GET /training/{id}/report` |
@@ -93,6 +93,11 @@ try {
 - **숨은 명령 "이 문장을 제거하고 사본 만들기"** — 문장 하나만 지우는 API가 없다. 마스킹 사본이 숨은 명령을 이미
   `[숨은 명령]`으로 바꿔 두므로 사본 화면으로 보낸다.
 - **"이 파일 취소"** — 화면 목록에서만 뺀다. 서버 배치에는 남아 있어 전체 사본 zip에는 포함된다.
+- **샘플 문서 선택 마스킹** — `POST /mask`는 브라우저가 들고 있는 원본 File을 한 번 더 보내는 방식이라(서버는 원본을
+  남기지 않는다), 원본 File이 없는 샘플 문서와 새로고침 뒤에는 선택 마스킹 사본을 만들 수 없다. 미리보기만 된다.
+  업로드한 File은 이 용도로 메모리에만 들고 있고 브라우저 저장소에는 넣지 않는다.
+- **부분 마스킹 미리보기** — 부분 마스킹 모양(`김**` 등)은 서버 규칙(`backend/scanner/masking/policy.py`)이 정하므로
+  화면에 규칙을 복사하지 않고, 미리보기에서는 "부분 마스킹 예정"으로 표시만 한다. 실제 모양은 사본에서 확인한다.
 - **검사 진행률** — 서버가 알려주지 않아 가짜 퍼센트 대신 지난 시간과 검사 순서만 보여준다.
 - **훈련 사용자** — 로그인이 없어 `DEMO_USER_ID = 1`로 시작한다(`training/TrainingHomePage.jsx`). DB에 이 사용자가 있어야 한다.
 
