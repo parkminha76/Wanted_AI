@@ -47,6 +47,7 @@ from dataclasses import dataclass
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
@@ -117,6 +118,44 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="docXray API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
+
+
+def _swagger_compatible_openapi() -> dict:
+    """Swagger UI가 UploadFile을 실제 파일 선택기로 표시하도록 보완한다.
+
+    현재 FastAPI/Pydantic 조합은 바이너리 필드를 OpenAPI 3.1의
+    contentMediaType으로 표현한다. Railway의 Swagger UI는 이 표기를 문자열
+    입력으로 렌더링하므로, 널리 지원되는 format=binary를 함께 제공한다.
+    """
+    if app.openapi_schema is not None:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        routes=app.routes,
+    )
+
+    def add_binary_format(node) -> None:
+        if isinstance(node, dict):
+            if (
+                node.get("type") == "string"
+                and node.get("contentMediaType") == "application/octet-stream"
+            ):
+                node["format"] = "binary"
+            for value in node.values():
+                add_binary_format(value)
+        elif isinstance(node, list):
+            for value in node:
+                add_binary_format(value)
+
+    add_binary_format(openapi_schema)
+    app.openapi_schema = openapi_schema
+    return openapi_schema
+
+
+app.openapi = _swagger_compatible_openapi
 
 # Training Mode API 연결. 못 붙였으면 스캐너만 띄운다(위 import 주석 참고).
 if training_router is not None:
