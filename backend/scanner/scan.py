@@ -199,8 +199,9 @@ def _iter_sentences(text: str):
 def _find_injections(text: str) -> list[Finding]:
     """문장마다 models.is_injection을 돌려 인젝션 후보를 findings로 만든다."""
     findings = []
-    for sentence, start, end in _iter_sentences(text):
-        is_command, confidence = models.is_injection(sentence)
+    sentences = list(_iter_sentences(text))
+    decisions = models.is_injection_many([item[0] for item in sentences])
+    for (sentence, start, end), (is_command, confidence) in zip(sentences, decisions):
         if not is_command:
             continue
         # 모델이 올라와 있을 때만 모델 이름을 남긴다. 키워드로만 판정한 경우에
