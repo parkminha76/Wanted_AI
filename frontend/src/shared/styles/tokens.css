@@ -3,7 +3,7 @@
  * 화면 CSS에서는 색상 코드나 px 값을 직접 쓰지 말고 여기 변수를 쓴다.
  *
  * 색 방향(2026-09-16, 랜딩 시안 "DocX-ray Landing" 기준): 짙은 녹흑 바탕 + 연한 회녹 글자 + 형광초록 강조 + 옅은 괘선.
- *   - 형광초록(--color-primary)은 "눌러야 할 것·지금 선택된 것·강조할 한 단어"에 쓴다(주 버튼, 선택 탭·메뉴, 섹션 라벨, 진행 막대).
+ *   - 하늘색(--color-primary)은 "눌러야 할 것·지금 선택된 것·강조할 한 단어"에 쓴다(주 버튼, 선택 탭·메뉴, 섹션 라벨, 진행 막대).
  *   - 호박색(--color-point)은 훈련 화면 제목의 강조 단어와 리포트의 큰 점수에만 남겨 둔다.
  *   - 위험도 색(적갈·주황·이끼 초록)은 의미가 있는 색이라 따로 둔다. 민감정보 점(--color-signal-yellow)도 유형 구분색이다.
  *   - 형광초록·호박색·적갈색 위의 글자는 --color-on-primary를 쓴다.
@@ -22,46 +22,47 @@
 :root {
   color-scheme: dark; /* 체크박스·선택 상자·스크롤바 같은 브라우저 기본 요소도 어둡게 그린다 */
 
-  /* 강조(형광초록). 변수 이름의 navy/primary는 예전 남색·파랑 시안에서 온 이름이다 — 역할은 그대로다.
+  /* 강조(하늘색 #75BFDC). 변수 이름의 navy/primary는 예전 남색·파랑 시안에서 온 이름이다 — 역할은 그대로다.
      --color-navy: 주 버튼·선택된 탭 바탕 / --color-primary: 강조 글자·아이콘·진행 막대 */
-  --color-navy: #5af2a8;
-  --color-navy-hover: #9fffd2;
-  --color-primary: #5af2a8;
-  --color-primary-hover: #9fffd2;
-  --color-primary-soft: rgba(90, 242, 168, 0.1);
-  --color-on-primary: #04160e;
-  --color-electric: #5af2a8;
+  --color-navy: #75bfdc;
+  --color-navy-hover: #9fd4e8;
+  --color-primary: #75bfdc;
+  --color-primary-hover: #9fd4e8;
+  --color-primary-soft: rgba(117, 191, 220, 0.1);
+  --color-on-primary: #05171f;
+  --color-electric: #75bfdc;
 
-  /* 형광초록의 투명도 단계 — 괘선·빛·격자 같은 장식에 쓴다 */
-  --color-primary-faint: rgba(90, 242, 168, 0.055);   /* 배경 격자 선 */
-  --color-primary-wash: rgba(90, 242, 168, 0.035);    /* 띠 배경 */
-  --color-primary-line-soft: rgba(90, 242, 168, 0.16);
-  --color-primary-line: rgba(90, 242, 168, 0.3);
-  --color-primary-line-strong: rgba(90, 242, 168, 0.45);
-  --color-primary-glow-soft: rgba(90, 242, 168, 0.16);
-  --color-primary-glow: rgba(90, 242, 168, 0.38);
+  /* 강조색의 투명도 단계 — 괘선·빛·격자 같은 장식에 쓴다 */
+  --color-primary-faint: rgba(117, 191, 220, 0.055);   /* 배경 격자 선 */
+  --color-primary-wash: rgba(117, 191, 220, 0.035);    /* 띠 배경 */
+  --color-primary-line-soft: rgba(117, 191, 220, 0.16);
+  --color-primary-line: rgba(117, 191, 220, 0.3);
+  --color-primary-line-strong: rgba(117, 191, 220, 0.45);
+  --color-primary-glow-soft: rgba(117, 191, 220, 0.16);
+  --color-primary-glow: rgba(117, 191, 220, 0.38);
 
-  /* 포인트(호박색) — 훈련 화면 제목의 강조 단어, 리포트의 큰 점수에만 쓴다. */
+  /* 포인트(호박색) — 지금은 쓰는 곳이 없다. 훈련 화면 제목의 강조 단어와 리포트의 큰 점수에 쓰다가
+     강조 하늘색(--color-primary)으로 통일했다. 다시 쓰려면 여기 값을 그대로 가져다 쓰면 된다. */
   --color-point: #e0ad5c;
   --color-point-soft: rgba(201, 145, 63, 0.14);
 
   /* 바탕·면 */
-  --color-bg: #050807;
+  --color-bg: #070707;
   --gradient-page: none;
-  --color-surface: #0a0e0c;
-  --color-surface-muted: #0f1412;
-  --color-header-bg: rgba(5, 8, 7, 0.82);
-  --color-border: rgba(230, 239, 234, 0.08);
-  --color-border-strong: rgba(230, 239, 234, 0.18);
-  --color-divider: rgba(230, 239, 234, 0.07);
+  --color-surface: #0d0d0c;
+  --color-surface-muted: #141413;
+  --color-header-bg: rgba(7, 7, 7, 0.82);
+  --color-border: rgba(193, 182, 164, 0.08);
+  --color-border-strong: rgba(193, 182, 164, 0.18);
+  --color-divider: rgba(193, 182, 164, 0.07);
   --color-overlay: rgba(0, 0, 0, 0.72);
   --color-inner-highlight: rgba(255, 255, 255, 0.04);
 
   /* 글자 */
-  --color-text: #e6efea;
-  --color-text-muted: #9aa8a1;
-  --color-text-faint: #77837d;   /* 코드체 라벨·각주. 이보다 어두우면 바탕에서 4.5:1이 안 된다 */
-  --color-focus: #5af2a8;
+  --color-text: #f0e6dc;
+  --color-text-muted: #c1b6a4;
+  --color-text-faint: #9b9081;   /* 코드체 라벨·각주. 이보다 어두우면 바탕에서 4.5:1이 안 된다 */
+  --color-focus: #75bfdc;
 
   /* 위험도 — 서버의 level(high/medium/low)과 짝이다.
      구간은 backend/shared/schema.py의 RISK_THRESHOLD_HIGH(60)·MEDIUM(25). 화면에서 점수로 다시 나누지 않는다. */
@@ -82,29 +83,29 @@
 
   --color-success: #7fbc93;
   --color-success-soft: #142219;
-  --color-info-soft: #0f1412;
-  --color-info-border: rgba(230, 239, 234, 0.08);
+  --color-info-soft: #141413;
+  --color-info-border: rgba(193, 182, 164, 0.08);
 
   /* 부품별 색 */
-  --color-tab-bg: #0f1412;
-  --color-ring-track: rgba(230, 239, 234, 0.12);
-  --color-switch-off: #3a4440;
-  --color-dropzone-border: rgba(230, 239, 234, 0.2);
-  --color-paper-text: #c3cdc8;
-  --color-paper-rule: rgba(230, 239, 234, 0.14);
+  --color-tab-bg: #141413;
+  --color-ring-track: rgba(193, 182, 164, 0.12);
+  --color-switch-off: #454139;
+  --color-dropzone-border: rgba(193, 182, 164, 0.2);
+  --color-paper-text: #cdc4b6;
+  --color-paper-rule: rgba(193, 182, 164, 0.14);
   --color-hit-bg: #3a211c;
   --color-hit-text: #f3c3b8;
   --color-hit-hidden-bg: #3a2a17;
-  --color-hit-other-bg: #151b18;
-  --color-art-border: rgba(230, 239, 234, 0.08);
-  --color-art-chip: #151b18;
-  --color-art-chip-text: #9aa8a1;
-  --color-art-line: rgba(230, 239, 234, 0.11);
+  --color-hit-other-bg: #1a1a18;
+  --color-art-border: rgba(193, 182, 164, 0.08);
+  --color-art-chip: #1a1a18;
+  --color-art-chip-text: #c1b6a4;
+  --color-art-line: rgba(193, 182, 164, 0.11);
 
-  --gradient-doc: linear-gradient(120deg, #0a0e0c, #080b0a);
-  --gradient-glow: radial-gradient(circle at 50% 60%, rgba(90, 242, 168, 0.1) 0%, transparent 60%);
-  --gradient-summary: linear-gradient(145deg, #0c110f, #0a0e0c);
-  --gradient-cta: linear-gradient(100deg, rgba(90, 242, 168, 0.07), transparent 70%);
+  --gradient-doc: linear-gradient(120deg, #0d0d0c, #0a0a09);
+  --gradient-glow: radial-gradient(circle at 50% 60%, rgba(117, 191, 220, 0.1) 0%, transparent 60%);
+  --gradient-summary: linear-gradient(145deg, #101010, #0d0d0c);
+  --gradient-cta: linear-gradient(100deg, rgba(117, 191, 220, 0.07), transparent 70%);
 
   /* 글꼴 */
   --font-sans: 'IBM Plex Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -149,15 +150,15 @@
   --radius-2xl: 24px;
   --radius-pill: 999px;
   --shadow-sm: 0 0 0 0 transparent;
-  --shadow-md: 0 1px 0 rgba(230, 239, 234, 0.03);
+  --shadow-md: 0 1px 0 rgba(193, 182, 164, 0.03);
   --shadow-lg: 0 40px 90px -30px rgba(0, 0, 0, 0.9);
-  --shadow-button: 0 0 22px rgba(90, 242, 168, 0.3);
+  --shadow-button: 0 0 22px rgba(117, 191, 220, 0.3);
   --shadow-art: 0 40px 90px -30px rgba(0, 0, 0, 0.9);
-  --shadow-glow: 0 0 18px 4px rgba(90, 242, 168, 0.55);
+  --shadow-glow: 0 0 18px 4px rgba(117, 191, 220, 0.55);
 
-  /* GlowCard(마우스를 따라 테두리가 빛나는 카드). 색상각 151 = 형광초록 #5af2a8.
-     spread만큼 화면 왼쪽→오른쪽으로 갈수록 색상각이 늘어난다(151 → 181, 초록 → 청록). */
-  --glow-hue: 151;
+  /* GlowCard(마우스를 따라 테두리가 빛나는 카드). 색상각 197 = 강조 하늘색 #75bfdc.
+     spread만큼 화면 왼쪽→오른쪽으로 갈수록 색상각이 늘어난다(197 → 227, 하늘색 → 푸른 보라). */
+  --glow-hue: 197;
   --glow-spread: 30;
   --glow-size: 240px;
   --glow-fill-alpha: 0.07;              /* 카드 안쪽에 번지는 빛의 진하기 */

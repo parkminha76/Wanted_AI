@@ -15,11 +15,11 @@ const ACCEPTED_EXTENSIONS = [
 
 const SECTIONS = [
   { id: 'intro', label: '소개' },
+  { id: 'upload', label: '업로드' },
   { id: 'risk', label: '숨은 위험' },
   { id: 'flow', label: '작동 방식' },
   { id: 'proof', label: '성능' },
   { id: 'privacy', label: '프라이버시' },
-  { id: 'upload', label: '업로드' },
 ]
 
 // 성능 수치의 출처는 저장소 루트 README의 "모델" 표(합성 데이터, 5-fold 그룹 교차검증)다. 모델을 다시 학습하면 같이 고친다.
@@ -248,112 +248,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           <p className="landing-metrics__note">합성 데이터 5-fold 그룹 교차검증 기준</p>
         </div>
         <LandingScanMock />
-      </section>
-
-      <div className="landing-marquee">
-        <div className="landing-marquee__track">
-          <ul className="landing-marquee__group" aria-label="검사하는 숨은 위험">
-            {HIDDEN_TRICKS.map((trick) => (
-              <li key={trick}>{trick}</li>
-            ))}
-          </ul>
-          {/* 끊김 없이 흐르게 같은 목록을 한 번 더 붙인다. 화면 읽기 프로그램에는 한 번만 읽힌다. */}
-          <ul className="landing-marquee__group" aria-hidden="true">
-            {HIDDEN_TRICKS.map((trick) => (
-              <li key={trick}>{trick}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <section id="risk" className="container landing-section">
-        <div className="rv">
-          <p className="landing-eyebrow">01 — THE BLIND SPOT</p>
-          <h2 className="landing-h2">
-            문서는 멀쩡해 보여도
-            <br />
-            안전하지 않습니다.
-          </h2>
-          <p className="landing-lead">
-            일반적인 검사는 화면에 보이는 텍스트만 읽습니다. DocX-ray는 문서 내부의 렌더링 속성·서식·유니코드 층까지
-            열어봅니다.
-          </p>
-        </div>
-        <ul className="landing-cards landing-cards--risk stagger">
-          {RISKS.map((risk) => (
-            <GlowCard as="li" key={risk.tag} className="landing-card rv">
-              <p className="landing-card__tag">{risk.tag}</p>
-              <h3 className="landing-card__title">{risk.title}</h3>
-              <p className="landing-card__copy">{risk.copy}</p>
-            </GlowCard>
-          ))}
-        </ul>
-      </section>
-
-      <section id="flow" className="landing-band">
-        <div className="container">
-          <div className="rv">
-            <p className="landing-eyebrow">02 — ONE PASS</p>
-            <h2 className="landing-h2">한 번의 검사로 끝나는 세 단계</h2>
-          </div>
-          <ol className="landing-steps stagger">
-            {STEPS.map((step, index) => (
-              <GlowCard
-                as="li"
-                key={step.title}
-                className={`landing-step rv${index === 1 ? ' landing-step--active' : ''}`}
-              >
-                <span className="landing-step__num" aria-hidden="true">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <h3 className="landing-step__title">{step.title}</h3>
-                <p className="landing-step__copy">{step.copy}</p>
-              </GlowCard>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section id="proof" className="container landing-proof">
-        <div className="rv">
-          <p className="landing-eyebrow">03 — MEASURED</p>
-          <h2 className="landing-h2">놓치는 쪽을 먼저 줄였습니다</h2>
-          <p className="landing-lead">
-            개인정보 후보 누락률(FNR) 5% 이하를 먼저 만족하도록 운영 임계값(0.3534)을 정했습니다. 같은{' '}
-            <span className="landing-code">group_id</span>의 문장 변형이 학습·평가 fold에 나뉘지 않게 측정했습니다.
-          </p>
-          <p className="landing-proof__caveat">
-            후보 누락률 4.62%는 분류기 단계의 성능이며(오탐 제거 Precision 0.7750, 인젝션 분류 ROC-AUC 0.9350),
-            정규식·OCR를 포함한 전체 서비스 유출률은 아닙니다. 독립된 실문서 평가셋 성능은 아직 확인하지 않았습니다.
-          </p>
-        </div>
-        <GlowCard as="ul" className="landing-statstrip rv">
-          {PROOF_STATS.map((stat) => (
-            <li key={stat.label}>
-              <b>
-                <DecodeText text={stat.value} />
-              </b>
-              <span>{stat.label}</span>
-            </li>
-          ))}
-        </GlowCard>
-      </section>
-
-      <section id="privacy" className="landing-band landing-band--plain">
-        <div className="container">
-          <div className="rv">
-            <p className="landing-eyebrow">04 — PRIVACY FIRST</p>
-            <h2 className="landing-h2">찾기 위해 보관하지 않습니다</h2>
-          </div>
-          <ul className="landing-cards landing-cards--privacy stagger">
-            {PRIVACY.map((item) => (
-              <GlowCard as="li" key={item.tag} className="landing-card rv">
-                <p className="landing-card__tag">{item.tag}</p>
-                <p className="landing-card__copy landing-card__copy--bright">{item.copy}</p>
-              </GlowCard>
-            ))}
-          </ul>
-        </div>
       </section>
 
       <div className="container landing-cta-wrap">
@@ -602,6 +496,112 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           <i className="landing-cta__sweep" aria-hidden="true" />
         </section>
       </div>
+
+      <div className="landing-marquee">
+        <div className="landing-marquee__track">
+          <ul className="landing-marquee__group" aria-label="검사하는 숨은 위험">
+            {HIDDEN_TRICKS.map((trick) => (
+              <li key={trick}>{trick}</li>
+            ))}
+          </ul>
+          {/* 끊김 없이 흐르게 같은 목록을 한 번 더 붙인다. 화면 읽기 프로그램에는 한 번만 읽힌다. */}
+          <ul className="landing-marquee__group" aria-hidden="true">
+            {HIDDEN_TRICKS.map((trick) => (
+              <li key={trick}>{trick}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <section id="risk" className="container landing-section">
+        <div className="rv">
+          <p className="landing-eyebrow">01 — THE BLIND SPOT</p>
+          <h2 className="landing-h2">
+            문서는 멀쩡해 보여도
+            <br />
+            안전하지 않습니다.
+          </h2>
+          <p className="landing-lead">
+            일반적인 검사는 화면에 보이는 텍스트만 읽습니다. DocX-ray는 문서 내부의 렌더링 속성·서식·유니코드 층까지
+            열어봅니다.
+          </p>
+        </div>
+        <ul className="landing-cards landing-cards--risk stagger">
+          {RISKS.map((risk) => (
+            <GlowCard as="li" key={risk.tag} className="landing-card rv">
+              <p className="landing-card__tag">{risk.tag}</p>
+              <h3 className="landing-card__title">{risk.title}</h3>
+              <p className="landing-card__copy">{risk.copy}</p>
+            </GlowCard>
+          ))}
+        </ul>
+      </section>
+
+      <section id="flow" className="landing-band">
+        <div className="container">
+          <div className="rv">
+            <p className="landing-eyebrow">02 — ONE PASS</p>
+            <h2 className="landing-h2">한 번의 검사로 끝나는 세 단계</h2>
+          </div>
+          <ol className="landing-steps stagger">
+            {STEPS.map((step, index) => (
+              <GlowCard
+                as="li"
+                key={step.title}
+                className={`landing-step rv${index === 1 ? ' landing-step--active' : ''}`}
+              >
+                <span className="landing-step__num" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <h3 className="landing-step__title">{step.title}</h3>
+                <p className="landing-step__copy">{step.copy}</p>
+              </GlowCard>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section id="proof" className="container landing-proof">
+        <div className="rv">
+          <p className="landing-eyebrow">03 — MEASURED</p>
+          <h2 className="landing-h2">놓치는 쪽을 먼저 줄였습니다</h2>
+          <p className="landing-lead">
+            개인정보 후보 누락률(FNR) 5% 이하를 먼저 만족하도록 운영 임계값(0.3534)을 정했습니다. 같은{' '}
+            <span className="landing-code">group_id</span>의 문장 변형이 학습·평가 fold에 나뉘지 않게 측정했습니다.
+          </p>
+          <p className="landing-proof__caveat">
+            후보 누락률 4.62%는 분류기 단계의 성능이며(오탐 제거 Precision 0.7750, 인젝션 분류 ROC-AUC 0.9350),
+            정규식·OCR를 포함한 전체 서비스 유출률은 아닙니다. 독립된 실문서 평가셋 성능은 아직 확인하지 않았습니다.
+          </p>
+        </div>
+        <GlowCard as="ul" className="landing-statstrip rv">
+          {PROOF_STATS.map((stat) => (
+            <li key={stat.label}>
+              <b>
+                <DecodeText text={stat.value} />
+              </b>
+              <span>{stat.label}</span>
+            </li>
+          ))}
+        </GlowCard>
+      </section>
+
+      <section id="privacy" className="landing-band landing-band--plain">
+        <div className="container">
+          <div className="rv">
+            <p className="landing-eyebrow">04 — PRIVACY FIRST</p>
+            <h2 className="landing-h2">찾기 위해 보관하지 않습니다</h2>
+          </div>
+          <ul className="landing-cards landing-cards--privacy stagger">
+            {PRIVACY.map((item) => (
+              <GlowCard as="li" key={item.tag} className="landing-card rv">
+                <p className="landing-card__tag">{item.tag}</p>
+                <p className="landing-card__copy landing-card__copy--bright">{item.copy}</p>
+              </GlowCard>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       {/* 전환 띠 — 바닥글 바로 위에서 다음 행동 세 가지를 고르게 한다 */}
       <section className="landing-outro rv" aria-labelledby="outro-title">

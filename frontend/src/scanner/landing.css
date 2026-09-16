@@ -188,242 +188,435 @@
 }
 
 /* ---------- 스캔 장면(LandingScanMock) ---------- */
+/* 초록 선이 문서를 훑고 지나가면 가림칸이 하나씩 켜지고, 누르면 아래 칸에 상세가 열린다.
+   훑는 중은 .is-running, 다 끝난 상태는 .is-done으로 표시한다(둘 다 컴포넌트가 붙인다). */
 .scan-mock {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
 .scan-mock__glow {
   position: absolute;
-  inset: -12% 0;
-  background: radial-gradient(ellipse at center, var(--color-primary-glow-soft), transparent 70%);
-  filter: blur(26px);
+  inset: -12% -8% auto;
+  height: 60%;
+  background: var(--gradient-glow);
   pointer-events: none;
 }
 
 .scan-mock__frame {
   position: relative;
-  padding: var(--space-4);
-  border: 1px solid var(--color-primary-line-soft);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 var(--color-inner-highlight);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--color-surface-muted), var(--color-surface));
 }
 
 .scan-mock__head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 0 var(--space-2) var(--space-3);
-  color: var(--color-text-faint);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.06em;
+  margin-bottom: var(--space-5);
 }
 
-.scan-mock__head span:first-child {
+.scan-mock__file {
   min-width: 0;
   overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .scan-mock__status {
-  flex: none;
-  color: var(--color-primary);
-}
-
-.scan-mock__doc {
-  position: relative;
-  padding: var(--space-6);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-}
-
-.scan-mock__corner {
-  position: absolute;
-  width: 26px;
-  height: 26px;
-  border: 0 solid var(--color-primary);
-}
-
-.scan-mock__corner--tl {
-  top: var(--space-2);
-  left: var(--space-2);
-  border-top-width: 2px;
-  border-left-width: 2px;
-  border-top-left-radius: 6px;
-}
-
-.scan-mock__corner--tr {
-  top: var(--space-2);
-  right: var(--space-2);
-  border-top-width: 2px;
-  border-right-width: 2px;
-  border-top-right-radius: 6px;
-}
-
-.scan-mock__corner--bl {
-  bottom: var(--space-2);
-  left: var(--space-2);
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-bottom-left-radius: 6px;
-}
-
-.scan-mock__corner--br {
-  right: var(--space-2);
-  bottom: var(--space-2);
-  border-right-width: 2px;
-  border-bottom-width: 2px;
-  border-bottom-right-radius: 6px;
-}
-
-/* 선이 지나간 자리에 옅게 남는 초록 층, 그리고 훑고 내려가는 선 — 움직임이 없으면 둘 다 안 보인다 */
-.scan-mock__wash {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 0;
-  background: linear-gradient(180deg, var(--color-primary-line-soft), transparent);
-  pointer-events: none;
-}
-
-.scan-mock__sweep {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  height: 2px;
-  background: var(--color-primary);
-  box-shadow: var(--shadow-glow);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.scan-mock__body {
-  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.scan-mock__lines {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
-}
-
-.scan-mock__bar {
-  display: block;
-  height: 7px;
-  border-radius: 2px;
-  background: var(--color-art-line);
-}
-
-.scan-mock__bar--57 { width: 57%; }
-.scan-mock__bar--62 { width: 62%; }
-.scan-mock__bar--74 { width: 74%; }
-.scan-mock__bar--80 { width: 80%; }
-.scan-mock__bar--88 { width: 88%; }
-.scan-mock__bar--91 { width: 91%; }
-
-.scan-mock__row {
-  display: flex;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* 가려진 값 — 글자는 투명, 초록 상자만 남는다 */
-.scan-mock__mask {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  box-shadow: inset 0 0 0 1px var(--color-primary-line-strong);
-  color: transparent;
-  white-space: nowrap;
-}
-
-/* 드러난 숨은 글 */
-.scan-mock__hidden {
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  box-shadow: inset 0 0 0 1px var(--color-primary-line-strong);
   color: var(--color-primary);
-  word-break: keep-all;
-}
-
-.scan-mock__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-primary-line-soft);
-}
-
-.scan-mock__chip {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.08em;
 }
 
-.scan-mock__chip--solid {
-  background: var(--color-primary);
-  box-shadow: 0 0 18px var(--color-primary-glow);
-  color: var(--color-on-primary);
-}
-
-.scan-mock__chip--outline {
-  border: 1px solid var(--color-primary-line-strong);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
-.scan-mock__foot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-2) 0;
-  color: var(--color-text-faint);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.scan-mock__progress {
-  flex: 1;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--color-art-line);
-}
-
-.scan-mock__progress i {
-  display: block;
-  width: 100%;
-  height: 100%;
+.scan-mock__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--color-primary);
   box-shadow: 0 0 10px var(--color-primary-glow);
 }
 
-.scan-mock__risk {
+.scan-mock[data-done] .scan-mock__status {
+  color: var(--color-text-muted);
+}
+
+.scan-mock[data-done] .scan-mock__dot {
+  background: var(--color-text-muted);
+  box-shadow: none;
+}
+
+/* 문서 미리보기 */
+.scan-mock__doc {
+  position: relative;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.scan-mock__corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-primary-line-strong);
+}
+
+.scan-mock__corner--tl {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: var(--radius-sm);
+}
+
+.scan-mock__corner--tr {
+  top: -1px;
+  right: -1px;
+  border-bottom: 0;
+  border-left: 0;
+  border-top-right-radius: var(--radius-sm);
+}
+
+.scan-mock__corner--bl {
+  bottom: -1px;
+  left: -1px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.scan-mock__corner--br {
+  right: -1px;
+  bottom: -1px;
+  border-top: 0;
+  border-left: 0;
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+/* 훑고 지나가는 초록 선. top을 0에서 100%로 옮기므로 문서 높이를 따로 재지 않아도 된다. */
+.scan-mock__scanline {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary) 20%, var(--color-primary) 80%, transparent);
+  box-shadow: 0 0 16px 2px var(--color-primary-glow);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 글줄 자리 표시 막대 */
+.scan-mock__bar {
+  display: block;
+  height: 11px;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.scan-mock__bar--30 {
+  flex: 0 0 30%;
+  margin-bottom: 0;
+}
+
+.scan-mock__bar--45 {
+  width: 45%;
+  margin-bottom: 0;
+}
+
+.scan-mock__bar--58 {
+  width: 58%;
+}
+
+.scan-mock__bar--62 {
+  width: 62%;
+}
+
+.scan-mock__bar--76 {
+  width: 76%;
+}
+
+.scan-mock__bar--82 {
+  width: 82%;
+}
+
+.scan-mock__bar--88 {
+  width: 88%;
+}
+
+.scan-mock__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.scan-mock__row--inline {
+  margin-bottom: var(--space-3);
+}
+
+.scan-mock__label {
+  flex-shrink: 0;
+}
+
+/* 가림칸. 훑기 전에는 빈 막대, 지나간 뒤에는 누를 수 있는 초록 칸이 된다. */
+.scan-mock__mask {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 1px;
+  cursor: default;
+  transition: background 0.35s var(--ease), border-color 0.35s var(--ease), color 0.35s var(--ease);
+}
+
+.scan-mock__mask.is-revealed {
+  border-color: var(--color-primary-line);
+  background: var(--color-primary-soft);
   color: var(--color-primary);
+  cursor: pointer;
+}
+
+.scan-mock__mask.is-revealed:hover {
+  background: var(--color-primary-glow-soft);
+}
+
+.scan-mock__mask.is-open {
+  border-color: var(--color-primary);
+  background: var(--color-primary-glow-soft);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.scan-mock__mask:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 탐지 상세 칸. 아무것도 안 눌렀을 때도 높이를 잡아 둬서 열고 닫을 때 안 흔들린다. */
+.scan-mock__dock {
+  display: flex;
+  align-items: center;
+  min-height: 4.5rem;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.scan-mock__dock-empty {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.scan-mock__finding {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.scan-mock__finding-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.scan-mock__finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.scan-mock__tag {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-primary-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.scan-mock__tag--high {
+  border-color: var(--color-risk-high-border);
+  background: var(--color-risk-high-soft);
+  color: var(--color-risk-high);
+}
+
+.scan-mock__tag--medium {
+  border-color: var(--color-risk-medium-border);
+  background: var(--color-risk-medium-soft);
+  color: var(--color-risk-medium);
+}
+
+.scan-mock__finding-cat {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.scan-mock__finding-desc {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
+}
+
+.scan-mock__finding-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.scan-mock__conf {
+  display: inline-block;
+  overflow: hidden;
+  width: 60px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+
+.scan-mock__conf i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
+.scan-mock__finding-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.scan-mock__finding-close:hover {
+  border-color: var(--color-text-faint);
+  color: var(--color-text);
+}
+
+.scan-mock__finding-close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 아래 띠: 진행 막대 · 탐지 건수 · 위험도 */
+.scan-mock__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.scan-mock__progress {
+  overflow: hidden;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+
+.scan-mock__progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary-glow);
+}
+
+.scan-mock[data-done] .scan-mock__progress i {
+  width: 100%;
+}
+
+.scan-mock__count {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.scan-mock__risk {
+  color: var(--color-risk-high);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.scan-mock[data-done] .scan-mock__risk {
+  opacity: 1;
+}
+
+.scan-mock__replay {
+  align-self: center;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.scan-mock[data-done] .scan-mock__replay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scan-mock__replay:hover:not(:disabled) {
+  border-color: var(--color-primary-line);
+  color: var(--color-primary);
+}
+
+.scan-mock__replay:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ---------- 숨은 위험 흐름 띠 ---------- */
@@ -1079,41 +1272,19 @@
     animation-delay: 0.6s;
   }
 
-  .scan-mock__wash {
-    animation: landing-wash 5s linear infinite;
-  }
-
-  .scan-mock__sweep,
   .landing-cta__sweep {
     animation: landing-sweep 5s linear infinite;
   }
 
-  .scan-mock__mask {
-    animation: landing-mask 5s linear infinite;
+  /* 문서를 훑는 초록 선. 한 번만 내려가고 멈춘다 — "다시 스캔"을 누르면 컴포넌트가 다시 켠다.
+     시간(2.6s)은 LandingScanMock.jsx의 SCAN_MS와 맞춰야 한다. */
+  .scan-mock[data-running] .scan-mock__scanline {
+    animation: scan-sweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   }
 
-  .scan-mock__mask--late {
-    animation-delay: 0.3s;
-  }
-
-  .scan-mock__hidden {
-    animation: landing-hidden 5s linear infinite;
-  }
-
-  .scan-mock__chip--a {
-    animation: landing-reveal-a 5s linear infinite;
-  }
-
-  .scan-mock__chip--b {
-    animation: landing-reveal-b 5s linear infinite;
-  }
-
-  .scan-mock__chip--c {
-    animation: landing-reveal-c 5s linear infinite;
-  }
-
-  .scan-mock__progress i {
-    animation: landing-progress 5s linear infinite;
+  .scan-mock[data-running] .scan-mock__progress i {
+    width: 100%;
+    transition: width 2.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .landing-marquee__track {
@@ -1137,124 +1308,9 @@
   }
 }
 
-@keyframes landing-wash {
-  0% {
-    height: 0%;
-    opacity: 0.55;
-  }
-  84% {
-    height: 100%;
-    opacity: 0.55;
-  }
-  92% {
-    height: 100%;
-    opacity: 0;
-  }
-  100% {
-    height: 0%;
-    opacity: 0;
-  }
-}
-
-@keyframes landing-reveal-a {
-  0%,
-  20% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  26%,
-  88% {
-    opacity: 1;
-    transform: none;
-  }
-  94%,
-  100% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-}
-
-@keyframes landing-reveal-b {
-  0%,
-  44% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  50%,
-  88% {
-    opacity: 1;
-    transform: none;
-  }
-  94%,
-  100% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-}
-
-@keyframes landing-reveal-c {
-  0%,
-  66% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  72%,
-  88% {
-    opacity: 1;
-    transform: none;
-  }
-  94%,
-  100% {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-}
-
 /* 숨은 글: 처음엔 바탕색 글자(안 보임) → 선이 지나가면 초록으로 드러난다 */
-@keyframes landing-hidden {
-  0%,
-  60%,
-  96%,
-  100% {
-    background: transparent;
-    box-shadow: none;
-    color: var(--color-bg);
-  }
-  68%,
-  88% {
-    background: var(--color-primary-soft);
-    box-shadow: inset 0 0 0 1px var(--color-primary-line-strong);
-    color: var(--color-primary);
-  }
-}
 
 /* 값: 처음엔 그대로 보임 → 선이 지나가면 초록 상자로 가려진다 */
-@keyframes landing-mask {
-  0%,
-  22%,
-  96%,
-  100% {
-    background: transparent;
-    box-shadow: none;
-    color: var(--color-text-muted);
-  }
-  30%,
-  88% {
-    background: var(--color-primary-soft);
-    box-shadow: inset 0 0 0 1px var(--color-primary-line-strong);
-    color: transparent;
-  }
-}
-
-@keyframes landing-progress {
-  0% {
-    width: 2%;
-  }
-  84%,
-  100% {
-    width: 100%;
-  }
-}
 
 @keyframes landing-bracket {
   0%,
@@ -1302,5 +1358,19 @@
   }
   to {
     background-position: 0 -80px;
+  }
+}
+
+@keyframes scan-sweep {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
   }
 }

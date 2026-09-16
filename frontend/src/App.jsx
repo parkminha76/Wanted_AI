@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from './shared/api.js'
-import { AppHeader } from './shared/components/index.js'
+import { AppHeader, ScrollTopButton } from './shared/components/index.js'
 import { useHashRoute } from './shared/useHashRoute.js'
 import { useScrollReveal } from './shared/useScrollReveal.js'
 import UploadPage from './scanner/UploadPage.jsx'
@@ -134,6 +134,7 @@ export default function App() {
     <div className="app">
       <AppHeader route={route} onNavigate={navigate} />
       <main className="app-main">{page}</main>
+      <ScrollTopButton key={route} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../shared/api.js'
 import { Button, SectionRail } from '../shared/components/index.js'
+import TypingChatMock from './TypingChatMock.jsx'
 import './training.css'
 
 // TODO: 로그인 기능이 없어 임시 사용자 id를 쓴다. /training/start는 이 id로 DB에 훈련 기록을 만들므로
@@ -88,14 +89,7 @@ export default function TrainingHomePage({ onStarted }) {
             훈련 시작하기 →
           </Button>
         </div>
-        <div className="training-art" aria-hidden="true">
-          <div className="training-art__person">👨🏻‍💼</div>
-          <div className="training-art__bubble">
-            이 요청,
-            <br />
-            믿어도 될까요?
-          </div>
-        </div>
+        <TypingChatMock />
       </section>
 
       <ul id="features" className="feature-cards stagger">
