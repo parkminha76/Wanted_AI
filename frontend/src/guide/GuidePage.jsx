@@ -1,4 +1,4 @@
-import { Button } from '../shared/components/index.js'
+import { Button, DecodeText, SectionRail } from '../shared/components/index.js'
 import './guide.css'
 
 const STEPS = [
@@ -8,20 +8,31 @@ const STEPS = [
   { number: '04', icon: '✓', title: '안전하게 마스킹', copy: '원본 형식 그대로 위험 요소만 가린 사본을 내려받습니다. 원본은 바로 삭제됩니다.' },
 ]
 
+const SECTIONS = [
+  { id: 'intro', label: '소개' },
+  { id: 'steps', label: '단계' },
+  { id: 'start', label: '시작' },
+]
+
 export default function GuidePage({ navigate }) {
   return (
     <div className="container guide-page">
-      <section className="guide-intro">
-        <p className="eyebrow">HOW IT WORKS</p>
+      <SectionRail sections={SECTIONS} />
+      <section id="intro" className="guide-intro rv">
+        <p className="eyebrow">
+          <span className="eyebrow__num">003</span>HOW IT WORKS
+        </p>
         <h1 className="page-title">DocX-ray 이용 가이드</h1>
         <p className="page-desc">문서를 안전하게 검사하고 보호하는 방법을 확인하세요.</p>
       </section>
 
-      <ol className="guide-steps">
+      <ol id="steps" className="guide-steps stagger">
         {STEPS.map((step) => (
-          <li key={step.number} className="guide-step">
+          <li key={step.number} className="guide-step rv">
             <div className="guide-step__top">
-              <span className="guide-step__number">{step.number}</span>
+              <span className="guide-step__number">
+                <DecodeText text={step.number} />
+              </span>
               <span className="guide-step__icon" aria-hidden="true">
                 {step.icon}
               </span>
@@ -32,7 +43,7 @@ export default function GuidePage({ navigate }) {
         ))}
       </ol>
 
-      <div className="cta-card">
+      <div id="start" className="cta-card rv">
         <div>
           <b>지금 문서의 보안 상태를 확인해 보세요.</b>
           <p>업로드부터 안전한 문서 다운로드까지, DocX-ray가 도와드립니다.</p>

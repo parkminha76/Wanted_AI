@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, RiskBadge } from '../shared/components/index.js'
+import { Button, DecodeText, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, groupOf } from '../shared/findings.js'
 import DocumentPreview from './DocumentPreview.jsx'
 import EmptyResult from './EmptyResult.jsx'
@@ -36,7 +36,13 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
 
   return (
     <div className="container results-page">
-      <div className="page-head">
+      <SectionRail
+        sections={[
+          { id: 'summary', label: '위험도' },
+          { id: 'preview', label: '미리보기' },
+        ]}
+      />
+      <div className="page-head rv">
         <div>
           <h1 className="page-title">분석이 완료되었습니다.</h1>
           <p className="page-desc">
@@ -59,7 +65,7 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
         </p>
       )}
 
-      <section className={`risk-card risk-card--${file.level}`} aria-label="위험도 요약">
+      <section id="summary" className={`risk-card risk-card--${file.level} rv`} aria-label="위험도 요약">
         <div className="risk-card__score">
           <span className="risk-card__icon" aria-hidden="true">
             !
@@ -67,7 +73,9 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
           <div>
             <small>위험도</small>
             <p className="risk-card__number">
-              <b>{Math.round(file.risk_score)}</b>
+              <b>
+                <DecodeText text={Math.round(file.risk_score)} />
+              </b>
               <span>/100</span>
             </p>
             <RiskBadge level={file.level} />
@@ -77,7 +85,9 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
           {GROUP_ORDER.map((key) => (
             <li key={key} className={counts[key] === 0 ? 'is-zero' : undefined}>
               <span>{GROUPS[key].label}</span>
-              <b>{counts[key]}건</b>
+              <b>
+                <DecodeText text={`${counts[key]}건`} />
+              </b>
             </li>
           ))}
         </ul>
@@ -95,7 +105,7 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
         </div>
       )}
 
-      <div className="tabs" role="tablist" aria-label="결과 보기">
+      <div id="preview" className="tabs" role="tablist" aria-label="결과 보기">
         <button
           type="button"
           role="tab"

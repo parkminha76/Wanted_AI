@@ -33,7 +33,8 @@
 
 .guide-step__number {
   color: var(--color-primary);
-  font-weight: var(--font-weight-heavy);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
 }
 
 .guide-step__icon {
@@ -61,7 +62,9 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .guide-step:hover {
+  /* 스크롤 등장(.motion .rv.in { transform: none })보다 우선해야 떠오르는 효과가 살아난다 */
+  .guide-step:hover,
+  .motion .guide-step.rv.in:hover {
     transform: translateY(-3px);
   }
 }

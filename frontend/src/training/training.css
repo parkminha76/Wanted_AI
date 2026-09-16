@@ -22,7 +22,7 @@
 }
 
 .training-hero__title em {
-  color: var(--color-primary);
+  color: var(--color-point);
   font-style: normal;
 }
 
@@ -532,9 +532,10 @@
 }
 
 .report-score b {
-  color: var(--color-navy);
-  font-size: 3rem;
-  font-weight: var(--font-weight-heavy);
+  color: var(--color-point);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-regular);
   line-height: 1;
 }
 
