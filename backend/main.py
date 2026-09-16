@@ -46,6 +46,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
@@ -384,6 +385,9 @@ def health() -> dict:
     엔드포인트가 404인지 알 길이 없다.
     """
     body = {"status": "ok", "schema_version": schema.SCHEMA_VERSION}
+    revision = os.getenv("RAILWAY_GIT_COMMIT_SHA", "").strip()
+    if revision:
+        body["revision"] = revision[:8]
     body["training_mode"] = "on" if training_router is not None else "off"
     if _TRAINING_ROUTER_ERROR:
         body["training_mode_error"] = _TRAINING_ROUTER_ERROR
@@ -421,7 +425,10 @@ async def scan_upload(
     try:
         paths = [await _spool_upload(f, upload_dir) for f in files]
         input_bytes = sum(os.path.getsize(path) for path in paths)
-        batch = scan.scan_files(
+        # 파일 파싱과 ML 추론은 CPU 동기 작업이다. async 엔드포인트에서 직접
+        # 실행하면 긴 XLSX 한 건이 이벤트 루프를 막아 /health까지 응답하지 못한다.
+        batch = await run_in_threadpool(
+            scan.scan_files,
             paths,
             masking_policy=selected_policy,
             create_masked_copy=create_masked_copy,
@@ -495,7 +502,8 @@ async def mask_selected_findings(
         path = await _spool_upload(file, upload_dir)
         input_bytes = os.path.getsize(path)
         try:
-            result = scan.scan_file(
+            result = await run_in_threadpool(
+                scan.scan_file,
                 path,
                 masking_selection=selections,
                 create_masked_copy=True,
