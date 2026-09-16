@@ -55,7 +55,7 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
         </p>
       </header>
 
-      <Card>
+      <Card className="rv">
         <div className="detail-card__title">
           <span className={`group-icon group-icon--${group}`} aria-hidden="true">
             ▣

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../shared/api.js'
-import { Button } from '../shared/components/index.js'
+import { Button, SectionRail } from '../shared/components/index.js'
+import TypingChatMock from './TypingChatMock.jsx'
 import './training.css'
 
 // TODO: 로그인 기능이 없어 임시 사용자 id를 쓴다. /training/start는 이 id로 DB에 훈련 기록을 만들므로
@@ -63,9 +64,18 @@ export default function TrainingHomePage({ onStarted }) {
 
   return (
     <div className="container training-page">
-      <section className="training-hero">
+      <SectionRail
+        sections={[
+          { id: 'intro', label: '소개' },
+          { id: 'features', label: '기능' },
+          { id: 'training-levels', label: '레벨' },
+        ]}
+      />
+      <section id="intro" className="training-hero rv">
         <div>
-          <p className="eyebrow">SECURITY READINESS</p>
+          <p className="eyebrow">
+            <span className="eyebrow__num">002</span>SECURITY READINESS
+          </p>
           <h1 className="training-hero__title">
             <em>AI</em> 보안 대응 훈련
           </h1>
@@ -79,19 +89,12 @@ export default function TrainingHomePage({ onStarted }) {
             훈련 시작하기 →
           </Button>
         </div>
-        <div className="training-art" aria-hidden="true">
-          <div className="training-art__person">👨🏻‍💼</div>
-          <div className="training-art__bubble">
-            이 요청,
-            <br />
-            믿어도 될까요?
-          </div>
-        </div>
+        <TypingChatMock />
       </section>
 
-      <ul className="feature-cards">
+      <ul id="features" className="feature-cards stagger">
         {FEATURES.map((feature) => (
-          <li key={feature.title} className="feature-card">
+          <li key={feature.title} className="feature-card rv">
             <span className="feature-card__icon" aria-hidden="true">
               {feature.icon}
             </span>
@@ -113,12 +116,12 @@ export default function TrainingHomePage({ onStarted }) {
             {error}
           </p>
         )}
-        <div className="level-grid">
+        <div className="level-grid stagger">
           {LEVELS.map((item) => (
             <button
               key={item.level}
               type="button"
-              className="level-card"
+              className="level-card rv"
               onClick={() => start(item.level)}
               disabled={startingLevel !== null || unavailable}
             >
@@ -135,7 +138,7 @@ export default function TrainingHomePage({ onStarted }) {
         </div>
       </section>
 
-      <blockquote className="quote">
+      <blockquote className="quote rv">
         “작은 경각심이
         <br />더 안전한 일상을 만듭니다.”
       </blockquote>

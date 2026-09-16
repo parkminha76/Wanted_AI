@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../shared/api.js'
-import { Button, Card } from '../shared/components/index.js'
+import { Button, Card, DecodeText } from '../shared/components/index.js'
 import './training.css'
 
 // 훈련 결과 리포트. 하단에 스캐너로 넘어가는 전환 버튼이 있다.
@@ -138,7 +138,7 @@ export default function ReportPage({ training, navigate }) {
         </>
       )}
 
-      <div className="cta-card">
+      <div className="cta-card rv">
         <div>
           <b>이제 내 문서도 검사해 보세요.</b>
           <p>보내기 전에 문서 속 개인정보와 숨은 명령을 DocX-ray가 찾아 드립니다.</p>
