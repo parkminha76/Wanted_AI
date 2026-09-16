@@ -18,7 +18,7 @@ const LEVELS = [
 
 const FEATURES = [
   { icon: '▣', title: '실전 대화 시뮬레이션', copy: 'AI가 연기하는 사기범의 메시지에 직접 답장하며 대응해 봅니다.' },
-  { icon: '◈', title: '보내기 전 답장 검사', copy: '답장에 개인정보가 들어 있으면 보내기 전에 알려 드립니다.' },
+  { icon: '◈', title: '개인정보 보호', copy: '명확한 개인정보 형식은 외부 AI에 전달하기 전에 자동으로 치환합니다.' },
   { icon: '▤', title: 'AI 대응 리포트', copy: '대화가 끝나면 잘한 점과 위험했던 순간을 정리해 드립니다.' },
 ]
 
@@ -48,9 +48,10 @@ export default function TrainingHomePage({ onStarted }) {
       onStarted({
         id: started.training_progress_id,
         level: started.level,
-        state: started.state,
         turnNo: started.turn_no,
         firstMessage: started.attacker_message,
+        scenarioId: started.scenario_id,
+        scenarioTitle: started.scenario_title,
       })
     } catch (err) {
       setError(err.message)

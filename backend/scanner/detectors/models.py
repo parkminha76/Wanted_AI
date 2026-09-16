@@ -165,6 +165,49 @@ def is_injection(sentence, *, threshold: float | None = None) -> tuple[bool, flo
     return (False, probability)
 
 
+def is_injection_many(
+    sentences: list[str], *, threshold: float | None = None
+) -> list[tuple[bool, float]]:
+    """여러 문장의 인젝션 여부를 한 번에 판정한다.
+
+    XLSX는 셀 하나가 문장 하나라 고객명단 한 파일에서 ``is_injection``을 300회
+    넘게 부를 수 있다. sklearn Pipeline은 문자열 목록을 한 번에 변환·예측할 수
+    있으므로 문장 경계를 유지한 채 묶어서 처리한다. 단건 함수의 임계값과 키워드
+    보조 판정은 그대로 적용한다.
+    """
+    if not sentences:
+        return []
+
+    cleaned = [sentence if isinstance(sentence, str) else "" for sentence in sentences]
+    keyword_hits = [
+        any(keyword.lower() in sentence.lower() for keyword in _INJECTION_KEYWORDS)
+        for sentence in cleaned
+    ]
+    model = _get_injection_model()
+    if model is None:
+        return [
+            (hit, _KEYWORD_CONFIDENCE if hit else 0.0) for hit in keyword_hits
+        ]
+
+    if hasattr(model, "pipeline"):
+        probabilities = model.pipeline.predict_proba(cleaned)[:, 1]
+    else:
+        # 과거 형식의 모델 객체를 읽는 경우를 위한 호환 경로다.
+        probabilities = [model.predict_proba(sentence) for sentence in cleaned]
+
+    limit = INJECTION_THRESHOLD if threshold is None else threshold
+    results = []
+    for probability, keyword_hit in zip(probabilities, keyword_hits):
+        value = round(float(probability), 3)
+        if value >= limit:
+            results.append((True, value))
+        elif keyword_hit:
+            results.append((True, _KEYWORD_CONFIDENCE))
+        else:
+            results.append((False, value))
+    return results
+
+
 # ---------------------------------------------------------------------------
 # 오탐 제거
 # ---------------------------------------------------------------------------

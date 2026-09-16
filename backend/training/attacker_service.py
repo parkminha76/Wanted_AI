@@ -3,21 +3,20 @@ from backend.training.prompts import build_attacker_prompt
 
 
 class AttackerService:
-
     def __init__(self):
         self.llm = AnthropicClient()
 
     def generate_message(
         self,
+        *,
         state: str,
-        messages: list[dict]
+        level: int,
+        scenario: dict,
+        messages: list[dict],
     ) -> str:
-
-        system_prompt = build_attacker_prompt(state)
-
-        attacker_message = self.llm.generate(
-            system_prompt=system_prompt,
-            messages=messages
+        system_prompt = build_attacker_prompt(
+            state=state,
+            level=level,
+            scenario=scenario,
         )
-
-        return attacker_message
+        return self.llm.generate(system_prompt=system_prompt, messages=messages)

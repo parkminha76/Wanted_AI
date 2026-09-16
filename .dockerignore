@@ -22,9 +22,12 @@ test-results
 
 backend/tests
 backend/scanner/tests
-ml/training
 ml/eval
-ml/data_generation
+
+# 분류기 런타임 코드는 포함하고, 생성기에서는 rules.py가 쓰는 validator만 포함한다.
+ml/data_generation/*
+!ml/data_generation/__init__.py
+!ml/data_generation/validators.py
 
 # 학습 데이터는 배포 이미지에 넣지 않고, /samples에 필요한 합성 데모만 포함한다.
 sample_data/**

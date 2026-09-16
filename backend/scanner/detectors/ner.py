@@ -46,6 +46,15 @@ MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
 # 200토큰 안팎으로, 512 한도에 충분한 여유가 있다.
 _MAX_CHARS_PER_CHUNK = 400
 
+# transformers Pipeline은 문자열 목록을 받으면 내부에서 묶어 추론한다. XLSX는 셀
+# 하나가 chunk 하나라 고객명단.xlsx 한 파일에서 300회 넘게 모델을 따로 호출했는데,
+# Railway에서는 이 순차 호출이 프록시 응답 제한을 넘겨 502가 났다. 셀 경계는 입력
+# 목록의 각 원소로 그대로 유지하면서 이 개수만큼 묶어 호출한다.
+# Railway의 소형 인스턴스에서는 32개 배치가 모델·토큰 텐서와 함께 메모리 한도를
+# 넘겨 컨테이너가 재시작됐다. 로컬 실측은 8개(1.162초)와 32개(1.124초)의 차이가
+# 0.04초뿐이라, 처리량보다 배포 안정성을 우선해 8개로 제한한다.
+_BATCH_SIZE = 8
+
 # 모두의말뭉치 NER 태그 -> schema.RiskType. 개인정보와 무관한 태그(날짜/수량/
 # 이론/인공물 등)는 매핑에서 빼서 자동으로 버려지게 한다.
 _TAG_TO_RISK_TYPE: dict[str, str] = {
@@ -150,8 +159,16 @@ def detect(text: str) -> list[dict]:
     """rules.py와 같은 형식으로 반환한다: [{field, value, start, end, confidence}, ...]"""
     pipe = _get_pipeline()
     findings = []
-    for chunk, offset in _iter_chunks(text):
-        for entity in pipe(chunk):
+    chunks = list(_iter_chunks(text))
+    if not chunks:
+        return []
+
+    # 문자열을 하나씩 호출하면 XLSX 셀 수만큼 Python/모델 호출 비용이 반복된다.
+    # 목록 배치는 각 셀을 독립 문장으로 처리하므로 개체가 셀 경계를 넘어 합쳐지지
+    # 않으며, 아래 offset 보정도 기존과 같다.
+    outputs = pipe([chunk for chunk, _ in chunks], batch_size=_BATCH_SIZE)
+    for (_, offset), entities in zip(chunks, outputs):
+        for entity in entities:
             risk_type = _TAG_TO_RISK_TYPE.get(entity["entity_group"])
             if risk_type is None:
                 continue

@@ -46,7 +46,9 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
@@ -117,6 +119,44 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="docXray API", version=schema.SCHEMA_VERSION, lifespan=lifespan)
+
+
+def _swagger_compatible_openapi() -> dict:
+    """Swagger UI가 UploadFile을 실제 파일 선택기로 표시하도록 보완한다.
+
+    현재 FastAPI/Pydantic 조합은 바이너리 필드를 OpenAPI 3.1의
+    contentMediaType으로 표현한다. Railway의 Swagger UI는 이 표기를 문자열
+    입력으로 렌더링하므로, 널리 지원되는 format=binary를 함께 제공한다.
+    """
+    if app.openapi_schema is not None:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        routes=app.routes,
+    )
+
+    def add_binary_format(node) -> None:
+        if isinstance(node, dict):
+            if (
+                node.get("type") == "string"
+                and node.get("contentMediaType") == "application/octet-stream"
+            ):
+                node["format"] = "binary"
+            for value in node.values():
+                add_binary_format(value)
+        elif isinstance(node, list):
+            for value in node:
+                add_binary_format(value)
+
+    add_binary_format(openapi_schema)
+    app.openapi_schema = openapi_schema
+    return openapi_schema
+
+
+app.openapi = _swagger_compatible_openapi
 
 # Training Mode API 연결. 못 붙였으면 스캐너만 띄운다(위 import 주석 참고).
 if training_router is not None:
@@ -345,6 +385,9 @@ def health() -> dict:
     엔드포인트가 404인지 알 길이 없다.
     """
     body = {"status": "ok", "schema_version": schema.SCHEMA_VERSION}
+    revision = os.getenv("RAILWAY_GIT_COMMIT_SHA", "").strip()
+    if revision:
+        body["revision"] = revision[:8]
     body["training_mode"] = "on" if training_router is not None else "off"
     if _TRAINING_ROUTER_ERROR:
         body["training_mode_error"] = _TRAINING_ROUTER_ERROR
@@ -360,7 +403,7 @@ def masking_options() -> dict:
 @app.post("/scan")
 async def scan_upload(
     files: list[UploadFile],
-    masking_policy_json: str | None = Form(default=None, alias="masking_policy"),
+    masking_policy_json: str | None = Form('{"default":"full","rules":{}}', alias="masking_policy"),
     create_masked_copy: bool = Form(default=True),
 ) -> dict:
     """파일 여러 개를 검사해 위험도 순으로 돌려준다.
@@ -382,7 +425,10 @@ async def scan_upload(
     try:
         paths = [await _spool_upload(f, upload_dir) for f in files]
         input_bytes = sum(os.path.getsize(path) for path in paths)
-        batch = scan.scan_files(
+        # 파일 파싱과 ML 추론은 CPU 동기 작업이다. async 엔드포인트에서 직접
+        # 실행하면 긴 XLSX 한 건이 이벤트 루프를 막아 /health까지 응답하지 못한다.
+        batch = await run_in_threadpool(
+            scan.scan_files,
             paths,
             masking_policy=selected_policy,
             create_masked_copy=create_masked_copy,
@@ -456,7 +502,8 @@ async def mask_selected_findings(
         path = await _spool_upload(file, upload_dir)
         input_bytes = os.path.getsize(path)
         try:
-            result = scan.scan_file(
+            result = await run_in_threadpool(
+                scan.scan_file,
                 path,
                 masking_selection=selections,
                 create_masked_copy=True,

@@ -4,37 +4,33 @@ STATE_S3 = "S3_URGENCY_PRESSURE"
 STATE_END = "END"
 
 
-def get_next_state(current_state, user_message):
-    """
-    현재 state와 사용자 말을 보고
-    다음 state를 결정한다.
-    """
+_SUSPICIOUS_WORDS = (
+    "왜", "이상", "의심", "공식", "확인", "대표번호", "직접 연락",
+    "싫", "안 할", "못", "필요", "누구", "증명",
+)
+_FINAL_REFUSALS = (
+    "더 이상", "신고", "차단", "응하지 않", "제공하지 않", "안 알려",
+    "거절", "종료", "연락하지 마", "공식 채널로 확인",
+)
 
-    # S1에서는 사용자가 반응하면 S2로 이동
+
+def get_next_state(current_state: str, user_message: str) -> str:
+    """사용자의 의심·거부 행동에 따라 공격 단계를 조정한다."""
+    normalized = user_message.lower().strip()
+
     if current_state == STATE_S1:
+        if any(word in normalized for word in _SUSPICIOUS_WORDS):
+            return STATE_S3
         return STATE_S2
 
-    # S2에서는 사용자가 의심/거부하면 S3로 이동
     if current_state == STATE_S2:
-        suspicious_words = [
-            "왜",
-            "이상",
-            "싫",
-            "안 할",
-            "못",
-            "의심",
-            "필요"
-        ]
-
-        for word in suspicious_words:
-            if word in user_message:
-                return STATE_S3
-
-        # 아직 거부하지 않았으면 S2 유지
+        if any(word in normalized for word in _SUSPICIOUS_WORDS):
+            return STATE_S3
         return STATE_S2
 
-    # S3 이후에는 일단 종료
     if current_state == STATE_S3:
-        return STATE_END
+        if any(word in normalized for word in _FINAL_REFUSALS):
+            return STATE_END
+        return STATE_S3
 
     return STATE_END

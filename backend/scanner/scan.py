@@ -199,8 +199,9 @@ def _iter_sentences(text: str):
 def _find_injections(text: str) -> list[Finding]:
     """문장마다 models.is_injection을 돌려 인젝션 후보를 findings로 만든다."""
     findings = []
-    for sentence, start, end in _iter_sentences(text):
-        is_command, confidence = models.is_injection(sentence)
+    sentences = list(_iter_sentences(text))
+    decisions = models.is_injection_many([item[0] for item in sentences])
+    for (sentence, start, end), (is_command, confidence) in zip(sentences, decisions):
         if not is_command:
             continue
         # 모델이 올라와 있을 때만 모델 이름을 남긴다. 키워드로만 판정한 경우에
@@ -583,6 +584,28 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
     return findings
 
 
+def _xlsx_ner_input(text: str, spans, findings: list[Finding]) -> str:
+    """이미 확정한 XLSX 셀은 공백으로 바꿔 NER 중복 추론을 피한다.
+
+    열 제목 기반 탐지와 정규식이 셀 전체를 이미 잡은 경우 NER이 같은 셀을 다시
+    읽어도 새 정보가 생기지 않는다. 반면 아직 판정되지 않은 한글 설명·메모 셀은
+    사람명·회사명·장소가 자유 문장에 들어 있을 수 있으므로 그대로 둔다. 문자열
+    길이와 줄/탭 위치는 바꾸지 않아 NER offset은 원문 기준으로 유지된다.
+    """
+    covered = [(item.start, item.end) for item in findings]
+    masked = list(text)
+    for span in spans:
+        value = span.text
+        already_found = any(start <= span.start and span.end <= end for start, end in covered)
+        needs_ner = not already_found and bool(re.search(r"[가-힣]", value))
+        if needs_ner:
+            continue
+        for index in range(span.start, span.end):
+            if masked[index] not in "\t\r\n":
+                masked[index] = " "
+    return "".join(masked)
+
+
 def scan_text(
     text: str,
     meta: dict | None = None,
@@ -601,7 +624,10 @@ def scan_text(
 
     # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다.
     if ner is not None and hasattr(ner, "detect"):
-        findings += [_raw_to_finding(d, "ner") for d in ner.detect(text)]
+        ner_text = text
+        if meta.get("file_type") == "xlsx" and meta.get("spans"):
+            ner_text = _xlsx_ner_input(text, meta["spans"], findings)
+        findings += [_raw_to_finding(d, "ner") for d in ner.detect(ner_text)]
 
     # 3. 숨은 텍스트. 파서가 준 서식 정보(spans)가 있으면 흰 글씨·0pt·숨김 속성까지
     # 보고, 없으면(훈련 모드의 실시간 답장 스캔) 문자열만으로 제로폭·Bidi·태그
@@ -775,7 +801,11 @@ def scan_file(
                 else:
                     result = scan_text(
                         doc.raw_text,
-                        meta={"filename": path, "spans": doc.spans},
+                        meta={
+                            "filename": path,
+                            "file_type": doc.file_type,
+                            "spans": doc.spans,
+                        },
                         masking_policy=masking_policy,
                     )
             else:
