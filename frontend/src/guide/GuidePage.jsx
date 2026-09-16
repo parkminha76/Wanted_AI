@@ -1,4 +1,4 @@
-import { Button, DecodeText, SectionRail } from '../shared/components/index.js'
+import { Badge, Button, DecodeText, SectionRail } from '../shared/components/index.js'
 import './guide.css'
 
 const STEPS = [
@@ -19,9 +19,7 @@ export default function GuidePage({ navigate }) {
     <div className="container guide-page">
       <SectionRail sections={SECTIONS} />
       <section id="intro" className="guide-intro rv">
-        <p className="eyebrow">
-          <span className="eyebrow__num">003</span>HOW IT WORKS
-        </p>
+        <Badge>HOW IT WORKS</Badge>
         <h1 className="page-title">DocX-ray 이용 가이드</h1>
         <p className="page-desc">문서를 안전하게 검사하고 보호하는 방법을 확인하세요.</p>
       </section>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../shared/api.js'
-import { Button, SectionRail } from '../shared/components/index.js'
+import { Badge, Button, SectionRail } from '../shared/components/index.js'
 import TypingChatMock from './TypingChatMock.jsx'
 import './training.css'
 
@@ -73,9 +73,7 @@ export default function TrainingHomePage({ onStarted }) {
       />
       <section id="intro" className="training-hero rv">
         <div>
-          <p className="eyebrow">
-            <span className="eyebrow__num">002</span>SECURITY READINESS
-          </p>
+          <Badge>SECURITY READINESS</Badge>
           <h1 className="training-hero__title">
             <em>AI</em> 보안 대응 훈련
           </h1>

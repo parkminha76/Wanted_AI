@@ -10,6 +10,20 @@
   max-width: 600px;
 }
 
+/* 예전 .eyebrow가 갖고 있던 아래 여백. */
+.guide-intro .badge {
+  margin-bottom: var(--space-3);
+}
+
+/* 제목은 훈련 모드 첫 화면(.training-hero__title)과 같은 크기·굵기로 맞춘다.
+   .page-title은 검사 결과·리포트 등 여러 화면이 함께 쓰는 공용 클래스라 여기서만 덮어쓴다. */
+.guide-intro .page-title {
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.24;
+  letter-spacing: -0.04em;
+}
+
 .guide-steps {
   display: grid;
   gap: var(--space-4);
