@@ -8,6 +8,7 @@ export default function ReportPage({ training, navigate }) {
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [savingPdf, setSavingPdf] = useState(false)
 
   // 완료된 리포트를 조회한다. 개발 모드(StrictMode)에서 effect가 두 번 돌아
   // 같은 요청을 중복 전송하지 않도록 이미 요청한 훈련 id를 기억한다.
@@ -31,6 +32,20 @@ export default function ReportPage({ training, navigate }) {
     requestedId.current = trainingId
     load()
   }, [trainingId, load])
+
+  async function downloadReport() {
+    if (!report) return
+    setSavingPdf(true)
+    setError('')
+    try {
+      const { downloadTrainingReportPdf } = await import('./reportPdf.js')
+      await downloadTrainingReportPdf(report)
+    } catch (err) {
+      setError(err.message || 'PDF를 생성하지 못했습니다. 다시 시도해 주세요.')
+    } finally {
+      setSavingPdf(false)
+    }
+  }
 
   if (!training) {
     return (
@@ -129,6 +144,11 @@ export default function ReportPage({ training, navigate }) {
           <p>보내기 전에 문서 속 개인정보와 숨은 명령을 DocX-ray가 찾아 드립니다.</p>
         </div>
         <div className="report-page__actions">
+          {report && (
+            <Button variant="secondary" onClick={downloadReport} disabled={savingPdf}>
+              {savingPdf ? 'PDF 생성 중…' : '결과 저장하기 (PDF)'}
+            </Button>
+          )}
           <Button onClick={() => navigate('')}>스캐너로 내 문서 검사하기 →</Button>
           <Button variant="secondary" onClick={() => navigate('training')}>
             다시 훈련하기
