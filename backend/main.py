@@ -4,6 +4,8 @@
     POST /mask            화면에서 고른 항목만 마스킹한 사본 생성
     POST /samples/mask    샘플 문서에서 고른 항목만 마스킹한 사본 생성
     POST /scan/text       문장 하나 -> ScanResult JSON            (C의 실시간 답장 스캔)
+    PATCH /scan-results/{scan_result_id}/hidden-commands/{finding_ref}
+                          숨은 명령 확인/제거/무시 상태 기록 (DB 저장 켜져 있을 때만 동작)
     GET  /masking/options 화면용 마스킹 방식·유형 기준표
     GET  /download/{id}   마스킹 사본 파일 하나
     GET  /download/all    배치 전체 .zip
@@ -44,6 +46,7 @@ import zipfile
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Literal
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -91,6 +94,69 @@ except Exception as exc:  # 키 없음, DB 미설정, C 모듈 오류 등 무엇
 else:
     _TRAINING_ROUTER_ERROR = ""
 
+# 검사 결과 집계 저장(선택). 이 파일 맨 위 원칙("DB는 없어도 돈다")과 같은 이유로
+# 임포트 자체를 try/except로 감싼다 — TiDB 자격증명이 없는 로컬/평가 환경에서도
+# 스캐너는 그대로 떠야 한다. 실패하면 _persist_scan_results가 조용히 아무 것도
+# 안 하는 쪽으로 떨어진다.
+try:
+    from backend.db.session import SessionLocal, init_db
+    from backend.db.converters import save_scan_result
+    from backend.db.seed_demo_user import DEMO_USER_ID, ensure_demo_user
+    from backend.db.tables import FindingRow
+except Exception as exc:  # noqa: BLE001
+    SessionLocal = None
+    init_db = None
+    save_scan_result = None
+    ensure_demo_user = None
+    FindingRow = None
+    DEMO_USER_ID = 1
+    _DB_ERROR = f"{type(exc).__name__}: {exc}"
+else:
+    _DB_ERROR = ""
+
+
+def _init_db_best_effort() -> None:
+    """앱이 뜰 때 테이블·데모 유저를 준비한다. 실패해도 서버는 그대로 뜬다.
+
+    클린 DB(테이블이 하나도 없는 새 배포)에 지금 이걸 안 하면, ScanResultRow가
+    user_id=DEMO_USER_ID로 FK를 거는데 그 유저가 없어서 _persist_scan_results가
+    매번 조용히 실패한다 — 심사 환경을 새로 배포했을 때 딱 이 꼴로 터진다
+    (로그에만 남고 사용자·심사위원 화면에는 아무 표시도 없다).
+    init_db()는 create_all이라 이미 테이블이 있어도 안전하게 다시 부를 수 있다.
+    """
+    if init_db is None or ensure_demo_user is None:
+        return
+    try:
+        init_db()
+        ensure_demo_user()
+    except Exception as exc:  # noqa: BLE001
+        log_event(logger, logging.WARNING, "db.init.failed", error_code=type(exc).__name__)
+
+
+def _persist_scan_results(results: list[schema.ScanResult]) -> None:
+    """검사 결과를 집계용으로 최선을 다해 저장한다. 실패해도 스캔 응답은 그대로 나간다.
+
+    아직 로그인/세션이 없어서 전부 데모 계정(DEMO_USER_ID)으로 쌓는다 — 여러 사용자를
+    구분하는 일은 인증이 생긴 뒤의 문제다. save_scan_result 자체가 원문·마스킹 사본은
+    저장하지 않고 집계(위험점수, 유형별 건수)만 남기도록 설계돼 있다(db/converters.py).
+    """
+    if SessionLocal is None or save_scan_result is None:
+        return
+    db = SessionLocal()
+    try:
+        for result in results:
+            row = save_scan_result(db, DEMO_USER_ID, result, file_extension=result.file_type)
+            result.db_id = row.id  # save_scan_result가 flush까지 해서 이 시점에 이미 채워져 있다
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        for result in results:
+            result.db_id = None  # 커밋이 안 됐으니 방금 채운 id는 무효다
+        log_event(logger, logging.WARNING, "scan.persist.failed", error_code=type(exc).__name__)
+    finally:
+        db.close()
+
+
 MASKED_DIR_PREFIX = "infoguard_mask_"
 
 
@@ -107,12 +173,14 @@ async def lifespan(app: FastAPI):
     담긴 파일이 서버에 무기한 남아서는 안 된다.
     """
     removed = _sweep_orphan_dirs()
+    _init_db_best_effort()
     log_event(
         logger,
         logging.INFO,
         "service.started",
         removed_count=removed,
         training_mode="on" if training_router is not None else "off",
+        db_mode="on" if SessionLocal is not None else "off",
     )
     yield
     log_event(logger, logging.INFO, "service.stopped")
@@ -330,8 +398,16 @@ def _safe_basename(name: str | None) -> str:
 
 
 async def _spool_upload(upload: UploadFile, dest_dir: str) -> str:
-    """업로드를 임시 파일로 받는다. 상한을 넘으면 받다 말고 끊는다."""
-    path = os.path.join(dest_dir, _safe_basename(upload.filename))
+    """업로드를 임시 파일로 받는다. 상한을 넘으면 받다 말고 끊는다.
+
+    파일마다 고유한 하위 폴더에 쓴다. 안 그러면 한 배치 안에 같은 이름의 파일이
+    두 개 있을 때(실무에서 흔한 "invoice.pdf" 두 개 업로드 등) 같은 dest_dir
+    경로에 겹쳐 써서, 나중 파일이 먼저 쓴 파일을 덮어쓴다 — 첫 번째 파일은
+    검사되지도 않은 채 조용히 사라지고, 대신 두 번째 파일 내용이 두 번
+    스캔된 것처럼 결과가 나온다(실측: 2026-09-16).
+    """
+    unique_dir = tempfile.mkdtemp(dir=dest_dir)
+    path = os.path.join(unique_dir, _safe_basename(upload.filename))
     written = 0
     with open(path, "wb") as out:
         while chunk := await upload.read(1024 * 1024):
@@ -391,6 +467,9 @@ def health() -> dict:
     body["training_mode"] = "on" if training_router is not None else "off"
     if _TRAINING_ROUTER_ERROR:
         body["training_mode_error"] = _TRAINING_ROUTER_ERROR
+    body["db_mode"] = "on" if SessionLocal is not None else "off"
+    if _DB_ERROR:
+        body["db_mode_error"] = _DB_ERROR
     return body
 
 
@@ -453,6 +532,7 @@ async def scan_upload(
     for result in batch.results:
         _register_masked(result)
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
+    _persist_scan_results(batch.results)
 
     finding_counts = Counter(
         finding.type for result in batch.results for finding in result.findings
@@ -560,6 +640,7 @@ def scan_one_text(request: ScanTextRequest) -> dict:
     """
     started = time.perf_counter()
     result = scan.scan_text(request.text)
+    _persist_scan_results([result])
     log_event(
         logger,
         logging.INFO,
@@ -572,6 +653,64 @@ def scan_one_text(request: ScanTextRequest) -> dict:
         risk_levels={result.level: 1},
     )
     return result.to_dict()
+
+
+class HiddenCommandStatusUpdate(BaseModel):
+    status: Literal["확인필요", "제거함", "무시함"]
+
+
+@app.patch("/scan-results/{scan_result_id}/hidden-commands/{finding_ref}")
+def update_hidden_command_status(
+    scan_result_id: int,
+    finding_ref: str,
+    request: HiddenCommandStatusUpdate,
+) -> dict:
+    """화면에서 숨은 명령을 제거/무시했을 때 DB 기록을 갱신한다.
+
+    scan_result_id는 ScanResult.db_id(저장이 성공했을 때만 채워진다), finding_ref는
+    이미 응답에 있는 Finding.id("f_003" 같은 값)를 그대로 쓴다 — 화면이 새로 알아야
+    할 값은 scan_result_id 하나뿐이다.
+
+    이 기록은 화면 표시를 위한 보조 데이터다. 저장이 꺼져 있거나 실패해도 사용자가
+    이미 마스킹/무시 조치를 끝낸 뒤 보내는 후속 기록이므로, 화면은 이 요청이 실패해도
+    이미 끝난 작업을 무르지 않는다.
+    """
+    if SessionLocal is None or FindingRow is None:
+        raise HTTPException(status_code=404, detail="저장 기능이 꺼져 있어 상태를 기록할 수 없습니다")
+
+    db = SessionLocal()
+    try:
+        finding_row = (
+            db.query(FindingRow)
+            .filter(
+                FindingRow.scan_result_id == scan_result_id,
+                FindingRow.finding_ref == finding_ref,
+            )
+            .first()
+        )
+        if finding_row is None or finding_row.hidden_command is None:
+            raise HTTPException(status_code=404, detail="숨은 명령 기록을 찾을 수 없습니다")
+
+        finding_row.hidden_command.status = request.status
+        db.commit()
+        return {
+            "scan_result_id": scan_result_id,
+            "finding_ref": finding_ref,
+            "status": request.status,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        log_event(
+            logger,
+            logging.WARNING,
+            "hidden_command.update.failed",
+            error_code=type(exc).__name__,
+        )
+        raise HTTPException(status_code=500, detail="상태 갱신에 실패했습니다") from exc
+    finally:
+        db.close()
 
 
 @app.get("/download/all")

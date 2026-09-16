@@ -1,0 +1,130 @@
+[
+  {
+    "text": "주문 확인 메일입니다. 주문번호 512-873-204981의 배송 상태를 알려주세요.",
+    "type": "account",
+    "start": 18,
+    "end": 32,
+    "label": 0,
+    "group_id": "account_false_16"
+  },
+  {
+    "text": "주문 확인 메일입니다. 주문번호 671-209-558342의 배송 상태를 알려주세요.",
+    "type": "account",
+    "start": 18,
+    "end": 32,
+    "label": 0,
+    "group_id": "account_false_16"
+  },
+  {
+    "text": "세금계산서 발행이 완료되었습니다. 송장번호 883-217-604459로 조회 가능합니다.",
+    "type": "account",
+    "start": 24,
+    "end": 38,
+    "label": 0,
+    "group_id": "account_false_17"
+  },
+  {
+    "text": "세금계산서 발행이 완료되었습니다. 송장번호 246-701-938825로 조회 가능합니다.",
+    "type": "account",
+    "start": 24,
+    "end": 38,
+    "label": 0,
+    "group_id": "account_false_17"
+  },
+  {
+    "text": "온라인 주문 934-402-716658 건이 정상적으로 접수되었습니다.",
+    "type": "account",
+    "start": 7,
+    "end": 21,
+    "label": 0,
+    "group_id": "account_false_18"
+  },
+  {
+    "text": "온라인 주문 157-869-330214 건이 정상적으로 접수되었습니다.",
+    "type": "account",
+    "start": 7,
+    "end": 21,
+    "label": 0,
+    "group_id": "account_false_18"
+  },
+  {
+    "text": "고객님의 주문 462-098-573361이 배송 준비 중입니다.",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_19"
+  },
+  {
+    "text": "고객님의 주문 728-514-960083이 배송 준비 중입니다.",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_19"
+  },
+  {
+    "text": "반품 접수번호 391-647-802915로 처리 현황을 확인하실 수 있습니다.",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_20"
+  },
+  {
+    "text": "반품 접수번호 605-283-149576로 처리 현황을 확인하실 수 있습니다.",
+    "type": "account",
+    "start": 8,
+    "end": 22,
+    "label": 0,
+    "group_id": "account_false_20"
+  },
+  {
+    "text": "고객 식별번호 415-92-30768 건의 상담 내역을 조회했습니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_21"
+  },
+  {
+    "text": "고객 식별번호 728-64-19053 건의 상담 내역을 조회했습니다.",
+    "type": "biz_reg",
+    "start": 8,
+    "end": 20,
+    "label": 0,
+    "group_id": "biz_reg_false_21"
+  },
+  {
+    "text": "발주번호 306-58-77241의 납기 일정이 변경되었습니다.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_22"
+  },
+  {
+    "text": "발주번호 843-27-19605의 납기 일정이 변경되었습니다.",
+    "type": "biz_reg",
+    "start": 5,
+    "end": 17,
+    "label": 0,
+    "group_id": "biz_reg_false_22"
+  },
+  {
+    "text": "구매요청번호 519-36-84720으로 승인 상태를 확인해 주세요.",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_23"
+  },
+  {
+    "text": "구매요청번호 274-81-56390으로 승인 상태를 확인해 주세요.",
+    "type": "biz_reg",
+    "start": 7,
+    "end": 19,
+    "label": 0,
+    "group_id": "biz_reg_false_23"
+  }
+]

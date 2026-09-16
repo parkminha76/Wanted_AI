@@ -25,7 +25,19 @@ from typing import Literal, Optional
 # 바로 확인할 수 있다.
 # 1.1 -> 1.2: RiskType에 "emp_no"(사번) 추가, LABEL_TO_TYPE 역매핑 추가 (A, 09-09)
 # 1.2 -> 1.3: ScanResult.pages(쪽·시트 경계) 추가 — 화면 미리보기 쪽 나누기용 (B, 09-15)
-SCHEMA_VERSION = "1.3"
+# 1.3 -> 1.4: ScanResult.action_guide(우선 조치 카드) 추가 — 결과 화면 "그래서 뭘
+#             해야 하나" 답을 서버가 만들어 내려준다 (B, 09-16)
+# 1.4 -> 2.0: compute_risk_score의 100점 포화 구간을 부드럽게 바꿈(_saturate_above_knee).
+#             RISK_THRESHOLD_HIGH(60) 이하는 그대로지만, 그 위 raw 합계가 100을
+#             넘던 문서들은 전부 100.0으로 뭉쳐 있던 것이 이제 100 미만에서 서로
+#             갈린다 — 같은 findings로도 risk_score 값 자체가 달라지므로(필드
+#             추가가 아니라 기존 필드의 의미 변경) 앞자리를 올린다 (A, 09-16)
+# 2.0 -> 2.1: ScanBatch.risk_level_counts/top_risk_types 추가 — 배치 업로드 요약
+#             카드("고위험 3개", "가장 흔한 위험: 이름 154건")를 프론트가 파일
+#             목록을 직접 집계하지 않고 바로 그릴 수 있게 한다 (A, 09-16)
+# 2.1 -> 2.2: ScanResult.db_id 추가 — DB 저장이 성공했을 때의 ScanResultRow.id.
+#             화면이 숨은 명령 상태를 PATCH할 때 이 값이 필요하다 (A, 09-16)
+SCHEMA_VERSION = "2.2"
 
 
 # ---------------------------------------------------------------------------
@@ -206,10 +218,37 @@ RISK_THRESHOLD_HIGH = 60.0
 RISK_THRESHOLD_MEDIUM = 25.0
 
 
+def _saturate_above_knee(total: float, knee: float = RISK_THRESHOLD_HIGH, cap: float = 100.0) -> float:
+    """knee 이하는 그대로 두고, 그 위는 cap에 점근하도록 부드럽게 누른다.
+
+    `min(cap, total)`로 잘랐을 때의 문제: RISK_WEIGHTS는 타입마다 따로 더해지므로
+    서로 다른 고위험 타입 몇 개만 겹쳐도(injection 50 + api_key 40 + rrn 40 = 130)
+    합계가 100을 가볍게 넘는다. 그러면 탐지 132건짜리 문서와 500건짜리 문서가
+    똑같이 "100점"으로 나와, 배치 화면에서 위험도 순 정렬이 그 구간에서 무의미해진다
+    (로그 감쇠는 같은 타입이 반복될 때만 완만해지게 하지, 서로 다른 타입이 겹치는
+    경우는 애초에 다루지 않는다 — 위 docstring 참고).
+
+    knee(=RISK_THRESHOLD_HIGH) 이하는 손대지 않는다 — "낮음/중간/높음" 등급
+    경계와 RISK_WEIGHTS 주석의 가중치 근거가 전부 이 구간이 선형이라는 전제로
+    적혀 있어서, 여기를 건드리면 그 근거들이 다시 검증돼야 한다. knee를 넘는
+    구간만 지수함수로 늘어뜨려 cap에 다가가게 한다 — knee에서 값과 기울기가
+    이어지고(연속), 아무리 커도 cap을 넘지 않으면서도 다시는 평평해지지 않는다.
+
+        total=60(knee) -> 60.0 (경계, 이전과 동일)
+        total=100      -> 85.3 (이전엔 100.0 — 여기서부터 차이가 생긴다)
+        total=150      -> 95.8
+        total=300      -> 99.9 (여전히 100 미만, 정렬 가능)
+    """
+    if total <= knee:
+        return total
+    return cap - (cap - knee) * math.exp(-(total - knee) / (cap - knee))
+
+
 def compute_risk_score(findings: list["Finding"]) -> float:
     """탐지 항목 목록 -> 0~100 위험 점수.
 
-    타입별로 묶어 (가중치 x 평균 확신도 x (1 + ln(개수)))를 더하고 100에서 자른다.
+    타입별로 묶어 (가중치 x 평균 확신도 x (1 + ln(개수)))를 더한 뒤,
+    RISK_THRESHOLD_HIGH를 넘는 구간만 부드럽게 100에 점근시킨다(_saturate_above_knee).
 
     확신도를 곱하는 이유
         규칙 기반(confidence 1.0)은 점수에 그대로 반영되고, 불확실한
@@ -237,7 +276,7 @@ def compute_risk_score(findings: list["Finding"]) -> float:
         weight = RISK_WEIGHTS.get(risk_type, 10)
         total += weight * mean_confidence * (1 + math.log(count))
 
-    return round(min(100.0, total), 1)
+    return round(_saturate_above_knee(total), 1)
 
 
 def risk_level(score: float) -> RiskLevel:
@@ -246,6 +285,155 @@ def risk_level(score: float) -> RiskLevel:
     if score >= RISK_THRESHOLD_MEDIUM:
         return "medium"
     return "low"
+
+
+# ---------------------------------------------------------------------------
+# 행동 가이드 — "탐지됐다"에서 "그래서 뭘 해야 하나"로 넘어가는 다리
+# ---------------------------------------------------------------------------
+#
+# 결과 화면이 탐지 목록만 보여주면 사용자는 다음 행동을 스스로 판단해야 한다.
+# ScanResult.finalize()가 findings를 여기로 돌려 우선 조치 최대 3개와 공유 전
+# 체크리스트를 만들고, 그 결과를 ScanResult.action_guide에 채운다. 화면은 이
+# 필드를 그대로 렌더링하기만 하면 되고, "어떤 유형이 왜 우선인가"를 판단하는
+# 로직은 여기 한 곳에만 둔다 — 화면마다 따로 판단하면 결과 화면과 다운로드
+# 안내가 다른 우선순위를 말하는 일이 생긴다.
+#
+# RISK_WEIGHTS보다 더 성긴 기준이다. 점수는 "얼마나 위험한가"를 매기지만, 조치는
+# "무엇부터 해야 하는가"를 말한다. 예를 들어 account/card는 점수(30점)로는
+# 고유식별정보(40점)보다 낮지만, 조치는 둘 다 "마스킹하고 전달 대상을 확인하라"로
+# 비슷해서 별도 묶음(financial)으로 둔다.
+_ACTION_GROUPS: dict[str, set[str]] = {
+    # 능동적 공격. 점수표의 injection(50)·hidden_text(25)와 같은 묶음이다.
+    "ai_command": {"injection", "hidden_text"},
+    # 유출 즉시 자동 악용되고, 마스킹만으로는 끝나지 않는다(폐기·재발급이 필요).
+    "credential": {"api_key", "db_credential"},
+    # 되돌릴 수 없는 고유식별정보. 신분증 이미지 3종도 여기 속한다.
+    "identity": {"rrn", "foreign_reg", "passport", "driver_license", "id_photo", "signature", "id_meta"},
+    # 금전 피해로 직결되지만 재발급으로 복구 가능하다.
+    "financial": {"account", "card"},
+    # 단독으로는 위험이 제한적이고, 결합될 때 위험해진다.
+    "contact": {"person", "phone", "email", "address", "birth_date", "emp_no"},
+    # 공개 조회가 가능한 정보라 위험도는 낮다. 다른 조치가 이미 3개면 채우지 않는다.
+    "organization": {"biz_reg", "corp_reg", "ip", "org"},
+}
+
+# RiskType 하나가 그룹 두 개에 들어가거나 하나도 없으면, 그 타입은 조치 안내
+# 없이 조용히 "안전"으로 표시된다 — 신분증 사진에 조치 없음을 알려주는 것보다
+# 나쁜 오답이다. 새 RiskType을 추가하고 여기 반영하는 걸 잊는 실수를 모듈
+# 임포트 시점에 바로 잡는다(TYPE_LABELS가 RiskType 전체를 담은 권위 목록이다).
+_action_group_types = [t for types in _ACTION_GROUPS.values() for t in types]
+assert len(_action_group_types) == len(set(_action_group_types)), (
+    "행동 가이드 그룹에 같은 RiskType이 두 번 들어감"
+)
+assert set(_action_group_types) == set(TYPE_LABELS), (
+    "RiskType과 행동 가이드 그룹(_ACTION_GROUPS)이 어긋남: "
+    f"빠진 타입 {set(TYPE_LABELS) - set(_action_group_types)}, "
+    f"모르는 타입 {set(_action_group_types) - set(TYPE_LABELS)}"
+)
+
+
+def build_action_guide(findings: list["Finding"]) -> dict:
+    """탐지 결과를 우선 조치 최대 3개 + 공유 전 체크리스트로 요약한다.
+
+    ScanResult.action_guide로 나가는 값을 그대로 만든다. 우선순위는 능동적
+    공격(ai_command) > 되돌릴 수 없는 노출(credential·identity) > 결합 위험
+    (financial·contact) > 공개 정보(organization) 순으로, RISK_WEIGHTS가 점수를
+    매기는 순서와 같다.
+    """
+    counts = {
+        group: sum(1 for f in findings if f.type in types) for group, types in _ACTION_GROUPS.items()
+    }
+
+    actions: list[dict] = []
+    if counts["ai_command"]:
+        actions.append(
+            {
+                "key": "ai-command",
+                "tone": "danger",
+                "title": "AI 서비스 업로드를 잠시 중단하세요",
+                "description": f"숨은 명령·Prompt Injection {counts['ai_command']}건을 먼저 확인하고 제거한 사본만 사용하세요.",
+            }
+        )
+    if counts["credential"]:
+        actions.append(
+            {
+                "key": "credential",
+                "tone": "danger",
+                "title": "노출된 인증정보를 폐기하고 재발급하세요",
+                "description": f"API 키·DB 접속정보 {counts['credential']}건은 마스킹만으로 끝내지 말고 실제 사용 중인 값인지 확인하세요.",
+            }
+        )
+    if counts["identity"]:
+        actions.append(
+            {
+                "key": "identity",
+                "tone": "warning",
+                "title": "고유식별정보는 전체 마스킹하세요",
+                "description": f"신분증·고유식별정보 {counts['identity']}건은 복구하기 어려운 정보이므로 원문 대신 마스킹 사본을 공유하세요.",
+            }
+        )
+    if counts["financial"]:
+        actions.append(
+            {
+                "key": "financial",
+                "tone": "warning",
+                "title": "금융정보의 전달 대상과 목적을 확인하세요",
+                "description": f"계좌·카드정보 {counts['financial']}건은 필요한 수신자에게만 전달하고 나머지는 마스킹하세요.",
+            }
+        )
+    if counts["contact"]:
+        actions.append(
+            {
+                "key": "contact",
+                "tone": "info",
+                "title": "개인을 식별할 수 있는 정보는 최소화하세요",
+                "description": f"이름·연락처·주소 등 {counts['contact']}건은 업무에 필요한 범위만 남기고 부분 또는 전체 마스킹하세요.",
+            }
+        )
+    if counts["organization"] and len(actions) < 3:
+        actions.append(
+            {
+                "key": "organization",
+                "tone": "info",
+                "title": "조직 정보의 공개 범위를 확인하세요",
+                "description": f"조직·사업자·네트워크 정보 {counts['organization']}건이 외부 공개 가능한 내용인지 확인하세요.",
+            }
+        )
+
+    if not actions:
+        return {
+            "title": "바로 공유할 수 있는 상태입니다",
+            "description": "현재 검사에서 마스킹이 필요한 위험 요소를 찾지 못했습니다.",
+            "actions": [],
+            "checklist": [
+                "수신자와 공유 범위가 맞는지 마지막으로 확인합니다.",
+                "문서를 수정했다면 공유 전에 다시 검사합니다.",
+                "공용 링크에는 만료 기간과 접근 권한을 설정합니다.",
+            ],
+        }
+
+    # 체크리스트는 카드(actions)와 같은 우선순위로 앞에 붙인다. ai_command가
+    # credential보다 항상 위에 오도록 순서를 명시한다(리스트 앞에 붙이는 방식은
+    # 두 조건이 겹칠 때 순서가 뒤집히기 쉽다).
+    checklist: list[str] = []
+    if counts["ai_command"]:
+        checklist.append("숨은 명령을 확인하기 전에는 문서를 AI 서비스에 업로드하지 않습니다.")
+    if counts["credential"]:
+        checklist.append("실제 사용 중인 키·비밀번호라면 즉시 폐기하고 새 값으로 교체합니다.")
+    checklist += [
+        "원본 대신 DocX-ray에서 만든 마스킹 사본을 공유합니다.",
+        "수신자와 공유 목적을 확인하고 불필요한 항목은 제외합니다.",
+        "공용 링크에는 만료 기간과 접근 권한을 설정합니다.",
+    ]
+
+    return {
+        "title": "공유 전에 먼저 조치하세요"
+        if (counts["ai_command"] or counts["credential"])
+        else "안전하게 공유하려면 다음 조치가 필요합니다",
+        "description": f"{len(findings)}건의 탐지 결과를 바탕으로 우선 조치를 정리했습니다.",
+        "actions": actions[:3],
+        "checklist": checklist,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +507,11 @@ class ScanResult:
     masked_text: str = ""      # 마스킹 사본. 하이라이트에는 쓰지 않는다 (오프셋이 어긋난다).
     error: Optional[str] = None
 
+    # 결과 화면 상단에 놓을 우선 조치 카드. finalize()가 build_action_guide()로
+    # 채운다. error가 있으면 findings가 그 실패를 온전히 반영하지 못하므로(신분증
+    # 품질 오류 등) None으로 두고, 화면은 오류 안내를 대신 보여준다.
+    action_guide: Optional[dict] = None
+
     # 오탐 제거 분류기가 걸러낸 항목. **버리지 않고 여기 담는다.**
     #
     # 화면 03의 "오탐으로 제외한 항목" 카드가 이 목록을 그린다. 그 카드가 우리가
@@ -338,9 +531,16 @@ class ScanResult:
     # scan.scan_file이 구간으로 묶어 채운다. 파일이 아닌 텍스트 검사(scan_text)는 빈 목록이다.
     pages: list[dict] = field(default_factory=list)
 
+    # DB에 저장된 ScanResultRow.id. main.py의 _persist_scan_results()가 저장에
+    # 성공했을 때만 채운다 — DB가 꺼져 있거나 저장이 실패하면 None으로 남는다.
+    # 화면이 PATCH /scan-results/{db_id}/hidden-commands/{finding_ref}를 부를 때
+    # 이 값이 필요하다. Finding.id(예: "f_003")는 이미 응답에 있으니 그대로 쓰면 된다.
+    db_id: Optional[int] = None
+
     def finalize(self) -> "ScanResult":
-        """findings를 다 채운 뒤 마지막에 한 번 호출한다. 점수를 계산해 넣는다."""
+        """findings를 다 채운 뒤 마지막에 한 번 호출한다. 점수와 행동 가이드를 채운다."""
         self.risk_score = compute_risk_score(self.findings)
+        self.action_guide = build_action_guide(self.findings) if self.error is None else None
         return self
 
     @property
@@ -400,6 +600,31 @@ class ScanBatch:
     def total_findings(self) -> int:
         return sum(len(r.findings) for r in self.results)
 
+    @property
+    def risk_level_counts(self) -> dict[str, int]:
+        """파일이 몇 개씩 고/중/저위험인지. 배치 업로드 요약 카드("고위험 3개")가 쓴다.
+
+        결과 화면이 파일마다 이미 쓰는 ScanResult.level을 그대로 세기만 한다 —
+        여기서 등급을 다시 판정하면 개별 파일 카드와 다른 기준을 쓰게 될 위험이 있다.
+        """
+        counts = {"high": 0, "medium": 0, "low": 0}
+        for r in self.results:
+            counts[r.level] += 1
+        return counts
+
+    def top_risk_types(self, limit: int = 5) -> list[dict]:
+        """배치 전체에서 가장 흔한 위험 유형. 파일별 type_counts를 그대로 더한다.
+
+        예: 이름이 파일 A에 40건, 파일 B에 114건이면 154건으로 합쳐서 보여준다 —
+        "이 배치는 주로 어떤 위험으로 차 있는가"를 파일 목록을 안 열어봐도 알 수 있다.
+        """
+        totals: dict[str, int] = defaultdict(int)
+        for r in self.results:
+            for risk_type, count in r.type_counts.items():
+                totals[risk_type] += count
+        ranked = sorted(totals.items(), key=lambda item: item[1], reverse=True)[:limit]
+        return [{"type": t, "label": TYPE_LABELS.get(t, "민감정보"), "count": c} for t, c in ranked]
+
     def to_dict(self) -> dict:
         return {
             "schema_version": SCHEMA_VERSION,
@@ -407,6 +632,8 @@ class ScanBatch:
             "results": [r.to_dict() for r in self.sorted_by_risk()],
             "total_files": len(self.results),
             "total_findings": self.total_findings,
+            "risk_level_counts": self.risk_level_counts,
+            "top_risk_types": self.top_risk_types(),
         }
 
 
