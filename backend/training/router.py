@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -276,3 +276,52 @@ def get_training_report_api(
         status_code=409,
         detail="훈련이 아직 완료되지 않았거나 상세 리포트가 만료되었습니다.",
     )
+
+
+_GRADE_ORDER = ("안전", "양호", "주의", "위험")
+
+
+@router.get("/stats/{level}")
+def get_training_stats(
+    level: int = Path(ge=1, le=5),
+    score: int | None = Query(default=None, ge=0, le=100),
+    db: Session = Depends(get_session),
+) -> dict:
+    """이 레벨에서 완료된 훈련들의 집계. 리포트 화면의 "평균 대비 내 점수" 문구에 쓴다.
+
+    training_progress_id 경로 파라미터는 int라서, "/training/stats/2"의 "stats"는
+    거기 매칭이 안 되고(정수 변환 실패) 자연히 이 라우트로 넘어온다 — 경로 등록
+    순서를 신경 쓸 필요가 없다.
+
+    score를 같이 주면 백분위(percentile)도 계산한다 — "당신은 상위 30%입니다" 같은
+    문구에 필요한 값이다. score를 안 주면 백분위는 null로 나간다.
+    완료된 훈련이 하나도 없으면 average_score/percentile 전부 null이다 — 0으로
+    두면 "평균 0점"처럼 보여서 데이터가 없는 것과 실제로 0점인 것을 구분 못 한다.
+    """
+    scores = [
+        row[0]
+        for row in db.query(TrainingProgress.score)
+        .filter(
+            TrainingProgress.level == level,
+            TrainingProgress.completed_at.isnot(None),
+        )
+        .all()
+    ]
+
+    grade_distribution = {grade: 0 for grade in _GRADE_ORDER}
+    for value in scores:
+        grade_distribution[grade_training_score(value)] += 1
+
+    percentile = None
+    if score is not None and scores:
+        # "상위 X%"는 나보다 낮거나 같은 점수의 비율로 계산한다.
+        not_better = sum(1 for value in scores if value <= score)
+        percentile = round(100 * not_better / len(scores))
+
+    return {
+        "level": level,
+        "completed_count": len(scores),
+        "average_score": round(sum(scores) / len(scores), 1) if scores else None,
+        "grade_distribution": grade_distribution,
+        "percentile": percentile,
+    }
