@@ -38,6 +38,7 @@ _SAFE_FIELDS = (
     "removed_count",
     "cache_hit",
     "training_mode",
+    "db_mode",
     "training_level",
     "turn_no",
     "training_status",

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.db.session import get_session
-from backend.db.tables import TrainingProgress
+from backend.db.tables import TrainingEvent, TrainingProgress
 from backend.shared.logging_config import get_logger, log_event
 from backend.training.defender import generate_defender_report
 from backend.training.scenarios import select_random_scenario
@@ -39,6 +39,42 @@ class TrainingReplyRequest(BaseModel):
 # MVP 제한: 서버 재시작 시 진행 세션과 상세 리포트는 사라진다.
 _training_sessions: dict[int, dict] = {}
 _training_reports: dict[int, dict] = {}
+
+
+def _record_training_event(
+    db: Session, training_progress_id: int, turn_no: int, shared_fields: list[str]
+) -> None:
+    """이 턴에 사용자가 개인정보를 새로 공유했는지 기록한다.
+
+    sanitize_training_text()는 정규식 5종(rrn/card/account/phone/email)만 보는
+    경량 검사라 scan.scan_text()의 Finding을 만들지 않는다 — 그래서
+    save_scan_result()로 못 넣고 TrainingEvent에 직접 기록한다.
+
+    detected_field는 컬럼 하나뿐이고 (training_progress_id, turn_no)에 유니크
+    제약이 걸려 있어서, 한 턴에 여러 유형을 같이 공유해도 첫 번째 유형만 남는다 —
+    정밀 탐지 로그가 아니라 "이 턴에 위험한 공유가 있었는가"를 보는 용도다.
+
+    main.py의 _persist_scan_results와 같은 이유로 실패해도 답장 처리 자체는
+    막지 않는다 — 저장은 선택이지 훈련 진행의 전제조건이 아니다.
+    """
+    try:
+        db.add(
+            TrainingEvent(
+                training_progress_id=training_progress_id,
+                turn_no=turn_no,
+                detected_field=shared_fields[0] if shared_fields else None,
+                action="경고표시" if shared_fields else None,
+            )
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        log_event(
+            logger,
+            logging.WARNING,
+            "training.event.persist.failed",
+            error_code=type(exc).__name__,
+        )
 
 
 def _complete_training(
@@ -159,7 +195,9 @@ def reply_training_api(
                 "attacker_message": None,
             }
 
+        turn_no = session["turn_no"]
         result = process_user_reply(session=session, user_reply=request.text)
+        _record_training_event(db, training_progress_id, turn_no, result["shared_fields"])
         if result["is_finished"]:
             _complete_training(
                 db=db,
