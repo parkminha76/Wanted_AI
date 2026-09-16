@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ScrollProgress from './ScrollProgress.jsx'
 
 const LINKS = [
   { to: '', label: '문서 검사', match: (route) => route === '' || route === 'scanning' || route.startsWith('results') },
@@ -20,10 +21,10 @@ export default function AppHeader({ route, onNavigate }) {
       <div className="app-header__inner container">
         <button type="button" className="brand" onClick={() => go('')} aria-label="DocX-ray 첫 화면">
           <span className="brand__mark" aria-hidden="true">
-            ✦
+            <i />
           </span>
           <span>
-            Doc<span className="brand__accent">X</span>-ray
+            DocX<span className="brand__accent">-</span>ray
           </span>
         </button>
 
@@ -55,6 +56,7 @@ export default function AppHeader({ route, onNavigate }) {
           })}
         </nav>
       </div>
+      <ScrollProgress key={route} />
     </header>
   )
 }

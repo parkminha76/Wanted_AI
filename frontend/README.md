@@ -22,7 +22,8 @@ npm run dev              # http://localhost:5173
 ## 구조 (Vite + React, JavaScript)
 
 TypeScript·CSS 프레임워크(Tailwind 등)·UI 라이브러리·라우터 라이브러리 없이 React와 순수 CSS만 쓴다.
-외부 폰트도 불러오지 않는다(설치된 한글 글꼴을 쓴다).
+외부 폰트는 **IBM Plex Sans KR·IBM Plex Mono 두 가지만** Google Fonts에서 불러온다(`index.html`).
+못 불러와도 `tokens.css`의 설치 글꼴로 대체되고, 그 밖의 외부 자원은 쓰지 않는다.
 
 ```text
 frontend/
@@ -38,18 +39,20 @@ frontend/
     │   ├── findings.js          탐지 유형 묶음(개인정보·민감정보·숨겨진 명령어·기타), 위험 설명
     │   ├── maskingRules.js      표준 부분 마스킹 규칙 (policy.py 이식, npm run check:masking으로 서버와 대조)
     │   ├── useHashRoute.js
-    │   ├── styles/tokens.css    색상·글꼴·간격 기준값 (DocX-ray 디자인)
+    │   ├── useScrollReveal.js   스크롤 등장(.rv → .in), 움직임 줄이기 설정 존중
+    │   ├── styles/tokens.css    색상·글꼴·간격·움직임 기준값 (DocX-ray 디자인)
     │   ├── styles/base.css      기본 스타일·레이아웃 유틸리티
-    │   └── components/          Button, Card, Modal, RiskBadge, AppHeader
-    ├── scanner/                 UploadPage, ScanningPage, ResultsPage, FindingDetailPage, MaskPage,
-    │                            DocumentPreview, FileSwitcher, HiddenCommandModal
+    │   └── components/          Button, Card, Modal, RiskBadge, AppHeader,
+    │                            DecodeText, TypeLines, ScrollProgress, SectionRail, GlowCard
+    ├── scanner/                 UploadPage(첫 화면 랜딩, landing.css), LandingScanMock, ScanningPage, ResultsPage,
+    │                            FindingDetailPage, MaskPage, DocumentPreview, FileSwitcher, HiddenCommandModal
     ├── training/                TrainingHomePage, SimulationPage, ReportPage
     └── guide/                   GuidePage
 ```
 
 | 주소 | 화면 | 서버 |
 |---|---|---|
-| `#/` | 문서 업로드, 샘플 문서로 체험하기 | — |
+| `#/` | 문서 업로드, 텍스트 붙여넣기 검사(결과를 그 자리에서 보여준다), 샘플 문서로 체험하기 | `POST /scan/text` |
 | `#/scanning` | 검사 중 (지난 시간 표시) | `POST /scan`, `GET /samples` |
 | `#/results` | 위험도 요약, 쪽·시트별 문서 미리보기(서버 `pages`) + 탐지 항목, 오탐으로 제외한 항목, 숨은 명령 팝업 | (검사 결과 사용) |
 | `#/results/detail` | 탐지 항목 상세 (왜 위험한가 · 판단 근거) | (검사 결과 사용) |
@@ -89,6 +92,25 @@ try {
 - 글자는 **12px 미만으로 쓰지 않는다.** 보조 글자색은 흰 바탕에서 4.5:1 이상 대비를 지킨다.
 - 색만으로 구분하지 않는다 — 위험도 배지에는 항상 "높은 위험/주의/낮은 위험" 글자가 함께 나온다.
 - 확인: 브라우저 개발자 도구에서 375px로 놓고 화면마다 가로 스크롤바가 생기지 않는지 본다.
+
+### 색·움직임
+
+- **색:** 짙은 녹흑 바탕 + 연한 회녹 글자 + 형광초록(`#5af2a8`) 강조 + 옅은 괘선 — 첫 화면 랜딩 시안 기준.
+  형광초록(`--color-primary`)은 주 버튼·선택 상태·섹션 라벨·진행 막대에, 호박색(`--color-point`)은 훈련 화면 제목의
+  강조 단어와 리포트 점수에만 쓴다.
+- **첫 화면(랜딩):** `scanner/UploadPage.jsx` + `scanner/landing.css`. 소개 → 숨은 위험 → 작동 방식 → 성능 → 프라이버시 →
+  업로드 순서이고, 업로드 상자는 맨 아래 CTA 자리에 있다. 성능 수치는 저장소 루트 README의 "모델" 표에서 가져온 값이라
+  **모델을 다시 학습하면 `UploadPage.jsx`의 `HERO_METRICS`·`PROOF_STATS`도 같이 고친다.**
+- **스크롤 등장:** 요소에 `rv` 클래스를 붙이면 화면에 들어올 때 올라오며 나타난다(`shared/useScrollReveal.js`).
+  목록 부모에 `stagger`를 붙이면 순서대로 조금씩 늦게 나온다.
+- **숫자 해독:** `<DecodeText text="3건" />` — 숫자 자리가 뒤섞였다가 제자리 값으로 풀린다. 화면 읽기 프로그램에는 최종 값만 읽힌다.
+- **코드 타이핑:** `<TypeLines lines={[{ fn, arg }]} />` — 한 글자씩 입력되고 커서가 깜빡인다(장식용, `aria-hidden` 안에서 쓴다).
+- **읽기 진행:** 헤더 아래 진행 막대(`ScrollProgress`)는 모든 화면, 구역 목차(`<SectionRail sections={[{ id, label }]} />`)는
+  1440px 이상에서만 보인다.
+- **마우스 스포트라이트:** `<GlowCard as="li" className="…">` — 마우스를 따라 테두리에 초록 빛이 번진다. 마우스가 있는
+  환경에서만 켜지고(터치 화면은 효과 없음), 카드 CSS는 `background` 줄임말 대신 `background-color`를 써야 빛이 지워지지 않는다.
+  외부 컴포넌트(shadcn `spotlight-card.tsx`)를 이 프로젝트 기준(JSX + 순수 CSS)으로 옮긴 것이다.
+- **움직임 줄이기 설정**이면 위 효과를 모두 끄고 완성된 모습만 보여준다. 새 애니메이션을 넣을 때도 이 조건을 지킨다.
 
 ## 아직 서버에 없는 것 (화면에서 대신 처리)
 

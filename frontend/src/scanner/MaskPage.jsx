@@ -183,7 +183,7 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
         id="mask-panel"
         role="tabpanel"
         aria-labelledby={selectMode ? 'mask-tab-select' : 'mask-tab-full'}
-        className="mask-grid"
+        className="mask-grid rv"
       >
         <div className="panel">
           <div className="panel__heading">
