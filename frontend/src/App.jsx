@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from './shared/api.js'
-import { AppHeader, ScrollTopButton } from './shared/components/index.js'
+import { AppFooter, AppHeader, ScrollTopButton } from './shared/components/index.js'
 import { useHashRoute } from './shared/useHashRoute.js'
 import { useScrollReveal } from './shared/useScrollReveal.js'
 import UploadPage from './scanner/UploadPage.jsx'
@@ -23,6 +23,9 @@ import GuidePage from './guide/GuidePage.jsx'
 //   'training/play'    Attacker AI 대화
 //   'training/report'  훈련 결과 리포트
 //   'guide'            이용 가이드
+// 바닥글을 함께 보여줄 화면. 첫 화면('')은 UploadPage 안에서 직접 그린다.
+const FOOTER_ROUTES = new Set(['training', 'guide'])
+
 export default function App() {
   const [route, navigate] = useHashRoute()
   useScrollReveal(route)
@@ -133,7 +136,14 @@ export default function App() {
   return (
     <div className="app">
       <AppHeader route={route} onNavigate={navigate} />
-      <main className="app-main">{page}</main>
+      <main className="app-main">
+        {page}
+        {/* 바닥글은 훈련 모드·이용 가이드에도 똑같이 붙인다. 첫 화면은 UploadPage가 직접 들고 있고,
+            검사 중·결과 화면처럼 작업 흐름 한가운데인 화면에는 붙이지 않는다. */}
+        {FOOTER_ROUTES.has(route) && (
+          <AppFooter navigate={navigate} onScan={startScan} busy={scanJob !== null} standalone />
+        )}
+      </main>
       <ScrollTopButton key={route} />
     </div>
   )
