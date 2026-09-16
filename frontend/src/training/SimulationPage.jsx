@@ -144,7 +144,7 @@ export default function SimulationPage({ training, navigate }) {
         ← 훈련 모드로 돌아가기
       </button>
 
-      <div className="sim-head">
+      <div className="sim-head rv">
         <div>
           <p className="eyebrow">AI SECURITY TRAINING</p>
 

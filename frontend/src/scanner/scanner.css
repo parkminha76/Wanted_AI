@@ -1,125 +1,7 @@
 /* 문서 검사 화면(업로드·검사 중·결과·상세·마스킹) 전용 스타일. 값은 tokens.css 변수만 쓴다. */
 
 /* ---------- 업로드 ---------- */
-.upload-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.hero {
-  display: grid;
-  gap: var(--space-6);
-  align-items: center;
-}
-
-.hero__title {
-  font-size: var(--font-size-display);
-  font-weight: var(--font-weight-heavy);
-  line-height: 1.24;
-  letter-spacing: -0.04em;
-  word-break: keep-all;
-}
-
-.hero__title em {
-  color: var(--color-primary);
-  font-style: normal;
-}
-
-.hero__desc {
-  max-width: 34em;
-  margin-top: var(--space-5);
-  color: var(--color-text-muted);
-  line-height: var(--line-height-relaxed);
-}
-
-/* 장식 그림. overflow: hidden으로 375px에서도 밖으로 넘치지 않게 가둔다. */
-.scan-art {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 240px;
-  overflow: hidden;
-}
-
-.scan-art__doc {
-  width: 170px;
-  height: 210px;
-  padding: var(--space-8) var(--space-6);
-  background: var(--gradient-doc);
-  border: 1px solid var(--color-art-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-art);
-  transform: rotate(6deg);
-}
-
-.scan-art__doc b {
-  display: inline-block;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--color-art-chip);
-  color: var(--color-art-chip-text);
-  font-size: var(--font-size-sm);
-}
-
-.scan-art__doc i {
-  display: block;
-  height: 7px;
-  margin-top: var(--space-4);
-  border-radius: var(--radius-pill);
-  background: var(--color-art-line);
-}
-
-.scan-art__doc i:nth-of-type(3) {
-  width: 76%;
-}
-
-.scan-art__line {
-  position: absolute;
-  top: 50%;
-  left: 6%;
-  right: 6%;
-  height: 3px;
-  background: var(--color-electric);
-  box-shadow: var(--shadow-glow);
-}
-
-.scan-art__float {
-  position: absolute;
-  right: 0;
-  bottom: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  list-style: none;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 2;
-}
-
-.scan-art__float li::before {
-  content: '◈';
-  margin-right: var(--space-2);
-  color: var(--color-primary);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .scan-art__line {
-    animation: scan-sweep 2.8s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes scan-sweep {
-  from {
-    top: 22%;
-  }
-  to {
-    top: 78%;
-  }
-}
+/* 첫 화면(랜딩)의 나머지 구성은 landing.css에 있다. 여기는 업로드 상자·파일 목록만 둔다. */
 
 .dropzone-card {
   display: flex;
@@ -219,6 +101,156 @@
   text-align: center;
 }
 
+/* ---------- 텍스트 붙여넣기 검사 ---------- */
+/* 파일 없이 문장만 검사한다(POST /scan/text). 결과는 이 상자 안에서 바로 보여주고 다른 화면으로 넘기지 않는다 —
+   텍스트는 사본 파일도, file_id도 없어서 마스킹 사본 화면을 쓸 수 없다. */
+.text-scan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.text-scan__input {
+  min-height: 9rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-size: var(--font-size-md); /* 16px 미만이면 iOS가 입력할 때 화면을 확대한다 */
+  line-height: var(--line-height-body);
+  resize: vertical;
+}
+
+.text-scan__input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.text-scan__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.text-scan__count {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.text-scan__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+
+.text-scan__clean {
+  color: var(--color-risk-low);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-scan__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.text-scan__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  list-style: none;
+}
+
+.text-scan__counts b {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.text-scan__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.text-scan__list li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.text-scan__type {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 탐지된 값 — 결과 화면의 하이라이트와 같은 색으로 보여준다 */
+.text-scan__value {
+  justify-self: start;
+  max-width: 100%;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-hit-bg);
+  color: var(--color-hit-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.text-scan__meta {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+.text-scan__filtered {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+.text-scan__masked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.text-scan__masked-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.text-scan__masked-body {
+  max-height: 14rem;
+  padding: var(--space-3) var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-paper-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .file-list {
   display: flex;
   flex-direction: column;
@@ -234,6 +266,15 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-muted);
+}
+
+/* 선택한 파일 삭제 — 되돌릴 수 없는 동작이라 빨간색으로 구분한다 */
+.btn--ghost.file-list__remove {
+  color: var(--color-risk-high);
+}
+
+.btn--ghost.file-list__remove:hover:not(:disabled) {
+  background: var(--color-risk-high-soft);
 }
 
 .file-list__icon {
@@ -267,43 +308,6 @@
   white-space: nowrap;
 }
 
-.benefits {
-  display: grid;
-  gap: var(--space-4);
-  list-style: none;
-}
-
-.benefit {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.benefit__icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
-.benefit b,
-.benefit small {
-  display: block;
-}
-
-.benefit b {
-  font-size: var(--font-size-sm);
-}
-
-.benefit small {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
 @media (min-width: 600px) {
   .dropzone-card {
     padding: var(--space-6);
@@ -313,32 +317,6 @@
     flex-direction: row;
     justify-content: center;
     gap: var(--space-3);
-  }
-}
-
-@media (min-width: 768px) {
-  .benefits {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .benefit {
-    justify-content: center;
-  }
-}
-
-@media (min-width: 960px) {
-  .hero {
-    grid-template-columns: 1fr 1fr;
-    min-height: 320px;
-  }
-
-  .scan-art {
-    height: 300px;
-  }
-
-  .scan-art__doc {
-    width: 208px;
-    height: 252px;
   }
 }
 
@@ -591,11 +569,13 @@
   margin-block: var(--space-1);
 }
 
+/* 큰 점수는 코드체 숫자 — 첫 화면 성능 수치와 같은 모양 */
 .risk-card__number b {
   color: var(--risk-color);
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-heavy);
-  line-height: 1.1;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-regular);
+  line-height: 1;
 }
 
 .risk-card__number span {

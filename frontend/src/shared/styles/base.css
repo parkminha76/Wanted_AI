@@ -21,7 +21,7 @@ body {
   color: var(--color-text);
   background-color: var(--color-bg);
   background-image: var(--gradient-page);
-  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -122,12 +122,20 @@ a {
 }
 
 /* ---------- 페이지 머리 ---------- */
+/* 섹션 라벨 — 코드체, 넓은 자간의 대문자. 앞 번호(.eyebrow__num)는 편집물의 쪽 번호처럼 흐리게. */
 .eyebrow {
   margin-bottom: var(--space-3);
   color: var(--color-primary);
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  letter-spacing: 0.12em;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.22em;
+}
+
+.eyebrow__num {
+  margin-right: var(--space-3);
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
 }
 
 .page-head {
@@ -148,7 +156,7 @@ a {
 
 .page-title {
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-heavy);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: -0.03em;
   word-break: keep-all;
@@ -162,7 +170,7 @@ a {
 
 .section-title {
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.02em;
 }
 
@@ -178,6 +186,45 @@ a {
 
 .back-link:hover {
   color: var(--color-text);
+}
+
+/* ---------- 스크롤 등장 ---------- */
+/* .rv를 붙인 요소는 화면에 들어올 때 아래에서 올라오며 나타난다(shared/useScrollReveal.js가 .in을 붙인다).
+   html.motion은 그 스크립트가 "움직여도 된다"고 판단했을 때만 붙인다 — 스크립트가 없거나 움직임 줄이기
+   설정이면 .rv가 처음부터 보이는 상태로 남는다(내용이 숨겨진 채 멈추지 않게). */
+.motion .rv {
+  opacity: 0;
+  transform: translateY(var(--reveal-distance));
+  transition:
+    opacity var(--reveal-duration) var(--ease) var(--rv-delay, 0s),
+    transform var(--reveal-duration) var(--ease) var(--rv-delay, 0s);
+}
+
+.motion .rv.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* 목록 안 .rv는 순서대로 조금씩 늦게 나온다 */
+.stagger > .rv:nth-child(2) {
+  --rv-delay: 0.07s;
+}
+
+.stagger > .rv:nth-child(3) {
+  --rv-delay: 0.14s;
+}
+
+.stagger > .rv:nth-child(4) {
+  --rv-delay: 0.21s;
+}
+
+.stagger > .rv:nth-child(n + 5) {
+  --rv-delay: 0.28s;
+}
+
+/* 구역 목차(SectionRail)로 이동할 때 고정 헤더에 가리지 않게 */
+[id] {
+  scroll-margin-top: calc(var(--header-height) + var(--space-4));
 }
 
 /* ---------- 글자 ---------- */

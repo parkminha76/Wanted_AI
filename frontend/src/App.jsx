@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { api } from './shared/api.js'
-import { AppHeader } from './shared/components/index.js'
+import { AppHeader, ScrollTopButton } from './shared/components/index.js'
 import { useHashRoute } from './shared/useHashRoute.js'
+import { useScrollReveal } from './shared/useScrollReveal.js'
 import UploadPage from './scanner/UploadPage.jsx'
 import ScanningPage from './scanner/ScanningPage.jsx'
 import ResultsPage from './scanner/ResultsPage.jsx'
@@ -24,6 +25,7 @@ import GuidePage from './guide/GuidePage.jsx'
 //   'guide'            이용 가이드
 export default function App() {
   const [route, navigate] = useHashRoute()
+  useScrollReveal(route)
 
   // 화면 사이에 넘기는 데이터는 메모리에만 둔다. 검사 결과에는 원문과 탐지 값이 들어 있어서
   // localStorage 같은 브라우저 저장소에 남기지 않는다(privacy-first). 새로고침하면 사라진다.
@@ -125,13 +127,14 @@ export default function App() {
       page = <GuidePage navigate={navigate} />
       break
     default:
-      page = <UploadPage onScan={startScan} error={scanError} busy={scanJob !== null} />
+      page = <UploadPage onScan={startScan} error={scanError} busy={scanJob !== null} navigate={navigate} />
   }
 
   return (
     <div className="app">
       <AppHeader route={route} onNavigate={navigate} />
       <main className="app-main">{page}</main>
+      <ScrollTopButton key={route} />
     </div>
   )
 }
