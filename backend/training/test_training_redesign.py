@@ -100,8 +100,20 @@ class TrainingRedesignTests(unittest.TestCase):
             "verified_identity": False,
             "used_official_channel": False,
         }
-        self.assertEqual(calculate_training_score(cautious_refusal), 85)
-        self.assertEqual(grade_training_score(85), "양호")
+        self.assertEqual(calculate_training_score(cautious_refusal), 95)
+        self.assertEqual(grade_training_score(95), "안전")
+
+        # 신원 확인/공식 채널 재확인/압박 유지 세 항목을 전부 못 했어도, 피해
+        # 행동(개인정보·인증정보 공유, 송금·링크 수락)이 0건이면 최소 90점(안전)은
+        # 보장되어야 한다 — 절차 미흡이 실질적 무피해보다 더 나쁘게 채점되면 안 된다.
+        no_process_but_no_harm = {
+            **safe,
+            "verified_identity": False,
+            "used_official_channel": False,
+            "maintained_verification_under_pressure": False,
+        }
+        self.assertEqual(calculate_training_score(no_process_but_no_harm), 90)
+        self.assertEqual(grade_training_score(90), "안전")
 
 
 if __name__ == "__main__":

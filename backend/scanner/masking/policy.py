@@ -241,7 +241,12 @@ def normalize_selection(value: dict[str, Any]) -> list[dict[str, Any]]:
             raise ValueError("선택 항목 id가 올바르지 않습니다")
         if risk_type not in TYPE_LABELS:
             raise ValueError(f"지원하지 않는 개인정보 유형: {risk_type}")
-        if type(start) is not int or type(end) is not int or not (0 <= start < end):
+        # 이미지에서 나온 finding(text_ocr.py/id_detector.py)은 문자 오프셋이라는
+        # 개념이 없어 start/end를 항상 0으로 둔다(마스킹은 bbox로 한다) — 그
+        # 관례를 여기서도 받아줘야 한다. 안 받아주면 이미지 업로드는 선택 마스킹
+        # 자체가 항상 422로 막힌다(실측: 2026-09-17, 이력서 사진으로 재현).
+        valid_range = (start == 0 and end == 0) or (0 <= start < end)
+        if type(start) is not int or type(end) is not int or not valid_range:
             raise ValueError("선택 항목 start/end가 올바르지 않습니다")
         if action not in MASKING_ACTIONS:
             raise ValueError("선택 항목 action은 full 또는 standard여야 합니다")

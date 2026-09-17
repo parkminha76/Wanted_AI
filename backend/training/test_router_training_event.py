@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import itertools
 import unittest
+from datetime import datetime
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from backend.db.tables import Base, TrainingEvent, TrainingProgress, User
-from backend.training.router import _record_training_event
+from backend.training.router import _record_training_event, get_training_stats
 
 
 def _assign_id_before_insert(mapper, connection, target):
@@ -67,6 +68,82 @@ class RecordTrainingEventTest(unittest.TestCase):
         events = self.db.query(TrainingEvent).filter_by(training_progress_id=self.progress_id).all()
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].detected_field, "email")
+
+
+class GetTrainingStatsTest(unittest.TestCase):
+    """실제 TiDB는 안 건드리고, 인메모리 SQLite로 집계 로직만 검증한다."""
+
+    def setUp(self) -> None:
+        self.engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(self.engine)
+        self.db = sessionmaker(bind=self.engine)()
+        self.db.add(User(id=1, role="individual"))
+        self.db.flush()
+
+    def tearDown(self) -> None:
+        self.db.close()
+
+    def _add_progress(self, id_, level, score, *, completed=True) -> None:
+        self.db.add(
+            TrainingProgress(
+                id=id_,
+                user_id=1,
+                level=level,
+                status="완료" if completed else "진행중",
+                score=score,
+                completed_at=datetime(2026, 9, 16) if completed else None,
+            )
+        )
+
+    def test_no_completed_training_returns_nulls_not_zero(self) -> None:
+        self.db.commit()
+        result = get_training_stats(level=1, score=None, db=self.db)
+        self.assertEqual(result["completed_count"], 0)
+        self.assertIsNone(result["average_score"])
+        self.assertIsNone(result["percentile"])
+
+    def test_average_and_grade_distribution(self) -> None:
+        self._add_progress(1, level=2, score=95)  # 안전
+        self._add_progress(2, level=2, score=75)  # 양호
+        self._add_progress(3, level=2, score=55)  # 주의
+        self._add_progress(4, level=2, score=30)  # 위험
+        self.db.commit()
+
+        result = get_training_stats(level=2, score=None, db=self.db)
+        self.assertEqual(result["completed_count"], 4)
+        self.assertEqual(result["average_score"], 63.8)
+        self.assertEqual(
+            result["grade_distribution"], {"안전": 1, "양호": 1, "주의": 1, "위험": 1}
+        )
+
+    def test_percentile_counts_ties_as_better_than(self) -> None:
+        self._add_progress(1, level=3, score=50)
+        self._add_progress(2, level=3, score=60)
+        self._add_progress(3, level=3, score=90)
+        self._add_progress(4, level=3, score=90)
+        self.db.commit()
+
+        result = get_training_stats(level=3, score=90, db=self.db)
+        # 90점 이하가 4건 중 4건 -> 상위 100% (자기 자신 포함, 동점자도 포함)
+        self.assertEqual(result["percentile"], 100)
+
+        result_low = get_training_stats(level=3, score=10, db=self.db)
+        # 10점 이하가 4건 중 0건
+        self.assertEqual(result_low["percentile"], 0)
+
+    def test_in_progress_training_is_excluded(self) -> None:
+        self._add_progress(1, level=4, score=99, completed=False)
+        self.db.commit()
+        result = get_training_stats(level=4, score=None, db=self.db)
+        self.assertEqual(result["completed_count"], 0)
+
+    def test_other_levels_are_excluded(self) -> None:
+        self._add_progress(1, level=1, score=80)
+        self._add_progress(2, level=2, score=20)
+        self.db.commit()
+        result = get_training_stats(level=1, score=None, db=self.db)
+        self.assertEqual(result["completed_count"], 1)
+        self.assertEqual(result["average_score"], 80.0)
 
 
 if __name__ == "__main__":

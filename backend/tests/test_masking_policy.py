@@ -82,6 +82,39 @@ class StandardMaskingTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             policy.apply_selection([email], rows)
 
+    def test_image_finding_selection_with_zero_offsets_is_accepted(self) -> None:
+        """실측 버그(2026-09-17): 이미지 finding(text_ocr.py/id_detector.py)은
+        문자 오프셋이 없어 start/end가 항상 0이라, 이 값을 그대로 선택 마스킹에
+        보내면 `0 <= start < end`에 걸려 매번 422로 거부됐다 — 이미지 업로드는
+        선택 마스킹 자체가 통째로 안 됐다는 뜻이다."""
+        photo_person = finding("person", "이예지", 0)
+        photo_person.end = 0  # 이미지 관례: start == end == 0
+        rows = policy.normalize_selection(
+            {
+                "selections": [
+                    {
+                        "id": photo_person.id,
+                        "type": photo_person.type,
+                        "start": 0,
+                        "end": 0,
+                        "action": "full",
+                    }
+                ]
+            }
+        )
+        selected = policy.apply_selection([photo_person], rows)
+        self.assertEqual(len(selected), 1)
+
+    def test_negative_or_inverted_offsets_are_still_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            policy.normalize_selection(
+                {"selections": [{"id": "f_001", "type": "phone", "start": 5, "end": 2, "action": "full"}]}
+            )
+        with self.assertRaises(ValueError):
+            policy.normalize_selection(
+                {"selections": [{"id": "f_001", "type": "phone", "start": -1, "end": 3, "action": "full"}]}
+            )
+
     def test_text_file_uses_selected_policy(self) -> None:
         value = "010-1234-5678"
         selected = {"default": "full", "rules": {"phone": "standard"}}

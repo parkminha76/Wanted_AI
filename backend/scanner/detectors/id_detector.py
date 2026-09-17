@@ -168,6 +168,37 @@ def _add_license_secondary_face(
     ]
 
 
+# 신분증에서만 나오는 확실한 근거들. address·name·signature·id_meta는 신분증이
+# 아닌 문서(계약서 서명란, 인보이스의 주소·이름 문구)에도 흔해서 이것만으로는
+# "신분증 사진이다"를 보장하지 못한다.
+#
+# face와 date_of_birth는 앵커에서 뺐다 — 자기소개서·이력서에도 지원자 증명사진과
+# 생년월일이 흔히 함께 실려서(실측: 2026-09-17, 지원서 사진에서 얼굴이 앵커로
+# 인정되는 바람에 "지원동기" 문단이 address 0.05 문턱을 넘어 같이 가려졌다),
+# 이 둘은 신분증이 아닌 문서에서도 흔히 나와 "신분증이다"를 보장하지 못한다.
+# 주민등록번호·면허번호·여권번호·MRZ는 신분증이 아니면 나올 이유가 없는
+# 클래스라 이것들만 앵커로 쓴다.
+_ANCHOR_CLASSES = {"resident_number", "license_number", "passport_number", "mrz"}
+
+
+def _require_anchor_evidence(findings: list[dict]) -> list[dict]:
+    """앵커 근거가 하나도 없으면 이 사진을 신분증으로 보지 않고 findings를 통째로 버린다.
+
+    이 모델은 신분증 사진에만 맞춰 학습됐다(모듈 docstring 참고). 신분증이 아닌
+    사진(인보이스, 스크린샷)에 돌리면 낮지 않은 확신도로도 가끔 잘못 반응한다
+    (실측: 2026-09-17, 인보이스의 결제약관 문단이 "주소 영역"으로 0.519 확신도에
+    잡힘 — 이 사진엔 앵커 클래스가 하나도 없었다). 앵커 하나 없이 나온 address·
+    name·signature·id_meta 단독 탐지는 신분증의 일부라기보다 오탐일 가능성이
+    훨씬 크므로, 화면에 "신분증 정보를 찾았다"고 보여주는 대신 아무것도 못 찾은
+    것으로 취급한다 — 신분증 사진인데 앵커 부분만 잘려서 안 보이는 극단적인
+    경우를 놓치더라도, 신분증이 아닌 사진을 신분증이라고 오판하는 쪽이 더 나쁘다.
+    """
+    has_anchor = any(
+        item.get("evidence", {}).get("cnn_class") in _ANCHOR_CLASSES for item in findings
+    )
+    return findings if has_anchor else []
+
+
 def _get_model():
     """첫 호출 때 한 번만 로드하고 캐싱한다. import 시점에 불러오면 모델 파일이
     없는 환경에서 `import id_detector` 자체가 실패해 scan.py 전체가 멎는다."""
@@ -222,4 +253,5 @@ def detect(path: str) -> list[dict]:
                 }
             )
     findings = _filter_passport_incompatible(findings)
-    return _add_license_secondary_face(findings, image_width, image_height)
+    findings = _add_license_secondary_face(findings, image_width, image_height)
+    return _require_anchor_evidence(findings)
