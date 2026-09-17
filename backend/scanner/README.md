@@ -471,3 +471,26 @@ uv run python -m backend.main
 ```
 
 추가한 뒤에는 **`pyproject.toml`과 `uv.lock`을 같이 커밋**하고 팀에 알린다. Python은 `.python-version`대로 **3.12**.
+
+---
+
+## 7. `detectors/id_detector.py` 알려진 실패 사례
+
+CNN(YOLO) 기반이라 위 section 4의 "오탐 대조군"과 같은 문제가 여기도 그대로 생긴다 —
+탐지 코드가 아니라 **실제 이미지를 돌려봐야만** 드러나는 오탐이 계속 나올 수 있다는
+뜻이다. `test_id_detector_postprocess.py`는 합성 dict로 후처리 함수만 검증하고,
+`test_id_detector_eval.py`가 실제 가중치(`ml/models/infoguard_cnn_v1.pt`)로 실제
+이미지를 돌려 아래 사례들의 재발을 막는다.
+
+| 날짜 | 증상 | 원인 | 고친 곳 |
+|---|---|---|---|
+| 2026-09-17 | 인보이스 결제약관 문단이 confidence 0.519로 "주소 영역"에 잡힘 | address 클래스만 임계값 0.05로 낮춰뒀는데(여러 줄 주소의 마지막 줄을 놓치지 않으려고), 신분증이 아닌 사진에도 그대로 적용됨 | `_require_anchor_evidence` 추가 — 앵커 클래스가 하나도 없으면 findings를 통째로 버림 |
+| 2026-09-17 | 지원서 이미지에서 증명사진(face)이 앵커로 인정되어, 옆의 "지원동기" 자기소개서 문단까지 낮은 confidence로 address에 잡혀 함께 마스킹됨 | `_ANCHOR_CLASSES`에 `face`·`date_of_birth`가 포함되어 있었는데, 이 둘은 자기소개서·이력서에도 흔해서 "신분증이다"를 보장하지 못함 | `_ANCHOR_CLASSES`를 `resident_number`/`license_number`/`passport_number`/`mrz` 4개로 좁힘 |
+| (조사 중) | address 필드만 세로 여백을 박스 높이의 55%까지 주는데(`mask.py`), address가 오탐되면 그 오탐 박스가 위아래로 부풀어 인접 문단까지 뭉개짐 | 위 두 항목이 고쳐지면 신분증이 아닌 이미지에서 address 자체가 안 잡히므로 증상도 같이 사라짐. 다만 **진짜 신분증** 안에서 다른 필드가 address로 오분류되는 경우는 별개 문제로 남아있어 별도 확인 필요 | 미착수 |
+| 2026-09-17 | 카메라로 찍어 몇 도 기울어진 사진(`text_ocr.py`)에서 전화번호·계좌번호가 통째로 안 읽힘 — 청구서를 8도만 기울여도 계좌번호 줄 전체가 사라지고 라벨이 깨짐 | `--psm 6`이 글자가 수평이라고 가정한다. 스캐너와 달리 사진은 원래 몇 도씩 기운다 | OCR 직전에 OpenCV `minAreaRect`로 기울기를 추정해 되돌리고, 찾은 글자의 bbox는 역행렬로 다시 원본(기울어진) 좌표로 되짚음. 신분증처럼 얼굴·그림이 넓은 사진에서 각도 추정이 틀릴 수 있어 0.3~20도 범위 밖이면 보정하지 않음 |
+
+**새 오탐을 발견하면 다음 순서로 고친다** (2026-09-17 사례가 이 패턴):
+1. 문제가 된 이미지(또는 재현 가능한 합성 이미지)로 `id_detector.detect()`를 직접 돌려서 `evidence.cnn_class`와 confidence를 확인한다.
+2. `test_id_detector_eval.py`에 그 사례를 재현하는 회귀 테스트를 먼저 추가한다(실패 확인).
+3. `id_detector.py`를 고친다.
+4. 표에 한 줄 추가한다.

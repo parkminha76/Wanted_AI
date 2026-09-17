@@ -55,6 +55,19 @@ _LANG = "kor+eng"
 # 깨짐). 2배로 키우고 흑백으로 바꾸면 라벨까지 대부분 정확히 읽힌다.
 _UPSCALE = 2
 
+# 카메라로 찍은 사진은 스캐너와 달리 몇 도씩 기울어 있는 게 보통이다. --psm 6은
+# 글자가 수평이라고 가정하므로, 8도만 기울어도 글자를 통째로 못 읽는다(실측:
+# 2026-09-17, 8도 기울인 청구서에서 "국민 6127-02-384915" 계좌번호 줄 전체가
+# 사라지고 "입금 계좌"가 "Bes 계좌"로 깨짐). OCR 직전에 이 각도만큼 되돌린다.
+#
+# 각도가 이 미만이면 보정 자체가 인식률에 도움이 안 돼 건드리지 않는다. 이 초과면
+# 보정하지 않는다 — 신분증처럼 얼굴·그림이 글자보다 넓은 사진에서는 잉크 마스크
+# 기반 각도 추정이 글자 각도가 아니라 엉뚱한 값을 낼 수 있어(실측: 얼굴 실루엣이
+# 있는 신분증 사진에서는 0도로 나와 무해했지만, 항상 그렇다는 보장은 없다),
+# 과도한 보정치는 버리고 원본 그대로 돌리는 쪽이 안전하다.
+_MIN_DESKEW_ANGLE = 0.3
+_MAX_DESKEW_ANGLE = 20.0
+
 # --psm 6: "균일한 텍스트 블록 하나"로 가정한다. 기본값(3, 자동 레이아웃 분석)은
 # 어두운 헤더 박스와 밝은 본문이 섞인 이 레이아웃에서 순서를 잘못 추정해 라벨
 # 여러 개를 통째로 놓쳤다(실측: 같은 이미지에서 "결제 내역", "받는 분" 자체가
@@ -184,6 +197,60 @@ def _merge_adjacent_syllables(
     return merged
 
 
+def _deskew(gray_image) -> tuple:
+    """기울어진 사진을 OCR 전에 수평으로 되돌린다. `_MIN/_MAX_DESKEW_ANGLE` 참고.
+
+    (되돌린 PIL 이미지, 원본 좌표로 되짚을 역행렬) 튜플을 돌려준다. 보정하지
+    않았으면 역행렬 자리는 None이다 — 호출부가 그러면 좌표를 그대로 쓴다.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    array = np.array(gray_image)
+    _, thresh = cv2.threshold(array, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    coords = np.column_stack(np.where(thresh > 0))
+    if coords.size == 0:
+        return gray_image, None
+
+    angle = cv2.minAreaRect(coords)[-1]
+    angle = -(90 + angle) if angle < -45 else -angle
+    if not (_MIN_DESKEW_ANGLE <= abs(angle) <= _MAX_DESKEW_ANGLE):
+        return gray_image, None
+
+    height, width = array.shape
+    center = (width / 2, height / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(
+        array, matrix, (width, height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
+    )
+    return Image.fromarray(rotated), cv2.invertAffineTransform(matrix)
+
+
+def _map_bbox_to_original(bbox: tuple, inverse_matrix) -> tuple:
+    """되돌리기 전(원본) 이미지 좌표로 bbox를 되짚는다.
+
+    되돌린 이미지에서 축에 나란한 사각형은 원본에서는 기울어진 사각형이 된다.
+    거기에 딱 맞는 사각형(bbox)을 다시 만들면 실제 글자보다 넓어지지만, 마스킹이
+    덜 가리는 쪽보다는 넓게 가리는 쪽이 안전하다.
+    """
+    if inverse_matrix is None:
+        return bbox
+    import numpy as np
+
+    left, top, right, bottom = bbox
+    corners = np.array(
+        [[left, top, 1.0], [right, top, 1.0], [right, bottom, 1.0], [left, bottom, 1.0]]
+    )
+    mapped = corners @ inverse_matrix.T
+    return (
+        float(mapped[:, 0].min()),
+        float(mapped[:, 1].min()),
+        float(mapped[:, 0].max()),
+        float(mapped[:, 1].max()),
+    )
+
+
 def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, float]]]]:
     """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, 원본 픽셀 bbox) 목록이다."""
     _configure_tesseract_cmd()
@@ -192,8 +259,9 @@ def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, flo
 
     with Image.open(path) as source:
         gray = source.convert("L")
-        width, height = gray.size
-        scaled = gray.resize((width * _UPSCALE, height * _UPSCALE), Image.LANCZOS)
+        deskewed, inverse_matrix = _deskew(gray)
+        width, height = deskewed.size
+        scaled = deskewed.resize((width * _UPSCALE, height * _UPSCALE), Image.LANCZOS)
         data = pytesseract.image_to_data(
             scaled, lang=_LANG, config=_TESSERACT_CONFIG, output_type=pytesseract.Output.DICT
         )
@@ -211,6 +279,7 @@ def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, flo
         left, top = data["left"][i], data["top"][i]
         w, h = data["width"][i], data["height"][i]
         bbox = (left / _UPSCALE, top / _UPSCALE, (left + w) / _UPSCALE, (top + h) / _UPSCALE)
+        bbox = _map_bbox_to_original(bbox, inverse_matrix)
         key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
         entries.append((key, text, bbox, h / _UPSCALE))
 

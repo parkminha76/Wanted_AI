@@ -81,6 +81,62 @@ class TextOcrDetectTest(unittest.TestCase):
         self.assertIn(sources["account"], ("rule", "classifier"))
 
 
+@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
+class TiltedImageOcrTest(unittest.TestCase):
+    """실측 버그: 스캐너와 달리 카메라로 찍은 사진은 몇 도씩 기울어 있는 게 보통인데,
+    --psm 6은 글자가 수평이라고 가정해서 8도만 기울어도 계좌번호 줄 전체를 놓쳤다
+    (자세한 내용은 text_ocr.py의 _MIN/_MAX_DESKEW_ANGLE 주석 참고)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from PIL import Image, ImageDraw, ImageFont
+
+        cls.tmpdir = tempfile.mkdtemp(prefix="infoguard_ocr_tilt_test_")
+        cls.image_path = os.path.join(cls.tmpdir, "invoice_tilted.png")
+
+        image = Image.new("RGB", (900, 400), "white")
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.truetype(FONT_PATH, 28)
+        draw.text((40, 40), "받는 분: 김하늘", font=font, fill="black")
+        draw.text((40, 100), "연락처: 010-2847-3915", font=font, fill="black")
+        draw.text((40, 220), "입금 계좌", font=font, fill="black")
+        draw.text((40, 270), "국민 6127-02-384915", font=font, fill="black")
+        tilted = image.rotate(-8, expand=True, fillcolor="white")
+        tilted.save(cls.image_path)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.tmpdir, ignore_errors=True)
+
+    def test_tilted_photo_still_finds_phone_and_account(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        findings = text_ocr.detect(self.image_path)
+        by_field = {f["field"]: f for f in findings}
+
+        self.assertIn("phone", by_field)
+        self.assertIn("account", by_field)
+        self.assertIn("6127-02-384915", by_field["account"]["value"])
+
+    def test_bbox_stays_within_original_tilted_image_bounds(self) -> None:
+        """되돌린 좌표계가 아니라 원본(기울어진) 이미지 좌표계를 가리켜야 마스킹이
+        실제 글자 위에 그려진다."""
+        from PIL import Image
+
+        from backend.scanner.detectors import text_ocr
+
+        with Image.open(self.image_path) as img:
+            width, height = img.size
+
+        findings = text_ocr.detect(self.image_path)
+        self.assertTrue(findings)
+        for finding in findings:
+            left, top, right, bottom = finding["bbox"]
+            self.assertTrue(0 <= left < right <= width)
+            self.assertTrue(0 <= top < bottom <= height)
+
+
 class MergeAdjacentSyllablesTest(unittest.TestCase):
     """실제 인보이스에서 실측한 좌표를 그대로 써서 순수 함수를 결정론적으로 검증한다.
 
