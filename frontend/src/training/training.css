@@ -14,7 +14,7 @@
 }
 
 /* 예전 .eyebrow가 갖고 있던 아래 여백. 첫 화면은 제목의 margin-top이 대신하므로 여기서만 준다. */
-.training-hero .badge {
+.training-hero .hero-badge {
   margin-bottom: var(--space-3);
 }
 
