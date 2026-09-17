@@ -131,9 +131,11 @@ function scrollToSection(id, block = 'start') {
 // 업로드 상자의 주 버튼(CTA)은 상태에 따라 바뀐다.
 //   파일 고르기 전  "파일 선택하기"          — 업로드 영역이 크게 보인다.
 //   파일 고른 뒤    "AI 보안 검사 시작"      — 업로드 영역은 "파일 추가하기" 한 줄로 줄어든다.
-// 샘플 문서 체험은 파일이 없는 사람(심사위원 시연 등)을 위한 보조 버튼으로, 소개의 "데모 결과 보기"와 업로드 상자 아래에 둔다.
+// 샘플 문서 체험은 파일이 없는 사람(심사위원 시연 등)을 위한 것이다. 고르는 자리는 업로드 상자 아래 한 곳뿐이고,
+// 소개의 "샘플로 체험하기"는 검사를 바로 시작하지 않고 그 자리로 데려다만 준다 — 무엇을 검사할지 먼저 보게 한다.
 export default function UploadPage({ onScan, error, busy, navigate }) {
   const inputRef = useRef(null)
+  const sampleRef = useRef(null)
   const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
   const [problems, setProblems] = useState([])
@@ -181,6 +183,22 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
     if (!busy) inputRef.current?.click()
   }
 
+
+  // 소개의 "샘플로 체험하기" — 검사를 시작하지 않고 고르는 자리로 내려간다.
+  // 목차로 이동할 때와 같은 테두리를 잠깐 띄워, 긴 화면에서 어디로 왔는지 보이게 한다.
+  function goToSamples() {
+    const target = sampleRef.current
+    if (!target) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    // 포커스를 먼저 옮긴다. 부드러운 스크롤이 도는 중에 focus()를 부르면 브라우저가
+    // 그 스크롤을 취소해 버려서 화면이 맨 위에 그대로 남는다(실측).
+    target.querySelector('input, button')?.focus({ preventScroll: true })
+    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })
+    target.classList.remove('section-target')
+    void target.offsetWidth // 연달아 눌러도 테두리가 처음부터 다시 돌게
+    target.classList.add('section-target')
+    setTimeout(() => target.classList.remove('section-target'), 1600)
+  }
 
   function goToUpload() {
     scrollToSection('upload')
@@ -261,16 +279,18 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
             <br />
             <span className="landing-glow">투시</span>합니다.
           </h1>
+          <p className="landing-hero__lead landing-hero__lead--kicker">문서는 보이는 것만이 전부가 아닙니다.</p>
           <p className="landing-hero__lead">
-            눈에 보이는 개인정보부터 흰 글씨·0pt·제로폭 문자로 문서 안에 숨겨진 AI 명령까지 — 보내기 전에 찾아내고, 원본
-            서식을 지킨 채 가립니다.
+            개인정보부터 문서 속에 숨겨진 AI 명령 프롬프트까지.
+            <br />
+            DocX-ray가 문서를 스캔하고, 위험 요소를 찾아 안전하게 가려드립니다.
           </p>
           <div className="landing-actions">
             <Button size="lg" onClick={goToUpload}>
               무료로 스캔 시작
             </Button>
-            <Button size="lg" variant="secondary" disabled={busy} onClick={() => onScan('samples')}>
-              데모 결과 보기
+            <Button size="lg" variant="secondary" disabled={busy} onClick={goToSamples}>
+              샘플로 체험하기
             </Button>
           </div>
           <dl className="landing-metrics">
@@ -529,7 +549,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                   : '올린 원본은 검사가 끝나면 서버에서 바로 삭제되고, 가린 사본은 30분 동안만 내려받을 수 있습니다.'}
               </p>
 
-              <div className="sample-cta">
+              <div className="sample-cta" ref={sampleRef}>
                 <p className="sample-cta__text">문서가 없어도 바로 체험해 보세요</p>
                 {samples.length === 0 ? (
                   <Button variant="ghost" disabled={busy} onClick={() => onScan('samples')}>
