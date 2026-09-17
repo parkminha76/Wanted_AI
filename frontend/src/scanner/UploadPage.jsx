@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { api, UPLOAD_LIMITS } from '../shared/api.js'
 import { AppFooter, Badge, Button, DecodeText, GlowCard, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from '../shared/findings.js'
-import LandingScanMock from './LandingScanMock.jsx'
 import './scanner.css'
 import './landing.css'
 
@@ -244,7 +243,13 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           </dl>
           <p className="landing-metrics__note">합성 데이터 5-fold 그룹 교차검증 기준</p>
         </div>
-        <LandingScanMock />
+        {/* 클로드 디자인에서 만든 스캔 애니메이션. 원본 HTML을 그대로 띄운다.
+            파일은 frontend/public/scan-animation/ 에 있고, 디자인을 다시 만들면 그 폴더만 갈아 끼우면 된다. */}
+        <iframe
+          className="scan-animation"
+          src="/scan-animation/index.html"
+          title="문서를 훑어 개인정보를 찾아내는 스캔 장면"
+        />
       </section>
 
       <div className="container landing-cta-wrap">
