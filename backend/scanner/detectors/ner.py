@@ -110,6 +110,33 @@ def _iter_chunks(text: str):
 
 _REPEAT_MIN_LENGTH = {"person": 3, "org": 4}
 
+# 학교명(대학교/고등학교 등)은 마스킹 대상에서 뺀다 — 사용자 결정(2026-09-17):
+# 전화번호·주소·생년월일과 달리 학교명은 이력서·이력서 공개 정보에 흔히 그대로
+# 쓰이고, 그 자체로는 연락·사칭 같은 위험으로 이어지지 않는다. 게다가 NER이
+# "조직명" 태그 하나로 회사명과 학교명을 구분 없이 잡다 보니 학교마다 걸리고
+# 안 걸리는 게 들쭉날쭉해서(실측: 같은 문서에서 "신안산대학교"는 잡히고
+# "안산고등학교"는 안 잡힘), 지금 상태로 두면 보호 효과보다 일관성 없어 보이는
+# 부작용이 크다.
+#
+# "학교"로 끝나면 초등학교/중학교/고등학교/대학교를 전부 잡는다. "대학"만으로
+# 끝나는 옛 표기(전문대학 등)도 따로 받는다.
+_EDU_INSTITUTION_SUFFIXES = ("학교", "대학")
+
+
+def _is_education_institution(text: str, start: int, end: int) -> bool:
+    """[start, end) 구간(과 바로 뒤 몇 글자)이 학교명으로 끝나는가.
+
+    NER 토크나이저가 학교명의 꼬리("학교")를 통째로 잘라 개체를 내놓는 경우가
+    실측으로 확인됐다(예: "신안산대학교"에서 "신안산대"만 조직명으로 잡힘).
+    잡힌 범위 뒤에 몇 글자를 더 붙여봐도 학교 접미사가 완성되면 같은 학교명으로
+    본다 — 잘린 범위만 보면 "학교"가 아예 안 보여서 놓친다.
+    """
+    value = text[start:end]
+    if value.endswith(_EDU_INSTITUTION_SUFFIXES):
+        return True
+    lookahead = value + text[end : end + 3]
+    return lookahead.endswith(_EDU_INSTITUTION_SUFFIXES)
+
 _ORG_SUFFIX_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
     r"(?:주식회사\s+)?[가-힣A-Za-z0-9·]{2,}"
@@ -199,6 +226,8 @@ def detect(text: str) -> list[dict]:
                 if start > 0 and text[start - 1].isalnum() and text[start].isalnum():
                     continue
                 if end < len(text) and text[end - 1].isalnum() and text[end].isalnum():
+                    continue
+                if _is_education_institution(text, start, end):
                     continue
 
             if end <= start:

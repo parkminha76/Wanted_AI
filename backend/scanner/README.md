@@ -504,9 +504,13 @@ CNN(YOLO) 기반이라 위 section 4의 "오탐 대조군"과 같은 문제가 �
 | 2026-09-17 | 지원서의 주소가 두 줄인데 첫 줄만 가려지고 "우림필유 101동 101호"가 그대로 남음 | Tesseract가 "101동"을 "101 동"으로, "101호"를 "101 호"로 숫자와 단위 사이에 공백을 끼워 읽었는데, 주소 정규식은 공백 없는 형태만 받고 있었다 | `_ADDRESS_DONG`/`_ADDRESS_UNIT_DETAIL`/`_ADDRESS_WORD_BEFORE_UNIT`이 숫자와 동·층·호 사이의 공백도 받도록 수정 |
 | 2026-09-17 | 이력서에서 "Liceria & Co."는 안 가려지는데 "Salford & Co."는 가려짐(확신도 0.379로 낮았음) | 별개의 버그가 아니라 위 `_drop_oversized` 문제의 파생 증상이었다 — 그 줄의 영문 토큰이 걸러지면서 NER이 온전한 문맥을 못 받아 확신도가 들쭉날쭉했다 | `_drop_oversized` 수정과 함께 저절로 해결됨(재검: 두 회사명 모두 0.7 이상으로 잡힘) |
 | 2026-09-17 | 지원서 표 상단 전체("성 명 이예지", "생 년 월 일 2000. 11. 12", "연락처(핸드폰)") 가 raw_text에 아예 안 나타남 — `--psm 3/4/6/11/12` 전부에서 재현(`아르바이트 지원서`라는 제목만 읽힘) | hOCR 출력으로 원인 확인: Tesseract의 레이아웃 분석이 표 테두리 선 때문에 그 영역 전체를 `ocr_photo`(사진)로 오분류해서 글자를 인식 대상에서 통째로 뺐다. 다만 실제 인식에 쓰는 `--psm 6`은 이 분류 단계 자체를 건너뛰어, 오분류 영역을 짚어서 고치는 방법이 통하지 않았다 | 원인이 아니라 결과로 접근: 정상 인식된 두 줄(또는 문서 맨 앞/맨 뒤) 사이에 글자 한 줄 높이 이상 비어 보이는 구간이 있으면, 그 구간만 잘라 표 테두리 선을 지우고 다시 OCR한다(`text_ocr._recover_gap_lines`). 문서 전체에 선 지우기를 무조건 적용하는 방법도 시도했지만 이미 정상 인식되던 다른 줄("Liceria & Co." 등)까지 깨뜨려 폐기 — 이미 뭔가 읽힌 구간은 절대 건드리지 않고 완전히 빈 구간에서만 재시도해야 안전했다 |
+| 2026-09-17 | 이미지 업로드는 화면의 "선택 마스킹"(체크박스로 항목 골라 마스킹)이 항상 실패함(`/mask`가 422) | `masking/policy.py`의 `normalize_selection`이 `0 <= start < end`를 요구하는데, 이미지 finding(text_ocr.py/id_detector.py)은 문자 오프셋 개념이 없어 start/end가 항상 0이다(관례상 마스킹은 bbox로 한다) — 그래서 이미지에서 나온 항목은 무엇을 선택해도 검증을 통과할 수 없었다 | `start == end == 0`도 유효한 값으로 받도록 검증 조건 수정. 텍스트 파일의 실제 오프셋(항상 `start < end`)에는 영향 없음 |
+| 2026-09-17 | 같은 지원서에서 "신안산대학교"는 마스킹되는데 "안산고등학교"는 전혀 안 가려짐(회사명·학교명을 구분 없이 "조직명"으로 잡는 NER의 들쭉날쭉함) — 사용자 확인 후 "학교명은 애초에 마스킹 대상에서 뺀다"로 결정 | 학교명은 전화번호·주소처럼 연락·사칭 위험으로 이어지지 않고 이력서에 흔히 공개되는 정보인데, NER이 회사명과 같은 "org" 태그로 묶어 학교마다 걸리거나 안 걸리는 게 들쭉날쭉했다 | `ner.py`에 `_is_education_institution` 추가 — 값(또는 뒤에 몇 글자를 더 붙였을 때)이 "학교"/"대학"으로 끝나면 조직명 후보에서 뺀다. NER 토큰화가 "신안산대학교"의 "학교"를 통째로 잘라 "신안산대"만 개체로 내놓는 경우도 뒷글자를 미리보기(lookahead)해서 같이 잡는다 |
 
 `test_rules_birth_date.py` / `test_rules_person_name_label.py` / `test_text_ocr.py`의
-`DropOversizedTest` / `TableRowGapRecoveryTest`가 위에서 고친 사례들의 회귀를 막는다.
+`DropOversizedTest` / `TableRowGapRecoveryTest`, `test_masking_policy.py`의
+`test_image_finding_selection_with_zero_offsets_is_accepted`, `test_ner_school_exclusion.py`가
+위에서 고친 사례들의 회귀를 막는다.
 
 **새 오탐을 발견하면 다음 순서로 고친다** (2026-09-17 사례가 이 패턴):
 1. 문제가 된 이미지(또는 재현 가능한 합성 이미지)로 `id_detector.detect()`를 직접 돌려서 `evidence.cnn_class`와 confidence를 확인한다.
