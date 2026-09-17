@@ -83,7 +83,8 @@ export default function SectionRail({ sections }) {
   // 누른 구역으로 스크롤하고, 그 구역에 잠깐 테두리를 띄워 어디로 왔는지 보여준다.
   // 페이지가 짧아 구역이 화면 위까지 올라오지 못해도(첫 화면의 "특징") 테두리로 위치를 알 수 있다.
   // 키보드·화면 읽기 사용자를 위해 포커스도 그 구역으로 옮긴다(스크롤은 위에서 따로 하므로 preventScroll).
-  function go(id) {
+  function go(section) {
+    const { id, highlightIds = [id] } = section
     const target = document.getElementById(id)
     if (!target) return
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -94,11 +95,14 @@ export default function SectionRail({ sections }) {
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
     target.setAttribute('data-rail-target', '')
     target.focus({ preventScroll: true })
-    target.classList.remove('section-target')
+    const highlightTargets = highlightIds.map((targetId) => document.getElementById(targetId)).filter(Boolean)
+    highlightTargets.forEach((highlightTarget) => highlightTarget.classList.remove('section-target'))
     void target.offsetWidth // 같은 구역을 연달아 눌러도 테두리 효과가 처음부터 다시 돌게
-    target.classList.add('section-target')
+    highlightTargets.forEach((highlightTarget) => highlightTarget.classList.add('section-target'))
     clearTimeout(highlightTimer.current)
-    highlightTimer.current = setTimeout(() => target.classList.remove('section-target'), 1600)
+    highlightTimer.current = setTimeout(() => {
+      highlightTargets.forEach((highlightTarget) => highlightTarget.classList.remove('section-target'))
+    }, 1600)
   }
 
   return (
@@ -112,7 +116,7 @@ export default function SectionRail({ sections }) {
                 type="button"
                 className={`section-rail__item${isActive ? ' is-active' : ''}`}
                 aria-current={isActive ? 'true' : undefined}
-                onClick={() => go(section.id)}
+                onClick={() => go(section)}
               >
                 <span className="section-rail__num">{String(index + 1).padStart(2, '0')}</span>
                 <span>{section.label}</span>

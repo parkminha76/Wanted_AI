@@ -620,7 +620,35 @@ def _header_cells(
         else:
             cells.append((line[index][1], None, None))
             index += 1
-    return cells
+    return _merge_touching_header_cells(cells)
+
+
+def _merge_touching_header_cells(
+    cells: list[tuple[tuple, str | None, str | None]],
+) -> list[tuple[tuple, str | None, str | None]]:
+    """라벨이 없는 헤더 셀 중 서로 거의 붙어 있는 것들을 하나로 합친다.
+
+    "주요"+"업무"처럼 한 헤더 문구가 OCR 토큰 두 개로 쪼개지면, 합치지 않을
+    경우 서로 다른 두 열로 다뤄져서 마지막 열의 경계 폭 계산이 실제 헤더
+    폭보다 좁게 잡힌다(실측: 2026-09-17 — 그 결과로 "주요업무" 열의 진짜
+    데이터가 계산된 범위 밖으로 밀려나 표 끝에 도달한 것으로 잘못 판정되어,
+    OCR이 값을 못 읽은 옆 칸조차 방어적으로 가릴 기회를 놓쳤다). 라벨이
+    걸린 대상 열은 이미 `_header_cells`가 자기 몫끼리 합쳤으니 그대로 두고,
+    라벨 없는 셀끼리만 본다. `_touching`(음절 재결합에 쓰는 것과 같은
+    "거의 붙어 있다" 판정)을 그대로 재사용한다.
+    """
+    merged: list[tuple[tuple, str | None, str | None]] = []
+    for bbox, field, label in cells:
+        if (
+            merged
+            and field is None
+            and merged[-1][1] is None
+            and _touching(merged[-1][0], bbox)
+        ):
+            merged[-1] = (_union(merged[-1][0], bbox), None, None)
+        else:
+            merged.append((bbox, field, label))
+    return merged
 
 
 def _column_boundaries(
@@ -628,23 +656,36 @@ def _column_boundaries(
 ) -> dict[int, tuple[float, float]]:
     """헤더 셀들을 x좌표로 정렬하고, 인접한 셀 사이 중점을 열 경계로 쓴다.
 
-    첫 열의 왼쪽 끝은 0, 마지막 열의 오른쪽 끝은 무한대다 — 표 자체의 좌우
-    테두리를 따로 알아내지 않고, 이웃 헤더까지의 중간 지점만으로 "이 헤더에
-    속하는 글자"를 판단한다.
+    가운데 열은 양옆 이웃까지의 중간 지점을 경계로 쓴다. 첫 열의 왼쪽 끝과
+    마지막 열의 오른쪽 끝은 이웃이 없어 중점을 구할 수 없으므로, 그 열
+    자신의 폭(반대쪽 이웃까지의 거리)의 절반만큼만 바깥으로 열어 둔다 —
+    표의 실제 좌우 테두리를 몰라도 "이 열이겠거니" 싶은 정도까지만 받는다는
+    뜻이다.
+
+    이 폭 제한이 전에는 없었다(첫 열 왼쪽 끝을 무조건 0, 즉 이미지 왼쪽
+    끝까지 열어 뒀다) — 실측 버그(2026-09-17, 지원서 사진): "직장명" 열
+    왼쪽에 세로 선으로 나뉜 완전히 별도의 병합 셀(여러 행에 걸친 행 그룹
+    라벨 "아르바이트\n경력사항")이 있었는데, 그 라벨 글자가 이미지 왼쪽
+    끝과 "직장명" 열 첫 데이터 사이 어딘가에 있다는 이유만으로 회사명 값으로
+    잘못 잡혀 라벨 자체가 마스킹으로 가려졌다. 열 폭만큼만 바깥으로 열어
+    두면 이런 완전히 다른 셀의 글자까지 삼키는 일이 줄어든다.
     """
     order = sorted(range(len(cells)), key=lambda i: cells[i][0][0])
+    last = len(order) - 1
+    midpoints = [
+        (cells[order[i]][0][2] + cells[order[i + 1]][0][0]) / 2 for i in range(last)
+    ]
+
     boundaries: dict[int, tuple[float, float]] = {}
     for position, cell_index in enumerate(order):
-        left = (
-            0.0
-            if position == 0
-            else (cells[order[position - 1]][0][2] + cells[cell_index][0][0]) / 2
-        )
-        right = (
-            float("inf")
-            if position == len(order) - 1
-            else (cells[cell_index][0][2] + cells[order[position + 1]][0][0]) / 2
-        )
+        cell_left = cells[cell_index][0][0]
+        cell_right = cells[cell_index][0][2]
+        left = midpoints[position - 1] if position > 0 else None
+        right = midpoints[position] if position < last else None
+        if left is None:
+            left = max(0.0, cell_left - (right - cell_left) / 2)
+        if right is None:
+            right = cell_right + (cell_right - left) / 2
         boundaries[cell_index] = (left, right)
     return boundaries
 
@@ -660,8 +701,11 @@ def _collect_column_rows(
     first_column_range: tuple[float, float],
     last_column_range: tuple[float, float],
     header_height: float,
-) -> list[tuple[str, tuple]]:
+) -> list[tuple[str | None, tuple]]:
     """헤더 다음 줄들을 훑어 대상 열의 셀 값들을 모은다. `_TABLE_ROW_GAP_RATIO`/`_MAX_TABLE_ROWS` 참고.
+
+    텍스트가 `None`이면 값을 못 읽었지만 표 구조상 이 자리에 값이 있어야
+    한다고 판단해 방어적으로 잡은 자리다(아래 함수 본문 참고).
 
     행이 하나씩 늘어날 때마다 그 줄의 높이를 같이 기록해서, 다음 줄과의
     세로 간격을 "지금까지 본 행 높이"와 비교한다 — 표가 몇 줄짜리든 그 표
@@ -696,7 +740,13 @@ def _collect_column_rows(
             for text, bbox in line
             if column_left <= (bbox[0] + bbox[2]) / 2 < column_right
         ]
-        if not cell_words:
+        if cell_words:
+            cell_text = " ".join(text for text, _ in cell_words)
+            cell_bbox = cell_words[0][1]
+            for _text, bbox in cell_words[1:]:
+                cell_bbox = _union(cell_bbox, bbox)
+            rows.append((cell_text, cell_bbox))
+        else:
             centers = [(b[0] + b[2]) / 2 for _, b in line]
             touches_first = any(
                 first_column_range[0] <= c < first_column_range[1] for c in centers
@@ -705,14 +755,24 @@ def _collect_column_rows(
                 last_column_range[0] <= c < last_column_range[1] for c in centers
             )
             if not (touches_first and touches_last):
+                # 실측(2026-09-17)으로 "이 줄만 건너뛰고 계속 훑기"도
+                # 시도해봤는데, 표를 벗어난 자기소개서 문단·서명란까지
+                # 전부 회사명으로 잘못 잡는 훨씬 심한 회귀가 났다 — 대상
+                # 열의 x축 범위에 우연히 걸리는 글자가 페이지 어디에나
+                # 있을 수 있어서, 한 번 훑기를 계속 허용하면 표 끝을 아예
+                # 못 찾게 된다. 표 중간 행 하나가 통째로 안 읽혀도 그 아래
+                # 멀쩡한 행을 놓치는 게, 표 밖 내용을 잘못 가리는 것보다는
+                # 안전하다 — 그래서 여기서 멈춘다.
                 break
-
-        if cell_words:
-            cell_text = " ".join(text for text, _ in cell_words)
-            cell_bbox = cell_words[0][1]
-            for _text, bbox in cell_words[1:]:
-                cell_bbox = _union(cell_bbox, bbox)
-            rows.append((cell_text, cell_bbox))
+            # 대상 열은 비었지만 이 행 자체는 진짜 표 행이다(첫 열·마지막
+            # 열 둘 다에 값이 있음) — OCR이 이 칸의 글자를 통째로 못 읽었을
+            # 뿐, 표 구조상 값이 있어야 하는 자리라는 건 안다(실측: 2026-09-17,
+            # "A식품"처럼 영문 한 글자와 한글이 공백 없이 붙은 토큰을
+            # Tesseract가 psm/배율/언어 조합을 다 바꿔봐도 못 읽었다). 값을
+            # 모른 채로 자리만이라도 방어적으로 가린다 — `id_detector.py`가
+            # 얼굴 영역을 값을 읽지 않고 좌표만으로 가리는 것과 같은 방식이다.
+            # `None`으로 표시해서 "실제로 읽은 값"과 구분한다.
+            rows.append((None, (column_left, top, column_right, bottom)))
 
         row_heights.append(bottom - top)
         previous_bottom = bottom
@@ -767,6 +827,31 @@ def _find_table_column_cells(
                 header_height,
             )
             for cell_text, cell_bbox in rows:
+                if cell_text is None:
+                    # 값을 못 읽었지만 표 구조상 이 자리에 값이 있어야 한다고
+                    # 판단해 방어적으로 잡은 자리다(`_collect_column_rows`
+                    # 참고) — id_detector.py가 얼굴 영역을 값을 읽지 않고
+                    # 좌표만으로 가리는 것과 같은 방식이라, 신뢰도도 실제로
+                    # 읽은 값보다 낮게(0.6) 매긴다.
+                    results.append(
+                        {
+                            "field": field,
+                            "value": f"{label} 미확인 값",
+                            "start": 0,
+                            "end": 0,
+                            "confidence": 0.6,
+                            "bbox": cell_bbox,
+                            "page": 1,
+                            "reason": f'"{label}" 표 헤더 아래 칸인데 OCR이 값을 읽지 못해 자리만 방어적으로 가림',
+                            "evidence": {
+                                "ocr": True,
+                                "structured_header": True,
+                                "unread": True,
+                            },
+                            "source": "rule",
+                        }
+                    )
+                    continue
                 results.append(
                     {
                         "field": field,

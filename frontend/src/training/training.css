@@ -239,6 +239,8 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .level-grid {
@@ -286,6 +288,8 @@
 .level-card__desc {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .level-card__status {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FileChartColumn, MessageSquareText, ShieldCheck } from 'lucide-react'
 import { api } from '../shared/api.js'
 import { Badge, Button, SectionRail } from '../shared/components/index.js'
 import TypingChatMock from './TypingChatMock.jsx'
@@ -18,9 +19,9 @@ const LEVELS = [
 ]
 
 const FEATURES = [
-  { icon: '▣', title: '실전 대화 시뮬레이션', copy: 'AI가 연기하는 사기범의 메시지에 직접 답장하며 대응해 봅니다.' },
-  { icon: '◈', title: '개인정보 보호', copy: '명확한 개인정보 형식은 외부 AI에 전달하기 전에 자동으로 치환합니다.' },
-  { icon: '▤', title: 'AI 대응 리포트', copy: '대화가 끝나면 잘한 점과 위험했던 순간을 정리해 드립니다.' },
+  { Icon: MessageSquareText, title: '실전 대화 시뮬레이션', copy: 'AI가 연기하는 사기범의 메시지에 직접 답장하며 대응해 봅니다.' },
+  { Icon: ShieldCheck, title: '개인정보 보호', copy: '명확한 개인정보 형식은 외부 AI에 전달하기 전에 자동으로 치환합니다.' },
+  { Icon: FileChartColumn, title: 'AI 대응 리포트', copy: '대화가 끝나면 잘한 점과 위험했던 순간을 정리해 드립니다.' },
 ]
 
 export default function TrainingHomePage({ onStarted }) {
@@ -66,9 +67,8 @@ export default function TrainingHomePage({ onStarted }) {
     <div className="container training-page">
       <SectionRail
         sections={[
-          { id: 'intro', label: '소개' },
-          { id: 'features', label: '기능' },
-          { id: 'training-levels', label: '레벨' },
+          { id: 'intro', label: '소개 및 기능', highlightIds: ['intro', 'features'] },
+          { id: 'training-levels', label: '레벨 테스트' },
         ]}
       />
       <section id="intro" className="training-hero rv">
@@ -78,7 +78,7 @@ export default function TrainingHomePage({ onStarted }) {
             <em>AI</em> 보안 대응 훈련
           </h1>
           <p className="training-hero__desc">
-            실제 업무에서 일어날 수 있는 피싱·정보유출 상황을 AI 사기범과의 대화로 직접 겪어 보며 대응 감각을 길러 보세요.
+            일상부터 실제 업무까지 마주할 수 있는 피싱·정보유출 상황을 AI 사기범과의 대화로 직접 경험하며, 실제 상황에 필요한 대응 감각을 길러 보세요.
           </p>
           <Button
             size="lg"
@@ -94,7 +94,7 @@ export default function TrainingHomePage({ onStarted }) {
         {FEATURES.map((feature) => (
           <li key={feature.title} className="feature-card rv">
             <span className="feature-card__icon" aria-hidden="true">
-              {feature.icon}
+              <feature.Icon size={22} strokeWidth={1.8} />
             </span>
             <h2 className="feature-card__title">{feature.title}</h2>
             <p className="feature-card__copy">{feature.copy}</p>

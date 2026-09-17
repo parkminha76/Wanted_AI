@@ -111,10 +111,14 @@ class IdDetectorRealInferenceEvalTest(unittest.TestCase):
 
         self.assertEqual(id_detector.detect(path), [])
 
-    def test_photo_with_essay_text_yields_no_findings(self) -> None:
+    def test_photo_with_essay_text_only_masks_the_face(self) -> None:
         """실측 재현: 자기소개서에 증명사진과 "지원동기" 문단이 같이 있으면, 얼굴이
         찍히더라도 그것만으로 신분증이라고 보고 옆 문단을 address로 가려선 안 된다.
-        (이 테스트는 _ANCHOR_CLASSES에 face를 다시 넣으면 실패한다.)"""
+        (이 테스트는 _ANCHOR_CLASSES에 face를 다시 넣으면 실패한다.)
+
+        다만 얼굴 자체는(2026-09-17 재결정) 신분증 여부와 무관하게 가려야 할
+        개인정보라 findings에 남아야 한다 — 신분증으로 오판해 다른 문단을 같이
+        가리는 것과, 사진 속 얼굴 자체를 가리는 것은 서로 다른 문제다."""
         from PIL import Image, ImageDraw, ImageFont
 
         image = Image.new("RGB", (900, 1200), "white")
@@ -137,7 +141,9 @@ class IdDetectorRealInferenceEvalTest(unittest.TestCase):
             y += 45
         path = self._save_tmp(image)
 
-        self.assertEqual(id_detector.detect(path), [])
+        findings = id_detector.detect(path)
+        classes = {f["evidence"]["cnn_class"] for f in findings}
+        self.assertEqual(classes, {"face"})
 
 
 if __name__ == "__main__":

@@ -484,7 +484,14 @@ class TableColumnCellsTest(unittest.TestCase):
         cells = text_ocr._find_table_column_cells(lines)
         self.assertTrue(any(c["value"] == "Liceria & Co." for c in cells))
 
-    def test_blank_cell_is_skipped_not_an_empty_string_finding(self):
+    def test_blank_cell_in_a_real_table_row_is_defensively_masked_without_a_value(self):
+        """실측 버그(2026-09-17): "A식품"처럼 영문 한 글자와 한글이 공백 없이
+        붙은 토큰을 Tesseract가 psm·배율·언어 조합을 다 바꿔도 못 읽었다.
+        그래도 이 행이 첫 열·마지막 열 둘 다에 값이 있는 진짜 표 행이면,
+        회사명 칸에 뭔가 있어야 한다는 것 자체는 표 구조로 알 수 있다.
+        값은 모른 채로 자리만 방어적으로 가려야 한다(id_detector.py가 얼굴
+        영역을 값 없이 좌표만으로 가리는 것과 같은 방식) — 조용히 건너뛰면
+        안 된다."""
         from backend.scanner.detectors import text_ocr
 
         row_without_company_name = [
@@ -496,6 +503,21 @@ class TableColumnCellsTest(unittest.TestCase):
             ("프리랜서", (349.0, 457.5, 383.5, 466.0)),
         ]
         lines = [self.HEADER, row_without_company_name]
+        cells = text_ocr._find_table_column_cells(lines)
+        self.assertEqual(len(cells), 1)
+        cell = cells[0]
+        self.assertEqual(cell["field"], "org")
+        self.assertEqual(cell["value"], "회사명 미확인 값")
+        self.assertLess(cell["confidence"], 0.98, "실제로 읽은 값보다는 신뢰도가 낮아야 한다")
+        self.assertTrue(cell["evidence"]["unread"])
+
+    def test_blank_cell_outside_the_table_produces_nothing(self):
+        """대상 열도 비어 있고 첫 열·마지막 열 둘 다 안 걸치면(표를 벗어난 줄) —
+        방어적으로 가릴 근거 자체가 없으므로 아무것도 안 잡아야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        unrelated_line = [("전혀", (400.0, 457.5, 420.0, 466.0)), ("관계없음", (424.0, 457.5, 460.0, 466.0))]
+        lines = [self.HEADER, unrelated_line]
         cells = text_ocr._find_table_column_cells(lines)
         self.assertEqual(cells, [])
 
@@ -568,6 +590,32 @@ class TableColumnCellsTest(unittest.TestCase):
         cells = text_ocr._find_table_column_cells(lines)
         values = {c["value"] for c in cells}
         self.assertEqual(values, {"Fauget", "Liceria & Co."})
+
+    def test_first_column_does_not_reach_across_into_a_separate_label_cell(self):
+        """실측 버그(2026-09-17, 지원서 사진): "직장명" 열 왼쪽에 세로 선으로
+        나뉜 별도 병합 셀(여러 행에 걸친 행 그룹 라벨 "아르바이트\n경력사항")이
+        있었는데, 첫 열의 왼쪽 끝이 무조건 0(이미지 왼쪽 끝)이라 그 라벨
+        글자가 회사명 값으로 잘못 잡혀 라벨 자체가 마스킹으로 가려졌다.
+        좌표는 그 표를 그대로 실측한 값이다 — 이 표는 "직장명"이 첫 열이라
+        열 자신의 폭만큼만 바깥으로 열어 두는 보정이 실제로 걸리는지 본다."""
+        from backend.scanner.detectors import text_ocr
+
+        header = [
+            ("직장명", (392.5, 755.0, 451.5, 777.0)),
+            ("기간", (663.0, 755.0, 702.5, 776.0)),
+            ("주요", (941.5, 741.0, 1024.0, 786.0)),
+            ("업무", (984.0, 755.0, 1024.0, 776.5)),
+        ]
+        # "아르바이트"는 실제로는 "직장명" 열이 아니라 그 왼쪽의 별도 병합
+        # 셀(행 그룹 라벨)에 있는 글자다 — 이 표에서 OCR은 "A식품"(진짜
+        # 첫 행 값)을 아예 못 읽었다.
+        row_with_label_bleed_only = [
+            ("아르바이트", (176.5, 803.0, 280.0, 824.0)),
+            ("2021", (526.0, 800.0, 598.0, 821.0)),
+            ("년", (584.5, 786.0, 602.5, 843.0)),
+        ]
+        cells = text_ocr._find_table_column_cells([header, row_with_label_bleed_only])
+        self.assertEqual(cells, [])
 
 
 class MergeTableCellsTest(unittest.TestCase):
