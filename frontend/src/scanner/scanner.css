@@ -441,6 +441,92 @@
 }
 
 /* ---------- 결과 공통 ---------- */
+/* 결과 화면 머리. 좁은 화면에서는 제목·버튼 아래로 예시 장면이 내려간다. */
+.results-head {
+  display: grid;
+  gap: var(--space-6);
+  /* 왼쪽 칸이 오른쪽 스캔 장면 높이에 맞춰 늘어난다. 장면 자체는 제 높이를 지킨다(아래). */
+  align-items: stretch;
+  /* 오른쪽 장면 아래 "다시 스캔" 버튼이 차지하는 높이(버튼 + 위 여백).
+     왼쪽 위험도 카드가 이만큼을 비워야 카드 아래가 장면 상자 아래와 맞는다. */
+  --mock-replay-space: 3.7rem;
+}
+
+.results-head > .scan-mock {
+  align-self: start;
+}
+
+/* 왼쪽 칸: 제목·버튼 아래에 위험도 요약이 이어진다. */
+.results-head__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* 이 자리의 위험도 카드는 좌우 두 칸이다 — 왼쪽은 점수, 오른쪽은 항목별 건수.
+   점수 쪽을 좁게 잡아 건수 목록에 더 많은 자리를 준다.
+   선택자가 .risk-card 단독 규칙보다 구체적이라 아래 768px 규칙보다 우선한다. */
+.results-head__main .risk-card {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  /* 남은 높이를 채우되, 장면 상자보다 아래로 더 내려가지 않게 버튼 자리만큼 뺀다. */
+  flex: 1;
+  margin-bottom: var(--mock-replay-space);
+  /* 위 제목 블록은 칸 전체를 쓰지만 버튼이 그 끝까지 차지하지 않아, 카드가 더 넓어 보인다.
+     눈에 보이는 제목 블록의 끝선에 맞춰 폭을 줄인다. */
+  max-width: 39rem;
+}
+
+.results-head__main .risk-card__list {
+  border-top: 0;
+  border-left: 1px solid var(--risk-border);
+  padding: var(--space-4) var(--space-5);
+}
+
+/* 점수 영역은 건수 목록보다 눈에 덜 띄게 — 아이콘·숫자·여백을 한 단계씩 줄인다.
+   아이콘을 글자 위로 올려 세로로 쌓고, 칸 가운데로 맞춘다. */
+.results-head__main .risk-card__score {
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  text-align: center;
+}
+
+.results-head__main .risk-card__number {
+  justify-content: center;
+}
+
+.results-head__main .risk-card__icon {
+  width: 32px;
+  height: 32px;
+  font-size: var(--font-size-lg);
+  box-shadow: 0 0 0 5px var(--color-surface);
+}
+
+/* 이 자리에서는 글자를 한 단계(약 3pt)씩 키워 멀리서도 읽히게 한다. */
+.results-head__main .risk-card__score small {
+  font-size: var(--font-size-md);
+}
+
+.results-head__main .risk-card__list li {
+  font-size: var(--font-size-lg);
+}
+
+.results-head__main .badge {
+  font-size: var(--font-size-sm);
+}
+
+.results-head__main .risk-card__number b {
+  font-size: var(--font-size-xl);
+}
+
+@media (min-width: 960px) {
+  .results-head {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+  }
+}
+
 .results-page,
 .mask-page,
 .detail-page {

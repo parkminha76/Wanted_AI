@@ -755,8 +755,10 @@
   }
 }
 
-/* ---------- Badge: 화면 맨 위의 깜빡이는 알약 태그 ---------- */
-.badge {
+/* ---------- Badge: 화면 맨 위의 깜빡이는 알약 태그 ----------
+   클래스 이름에 hero-를 붙인다 — .badge는 위험도 배지(RiskBadge)가 먼저 쓰고 있어서
+   같은 이름을 쓰면 뒤에 정의된 쪽이 색·여백을 덮어쓴다. */
+.hero-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -770,7 +772,7 @@
   letter-spacing: 0.14em;
 }
 
-.badge__dot {
+.hero-badge__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -779,12 +781,12 @@
 
 /* 점만 깜빡인다. 움직임 줄이기 설정이면 켜진 채로 멈춘다. */
 @media (prefers-reduced-motion: no-preference) {
-  .badge__dot {
-    animation: badge-blink 1.2s steps(1) infinite;
+  .hero-badge__dot {
+    animation: hero-badge-blink 1.2s steps(1) infinite;
   }
 }
 
-@keyframes badge-blink {
+@keyframes hero-badge-blink {
   0%,
   49% {
     opacity: 1;
