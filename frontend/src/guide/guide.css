@@ -11,7 +11,7 @@
 }
 
 /* 예전 .eyebrow가 갖고 있던 아래 여백. */
-.guide-intro .badge {
+.guide-intro .hero-badge {
   margin-bottom: var(--space-3);
 }
 

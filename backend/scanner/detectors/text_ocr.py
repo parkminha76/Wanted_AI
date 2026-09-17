@@ -146,6 +146,34 @@ _OVERSIZED_HEIGHT_RATIO = 1.8
 _SYLLABLE_GAP_RATIO = 0.9
 _SINGLE_HANGUL = re.compile(r"^[가-힣]$")
 
+# 표에 헤더 행이 있으면("회사명 | 기간 | 경력 | 소속") NER의 자유 텍스트 추론보다
+# 헤더가 열의 의미를 훨씬 정확히 알려준다. 실측(2026-09-17): NER이 옆 칸("경력"
+# 열, 실제 값 "UI 디자인")의 OCR 오독 글자("UI"→"비")를 회사명 개체 끝에 붙여
+# "Liceria & Co. 비"로 잡았고(마스킹 박스가 어중간하게 끊겨 "디자인"이 그대로
+# 드러나 보임), 같은 열의 "Fauget"은 아예 회사명으로 인식하지 못해 마스킹에서
+# 빠졌다. "회사명"/"직장명" 헤더가 있으면 그 열 전체를 기하학적으로(헤더 밑
+# 같은 x축 범위) 확정해서 이 두 문제를 같이 없앤다.
+#
+# "학교명"은 일부러 안 넣는다 — 학교명은 마스킹 대상이 아니다(ner.py의
+# 학교명 제외 결정과 일관, `_is_education_institution` 참고).
+_COLUMN_FIELD_LABELS: dict[str, str] = {
+    "회사명": "org",
+    "직장명": "org",
+    "근무처": "org",
+}
+
+# 표 헤더 밑으로 몇 줄까지 데이터 행으로 볼지의 안전판. 정상적인 표라면 세로
+# 간격 검사(`_TABLE_ROW_GAP_RATIO`)가 먼저 걸리지만, 혹시 그게 안 걸리는
+# 경우에도 표 밖 문단 전체를 끝없이 훑는 사고는 막는다.
+_MAX_TABLE_ROWS = 20
+
+# 이번 줄과 이전 줄 사이 세로 간격이 지금까지 본 행 높이 중앙값의 이 배수를
+# 넘으면 표를 벗어난 것으로 본다 — `_recover_gap_lines`가 이미 "비정상적으로
+# 큰 세로 간격 = 구조적 경계"로 판단하는 것과 같은 방식이다. 가로 겹침만으로는
+# 표가 폭이 넓을 때(다음 섹션 제목도 왼쪽 정렬이면 겹쳐 보임) 잘 안 걸려서
+# 보조 신호로만 같이 쓴다.
+_TABLE_ROW_GAP_RATIO = 1.75
+
 
 def _looks_like_label(line_text: str) -> bool:
     """실제 서식 라벨("입금 계좌" 등)만 다음 줄과 이어 붙인다.
@@ -477,15 +505,23 @@ def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, flo
 
 
 def _ocr_words(path: str) -> tuple[str, list[_Word]]:
-    """이미지 1장을 OCR해서 (다시 만든 raw_text, 단어별 offset+bbox 목록)을 돌려준다.
+    """이미지 1장을 OCR해서 (다시 만든 raw_text, 단어별 offset+bbox 목록)을 돌려준다."""
+    return _words_from_lines(_ocr_lines(path))
+
+
+def _words_from_lines(
+    lines: list[list[tuple[str, tuple[float, float, float, float]]]],
+) -> tuple[str, list[_Word]]:
+    """`_ocr_lines`가 만든 줄 목록을 raw_text 하나로 이어붙인다.
 
     같은 줄의 단어는 공백으로 잇는다. 줄과 줄 사이는 원칙적으로 줄바꿈이지만,
     앞 줄이 라벨처럼 보이면(_looks_like_label) 공백으로 이어 붙인다 — 그래야
     "입금 계좌"(라벨 줄) 다음의 "국민 6127-02-384915"(값 줄)이 오탐 제거
     분류기에게 "계좌"라는 문맥을 잃지 않고 전달된다.
-    """
-    lines = _ocr_lines(path)
 
+    `detect()`가 이 `lines`를 표 열 인식(`_find_table_column_cells`)에도 같이
+    쓴다 — OCR을 두 번 돌리지 않으려고 `_ocr_words(path)`에서 분리했다.
+    """
     parts: list[str] = []
     words: list[_Word] = []
     cursor = 0
@@ -526,6 +562,332 @@ def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
     )
 
 
+def _match_header_labels(
+    line: list[tuple[str, tuple]],
+) -> list[tuple[int, int, str, str]]:
+    """줄에서 `_COLUMN_FIELD_LABELS`의 라벨을 찾아 (시작 단어 인덱스, 끝 단어 인덱스, 라벨, 필드유형) 목록을 돌려준다.
+
+    라벨과 정확히 같은 단어 하나만 찾지 않는다 — Tesseract가 "회사명"을
+    "회사"+"명"처럼 단어 경계와 다르게 쪼개는 경우가 있다(`_merge_adjacent_syllables`는
+    한 글자짜리 음절끼리만 다시 붙이므로 이런 분할은 안 고쳐진다). 그래서
+    `_looks_like_label`처럼 줄 전체를 이어붙인 문자열에서 라벨을 찾은 뒤, 그
+    위치가 원래 몇 번째 단어(들)에 걸쳐 있었는지 역으로 찾는다.
+    """
+    char_to_word: list[int] = []
+    compact_parts: list[str] = []
+    for word_index, (word_text, _bbox) in enumerate(line):
+        compact_parts.append(word_text)
+        char_to_word.extend([word_index] * len(word_text))
+    compact = "".join(compact_parts)
+
+    matches: list[tuple[int, int, str, str]] = []
+    for label, field in _COLUMN_FIELD_LABELS.items():
+        position = compact.find(label)
+        if position == -1:
+            continue
+        word_start = char_to_word[position]
+        word_end = char_to_word[position + len(label) - 1]
+        matches.append((word_start, word_end, label, field))
+    return matches
+
+
+def _header_cells(
+    line: list[tuple[str, tuple]], matches: list[tuple[int, int, str, str]]
+) -> list[tuple[tuple, str | None, str | None]]:
+    """줄의 단어들을 "헤더 셀" 단위로 묶는다.
+
+    라벨에 걸린 단어 구간(`_match_header_labels`가 찾은 범위)은 하나로 합쳐
+    셀 하나로 보고, 그 외 단어는 하나씩 그대로 둔다. 각 셀은
+    (bbox, field 또는 None, label 또는 None)이다 — field/label이 있으면
+    그 열이 우리가 값을 잡을 대상이라는 뜻이다.
+    """
+    field_by_word: dict[int, tuple[str, str, int, int]] = {}
+    for word_start, word_end, label, field in matches:
+        for index in range(word_start, word_end + 1):
+            field_by_word[index] = (field, label, word_start, word_end)
+
+    cells: list[tuple[tuple, str | None, str | None]] = []
+    index = 0
+    while index < len(line):
+        matched = field_by_word.get(index)
+        if matched is not None:
+            field, label, word_start, word_end = matched
+            cell_bbox = line[word_start][1]
+            for word_index in range(word_start + 1, word_end + 1):
+                cell_bbox = _union(cell_bbox, line[word_index][1])
+            cells.append((cell_bbox, field, label))
+            index = word_end + 1
+        else:
+            cells.append((line[index][1], None, None))
+            index += 1
+    return _merge_touching_header_cells(cells)
+
+
+def _merge_touching_header_cells(
+    cells: list[tuple[tuple, str | None, str | None]],
+) -> list[tuple[tuple, str | None, str | None]]:
+    """라벨이 없는 헤더 셀 중 서로 거의 붙어 있는 것들을 하나로 합친다.
+
+    "주요"+"업무"처럼 한 헤더 문구가 OCR 토큰 두 개로 쪼개지면, 합치지 않을
+    경우 서로 다른 두 열로 다뤄져서 마지막 열의 경계 폭 계산이 실제 헤더
+    폭보다 좁게 잡힌다(실측: 2026-09-17 — 그 결과로 "주요업무" 열의 진짜
+    데이터가 계산된 범위 밖으로 밀려나 표 끝에 도달한 것으로 잘못 판정되어,
+    OCR이 값을 못 읽은 옆 칸조차 방어적으로 가릴 기회를 놓쳤다). 라벨이
+    걸린 대상 열은 이미 `_header_cells`가 자기 몫끼리 합쳤으니 그대로 두고,
+    라벨 없는 셀끼리만 본다. `_touching`(음절 재결합에 쓰는 것과 같은
+    "거의 붙어 있다" 판정)을 그대로 재사용한다.
+    """
+    merged: list[tuple[tuple, str | None, str | None]] = []
+    for bbox, field, label in cells:
+        if (
+            merged
+            and field is None
+            and merged[-1][1] is None
+            and _touching(merged[-1][0], bbox)
+        ):
+            merged[-1] = (_union(merged[-1][0], bbox), None, None)
+        else:
+            merged.append((bbox, field, label))
+    return merged
+
+
+def _column_boundaries(
+    cells: list[tuple[tuple, str | None, str | None]],
+) -> dict[int, tuple[float, float]]:
+    """헤더 셀들을 x좌표로 정렬하고, 인접한 셀 사이 중점을 열 경계로 쓴다.
+
+    가운데 열은 양옆 이웃까지의 중간 지점을 경계로 쓴다. 첫 열의 왼쪽 끝과
+    마지막 열의 오른쪽 끝은 이웃이 없어 중점을 구할 수 없으므로, 그 열
+    자신의 폭(반대쪽 이웃까지의 거리)의 절반만큼만 바깥으로 열어 둔다 —
+    표의 실제 좌우 테두리를 몰라도 "이 열이겠거니" 싶은 정도까지만 받는다는
+    뜻이다.
+
+    이 폭 제한이 전에는 없었다(첫 열 왼쪽 끝을 무조건 0, 즉 이미지 왼쪽
+    끝까지 열어 뒀다) — 실측 버그(2026-09-17, 지원서 사진): "직장명" 열
+    왼쪽에 세로 선으로 나뉜 완전히 별도의 병합 셀(여러 행에 걸친 행 그룹
+    라벨 "아르바이트\n경력사항")이 있었는데, 그 라벨 글자가 이미지 왼쪽
+    끝과 "직장명" 열 첫 데이터 사이 어딘가에 있다는 이유만으로 회사명 값으로
+    잘못 잡혀 라벨 자체가 마스킹으로 가려졌다. 열 폭만큼만 바깥으로 열어
+    두면 이런 완전히 다른 셀의 글자까지 삼키는 일이 줄어든다.
+    """
+    order = sorted(range(len(cells)), key=lambda i: cells[i][0][0])
+    last = len(order) - 1
+    midpoints = [
+        (cells[order[i]][0][2] + cells[order[i + 1]][0][0]) / 2 for i in range(last)
+    ]
+
+    boundaries: dict[int, tuple[float, float]] = {}
+    for position, cell_index in enumerate(order):
+        cell_left = cells[cell_index][0][0]
+        cell_right = cells[cell_index][0][2]
+        left = midpoints[position - 1] if position > 0 else None
+        right = midpoints[position] if position < last else None
+        if left is None:
+            left = max(0.0, cell_left - (right - cell_left) / 2)
+        if right is None:
+            right = cell_right + (cell_right - left) / 2
+        boundaries[cell_index] = (left, right)
+    return boundaries
+
+
+def _line_span(line: list[tuple[str, tuple]]) -> tuple[float, float]:
+    return (min(b[1] for _, b in line), max(b[3] for _, b in line))
+
+
+def _collect_column_rows(
+    following_lines: list[list[tuple[str, tuple]]],
+    column_left: float,
+    column_right: float,
+    first_column_range: tuple[float, float],
+    last_column_range: tuple[float, float],
+    header_height: float,
+) -> list[tuple[str | None, tuple]]:
+    """헤더 다음 줄들을 훑어 대상 열의 셀 값들을 모은다. `_TABLE_ROW_GAP_RATIO`/`_MAX_TABLE_ROWS` 참고.
+
+    텍스트가 `None`이면 값을 못 읽었지만 표 구조상 이 자리에 값이 있어야
+    한다고 판단해 방어적으로 잡은 자리다(아래 함수 본문 참고).
+
+    행이 하나씩 늘어날 때마다 그 줄의 높이를 같이 기록해서, 다음 줄과의
+    세로 간격을 "지금까지 본 행 높이"와 비교한다 — 표가 몇 줄짜리든 그 표
+    자신의 줄 간격을 기준으로 판단하므로, 줄 간격이 넓은 표와 좁은 표 모두에
+    맞는다.
+
+    "이 줄이 아직 표 안인가"는 **대상 열 자체에 글자가 있으면 무조건 그렇다**로
+    본다 — 그게 이 함수가 찾으려는 값 그 자체이기 때문이다(실측: 2026-09-17,
+    지원서의 "직장명" 표 첫 행은 OCR이 "주요업무" 칸을 아예 못 읽어 그 칸이
+    비었는데, 그렇다고 이미 읽은 "직장명" 칸 값까지 버리면 안 됐다). 대상 열이
+    비어 있을 때만 표의 **첫 열과 마지막 열 둘 다**에 글자가 있는지로 판단한다
+    (전체 가로 범위 어딘가에 글자가 있는지만 보면 너무 헐겁다 — 실측: 같은
+    문서군에서 표 다음에 나온 좌우 두 섹션 제목("자격증" / "수상 및 기타
+    능력")이 표와 같은 왼쪽 여백에서 시작해 가로 범위 대부분과 겹쳐서 표 다음
+    줄로 잘못 포함되고, 그 아래 완전히 다른 표의 값까지 엉뚱하게 회사명으로
+    잡혔다. 진짜 표 행은 왼쪽 첫 열부터 오른쪽 마지막 열까지 값이 흩어져
+    있지만, 그 뒤에 오는 산문·다른 섹션 제목은 보통 그렇게 양 끝까지 안 걸친다).
+    """
+    rows: list[tuple[str, tuple]] = []
+    row_heights = [header_height]
+    previous_bottom: float | None = None
+
+    for line in following_lines[:_MAX_TABLE_ROWS]:
+        top, bottom = _line_span(line)
+        if previous_bottom is not None:
+            gap = top - previous_bottom
+            if gap > statistics.median(row_heights) * _TABLE_ROW_GAP_RATIO:
+                break
+
+        cell_words = [
+            (text, bbox)
+            for text, bbox in line
+            if column_left <= (bbox[0] + bbox[2]) / 2 < column_right
+        ]
+        if cell_words:
+            cell_text = " ".join(text for text, _ in cell_words)
+            cell_bbox = cell_words[0][1]
+            for _text, bbox in cell_words[1:]:
+                cell_bbox = _union(cell_bbox, bbox)
+            rows.append((cell_text, cell_bbox))
+        else:
+            centers = [(b[0] + b[2]) / 2 for _, b in line]
+            touches_first = any(
+                first_column_range[0] <= c < first_column_range[1] for c in centers
+            )
+            touches_last = any(
+                last_column_range[0] <= c < last_column_range[1] for c in centers
+            )
+            if not (touches_first and touches_last):
+                # 실측(2026-09-17)으로 "이 줄만 건너뛰고 계속 훑기"도
+                # 시도해봤는데, 표를 벗어난 자기소개서 문단·서명란까지
+                # 전부 회사명으로 잘못 잡는 훨씬 심한 회귀가 났다 — 대상
+                # 열의 x축 범위에 우연히 걸리는 글자가 페이지 어디에나
+                # 있을 수 있어서, 한 번 훑기를 계속 허용하면 표 끝을 아예
+                # 못 찾게 된다. 표 중간 행 하나가 통째로 안 읽혀도 그 아래
+                # 멀쩡한 행을 놓치는 게, 표 밖 내용을 잘못 가리는 것보다는
+                # 안전하다 — 그래서 여기서 멈춘다.
+                break
+            # 대상 열은 비었지만 이 행 자체는 진짜 표 행이다(첫 열·마지막
+            # 열 둘 다에 값이 있음) — OCR이 이 칸의 글자를 통째로 못 읽었을
+            # 뿐, 표 구조상 값이 있어야 하는 자리라는 건 안다(실측: 2026-09-17,
+            # "A식품"처럼 영문 한 글자와 한글이 공백 없이 붙은 토큰을
+            # Tesseract가 psm/배율/언어 조합을 다 바꿔봐도 못 읽었다). 값을
+            # 모른 채로 자리만이라도 방어적으로 가린다 — `id_detector.py`가
+            # 얼굴 영역을 값을 읽지 않고 좌표만으로 가리는 것과 같은 방식이다.
+            # `None`으로 표시해서 "실제로 읽은 값"과 구분한다.
+            rows.append((None, (column_left, top, column_right, bottom)))
+
+        row_heights.append(bottom - top)
+        previous_bottom = bottom
+
+    return rows
+
+
+def _find_table_column_cells(
+    lines: list[list[tuple[str, tuple]]],
+) -> list[dict]:
+    """표 헤더 행(예: "회사명")을 찾아 그 열 전체를 그 유형의 값으로 확정한다.
+
+    NER은 한 줄짜리 평문에서 개체명을 추론하다 보니 표에서는 옆 셀 글자가
+    끝에 붙거나(경계 오염) 값을 아예 놓치는 경우가 있다(`_COLUMN_FIELD_LABELS`
+    주석 참고). 표는 이미 헤더가 열의 의미를 알려주므로, 자유 텍스트 추론
+    대신 기하학적으로(헤더 밑 같은 x축 범위) 확정한다.
+    """
+    results: list[dict] = []
+    for header_index, header_line in enumerate(lines):
+        matches = _match_header_labels(header_line)
+        if not matches:
+            continue
+        cells = _header_cells(header_line, matches)
+
+        # 헤더 셀이 하나뿐이면(이웃 헤더가 없으면) 경계를 계산할 근거가 없다
+        # — 왼쪽 끝 0, 오른쪽 끝 무한대인 "열 하나"가 되어 그 아래 모든 행의
+        # 글자를 통째로 삼켜버린다. 표 테두리 선 때문에 Tesseract가 "회사명"
+        # 하나만 다른 헤더들과 분리된 줄로 뽑아내는 경우가 실제로 있어서
+        # (`_GAP_RECHECK_MIN_HEIGHT` 주석 참고), 이럴 땐 아무것도 안 잡는 쪽이
+        # 안전하다 — 지금과 같은 "탐지 안 됨"이지, 다른 정상 결과까지 덮어쓰는
+        # "잘못된 거대한 셀"보다 훨씬 낫다.
+        if len(cells) < 2:
+            continue
+
+        boundaries = _column_boundaries(cells)
+        order = sorted(range(len(cells)), key=lambda i: cells[i][0][0])
+        first_column_range = boundaries[order[0]]
+        last_column_range = boundaries[order[-1]]
+        header_top, header_bottom = _line_span(header_line)
+        header_height = header_bottom - header_top
+
+        for cell_index, (_bbox, field, label) in enumerate(cells):
+            if field is None:
+                continue
+            column_left, column_right = boundaries[cell_index]
+            rows = _collect_column_rows(
+                lines[header_index + 1 :],
+                column_left,
+                column_right,
+                first_column_range,
+                last_column_range,
+                header_height,
+            )
+            for cell_text, cell_bbox in rows:
+                if cell_text is None:
+                    # 값을 못 읽었지만 표 구조상 이 자리에 값이 있어야 한다고
+                    # 판단해 방어적으로 잡은 자리다(`_collect_column_rows`
+                    # 참고) — id_detector.py가 얼굴 영역을 값을 읽지 않고
+                    # 좌표만으로 가리는 것과 같은 방식이라, 신뢰도도 실제로
+                    # 읽은 값보다 낮게(0.6) 매긴다.
+                    results.append(
+                        {
+                            "field": field,
+                            "value": f"{label} 미확인 값",
+                            "start": 0,
+                            "end": 0,
+                            "confidence": 0.6,
+                            "bbox": cell_bbox,
+                            "page": 1,
+                            "reason": f'"{label}" 표 헤더 아래 칸인데 OCR이 값을 읽지 못해 자리만 방어적으로 가림',
+                            "evidence": {
+                                "ocr": True,
+                                "structured_header": True,
+                                "unread": True,
+                            },
+                            "source": "rule",
+                        }
+                    )
+                    continue
+                results.append(
+                    {
+                        "field": field,
+                        "value": cell_text,
+                        "start": 0,
+                        "end": 0,
+                        "confidence": 0.98,
+                        "bbox": cell_bbox,
+                        "page": 1,
+                        "reason": f'"{label}" 표 헤더 아래 셀',
+                        "evidence": {"ocr": True, "structured_header": True},
+                        "source": "rule",
+                    }
+                )
+    return results
+
+
+def _bboxes_overlap(a: tuple, b: tuple) -> bool:
+    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
+
+
+def _merge_table_cells(findings: list[dict], table_cells: list[dict]) -> list[dict]:
+    """표에서 뽑은 셀 값을 기존 findings에 합친다.
+
+    bbox가 겹치면(단순 사각형 교차 판정) 겹치는 기존 finding **전부**를
+    지우고 표에서 뽑은 값으로 교체한다(표 구조가 더 확실한 신호이므로 우선—
+    하나만 지우면 지저분한 finding이 같이 남는다). 안 겹치면 새 finding으로
+    그냥 추가한다 — NER이 아예 놓친 값("Fauget" 등)을 이렇게 새로 잡는다.
+    """
+    merged = list(findings)
+    for cell in table_cells:
+        merged = [f for f in merged if not _bboxes_overlap(f["bbox"], cell["bbox"])]
+        merged.append(cell)
+    return merged
+
+
 def detect(path: str) -> list[dict]:
     """이미지 1장에서 OCR로 읽은 글자 중 개인정보를 찾는다.
 
@@ -541,9 +903,14 @@ def detect(path: str) -> list[dict]:
     문자 오프셋이라는 개념이 없고 마스킹은 bbox로 한다.
     """
     try:
-        text, words = _ocr_words(path)
+        lines = _ocr_lines(path)
+        text, words = _words_from_lines(lines)
+        table_cells = _find_table_column_cells(lines)
     except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다. tesseract가
-        return []          # 없거나 이미지가 깨졌어도 이 검사만 건너뛰면 된다.
+        return []          # 없거나 이미지가 깨졌어도 이 검사만 건너뛰면 된다. 표 열
+                            # 인식(`_find_table_column_cells`)은 순수 함수라 원래
+                            # 실패할 일이 거의 없지만, OCR 자체는 성공했는데 이
+                            # 검사만으로 전체가 죽는 일은 없게 같이 감싼다.
 
     if not text.strip():
         return []
@@ -571,4 +938,11 @@ def detect(path: str) -> list[dict]:
                 "source": finding.source,
             }
         )
-    return findings
+    # 표에서 뽑은 값은 scan_text()가 끝난 뒤에 합친다 — XLSX의 구조화 탐지
+    # (`scan.py`의 `_find_structured_xlsx_values`)와 다르게, 이 값들은 오탐
+    # 제거 분류기(`_apply_classifier_filters`)나 인젝션 문장 분리를 거치지
+    # 않는다. 의도적인 선택이다: 표 구조 자체가 이미 강한 신호이고(헤더가
+    # 열의 의미를 확정해 준다), scan.py의 공유 파이프라인(PDF/DOCX/XLSX/TXT가
+    # 다 같이 씀)을 건드리지 않고 이미지 전용으로 범위를 좁게 유지하려는
+    # 목적도 있다 — 나중에 "왜 여기 분류기를 안 거치지?"하고 되돌리지 말 것.
+    return _merge_table_cells(findings, table_cells)

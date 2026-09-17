@@ -44,7 +44,8 @@ const SCAN_MS = 2600 // 초록 선이 문서를 다 훑는 데 걸리는 시간(
 
 const RISK_LABELS = { high: 'HIGH', medium: 'MED' }
 
-export default function LandingScanMock() {
+// sample: 진짜 검사 결과 옆에 놓일 때(결과 화면) 켠다. 지어낸 값이라는 안내를 카드 위에 붙인다.
+export default function LandingScanMock({ sample = false }) {
   const [run, setRun] = useState(0) // "다시 스캔"을 누를 때마다 올려서 아래 효과를 다시 돌린다
   const [revealed, setRevealed] = useState(0) // 몇 번째 항목까지 가려졌는지
   const [running, setRunning] = useState(false)
@@ -102,6 +103,8 @@ export default function LandingScanMock() {
     // className은 고정해 둔다 — 상태를 클래스로 넣으면 리렌더 때 className을 다시 써서
     // useScrollReveal이 직접 붙여 둔 .in이 지워지고, .motion .rv가 opacity:0으로 되돌려 장면이 사라진다.
     <div className="scan-mock rv" data-running={running ? '' : undefined} data-done={done ? '' : undefined}>
+      {sample && <p className="scan-mock__sample">예시 장면 · 실제 검사 결과가 아닙니다</p>}
+
       <div className="scan-mock__glow" aria-hidden="true" />
 
       <div className="scan-mock__frame">
