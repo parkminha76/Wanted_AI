@@ -23,6 +23,8 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
   const fileKey = file ? file.file_id || `${fileIndex}-${file.filename}` : ''
   const [choiceState, setChoiceState] = useState({ key: '', items: {} })
   const [maskState, setMaskState] = useState({ key: '', ...IDLE })
+  // 사본은 검사 후 30분이 지나면 서버에서 지워진다(main.py MASKED_FILE_TTL_SECONDS).
+  const [expired, setExpired] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -109,6 +111,37 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
       setMaskState({ key: fileKey, loading: false, error: err.message, result: null })
     }
   }
+
+  // 다운로드를 <a href>로 바로 걸면, 보관 기간이 지났을 때 FastAPI가 돌려준 404 JSON이
+  // 화면에 그대로 뜬다. 먼저 상태 코드만 확인하고 살아 있을 때만 브라우저에 넘긴다.
+  // ponytail: 요청이 한 번 더 간다. 본문은 받지 않고 버리므로(cancel) 사실상 헤더 한 번이고,
+  //           파일 이름은 서버가 붙인 Content-Disposition을 그대로 쓸 수 있다(CORS로는 못 읽는다).
+  //           한 번에 끝내려면 blob으로 받아야 하는데 그러면 파일 이름 규칙을 화면이 베껴야 한다.
+  async function downloadCopy(url) {
+    try {
+      const response = await fetch(url)
+      response.body?.cancel()
+      if (response.status === 404) {
+        setExpired(true)
+        return
+      }
+    } catch {
+      // 서버에 닿지 못한 것은 만료가 아니다. 평소대로 브라우저에 맡긴다.
+    }
+    window.location.href = url
+  }
+
+  // 사본이 사라진 뒤에는 다시 받을 방법이 없다 — 파일을 다시 올려 검사하는 것이 유일한 재시도다.
+  const expiredNotice = (
+    <div className="stack stack--tight">
+      <p className="alert alert--error" role="alert">
+        사본이 만료되었습니다. 다시 시도하세요.
+      </p>
+      <Button size="lg" block onClick={() => navigate('')}>
+        다시 시도하기
+      </Button>
+    </div>
+  )
 
   const counts = countByGroup(file.findings)
   const summary = GROUP_ORDER.filter((key) => counts[key] > 0).map((key) =>
@@ -248,12 +281,14 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
               </p>
             )}
 
-            {masking.result ? (
+            {expired ? (
+              expiredNotice
+            ) : masking.result ? (
               <div className="stack stack--tight">
                 <p className="alert alert--info" role="status">
                   선택한 항목 {masking.result.selected_findings}개를 가린 사본을 만들었습니다. 미리보기와 같은 내용입니다.
                 </p>
-                <Button size="lg" block href={api.downloadUrl(masking.result.file_id)}>
+                <Button size="lg" block onClick={() => downloadCopy(api.downloadUrl(masking.result.file_id))}>
                   선택 마스킹 사본 다운로드
                 </Button>
               </div>
@@ -293,19 +328,25 @@ export default function MaskPage({ batch, file, fileIndex, onSelectFile, navigat
               </ul>
             )}
 
-            {file.file_id ? (
-              <Button size="lg" block href={api.downloadUrl(file.file_id)}>
-                마스킹된 문서 다운로드
-              </Button>
+            {expired ? (
+              expiredNotice
             ) : (
-              <p className="alert alert--info">이 파일은 원본 형식의 사본을 만들지 못했습니다. 왼쪽 텍스트 사본을 참고해 주세요.</p>
+              <>
+                {file.file_id ? (
+                  <Button size="lg" block onClick={() => downloadCopy(api.downloadUrl(file.file_id))}>
+                    마스킹된 문서 다운로드
+                  </Button>
+                ) : (
+                  <p className="alert alert--info">이 파일은 원본 형식의 사본을 만들지 못했습니다. 왼쪽 텍스트 사본을 참고해 주세요.</p>
+                )}
+                {batch.batch_id && downloadableCount > 1 && (
+                  <Button variant="secondary" block onClick={() => downloadCopy(api.downloadAllUrl(batch.batch_id))}>
+                    사본 {downloadableCount}개 한 번에 받기 (.zip)
+                  </Button>
+                )}
+                <p className="mask-summary__note">원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.</p>
+              </>
             )}
-            {batch.batch_id && downloadableCount > 1 && (
-              <Button variant="secondary" block href={api.downloadAllUrl(batch.batch_id)}>
-                사본 {downloadableCount}개 한 번에 받기 (.zip)
-              </Button>
-            )}
-            <p className="mask-summary__note">원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.</p>
           </aside>
         )}
       </section>
