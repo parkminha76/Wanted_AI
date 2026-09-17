@@ -40,13 +40,11 @@ export default function AppFooter({ navigate, onScan, busy = false, standalone =
     <footer className={`container landing-footer${standalone ? ' landing-footer--standalone' : ''}`}>
       <div className="landing-footer__top">
         <div className="landing-footer__brand">
-          <p className="landing-footer__logo">
-            <svg className="landing-footer__mark" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 2.5l7.5 2.8v6.4c0 4.7-3.2 8-7.5 9.3-4.3-1.3-7.5-4.6-7.5-9.3V5.3L12 2.5z" />
-              <path d="M9 9.5h6M9 12.5h6M9 15.5h4" />
-            </svg>
-            DocX-ray
-          </p>
+          <img
+            className="landing-footer__logo"
+            src="/docxray-logo-white.png"
+            alt="DocX-ray — Document security beyond the surface"
+          />
           <p className="landing-footer__tagline">
             AI가 문서 속 개인정보와
             <br />
