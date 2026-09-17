@@ -16,21 +16,31 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 넘어간다(text_ocr.detect가 실패를 삼키는 방어 코드 때문이다) — 로컬에서는
 # 됐는데 배포하면 안 되는 문제라 여기서 반드시 같이 설치해야 한다.
 #
-# 버전을 고정한다: 실측(2026-09-17)으로 확인 — 같은 코드인데도 로컬(Windows,
-# tesseract v5.5.3)과 배포(버전 고정 없이 apt로 설치, 그 시점 최신 bookworm
-# 패키지)가 같은 이미지를 다르게 읽었다. text_ocr.py의 표 줄 인식 보정 자체가
-# Tesseract 레이아웃 분석의 버전별 차이에서 비롯된 문제라, 버전이 고정 안 돼
-# 있으면 다음 배포에서 apt 미러가 올려주는 새 버전으로 또 조용히 바뀔 수 있다.
+# 실측(2026-09-17)으로 확인: 같은 코드인데도 로컬(Windows, tesseract v5.5.3)과
+# 배포(apt로 설치한 v5.5.0)가 같은 이미지를 다르게 읽어 "성명" 값을 못 찾고
+# 대신 OCR 잡음을 프롬프트 인젝션으로 오탐했다. 엔진 버전 차이(5.5.0 vs
+# 5.5.3)는 패치 버전 하나 차이라 이 정도 차이의 원인으로 보기엔 작다 — uv.lock이
+# opencv/numpy/pillow도 로컬과 배포에서 동일한 버전으로 고정하므로 그쪽도 아니다.
+# 남는 유력한 원인은 한글 인식에 실제로 쓰이는 학습 데이터(kor.traineddata)다.
+# 엔진 버전이 같아도 배포판(apt)과 설치 프로그램(Windows)이 번들하는 학습
+# 데이터 자체가 다를 수 있고, 이게 인식 정확도를 좌우한다.
 #
-# TODO(버전 고정 미완성): 정확한 패키지 버전 문자열을 이 환경(샌드박스, Docker
-# 없음)에서 확인할 방법이 없어 임시로 `apt-cache madison tesseract-ocr`
-# 결과를 이 자리에 채워 넣어야 한다. 잘못된 버전 문자열을 넣으면 그 자리에서
-# 빌드가 실패하므로(조용히 넘어가지 않음), 검증 없이 추측값을 넣지 않았다.
-# 당장은 설치된 버전을 빌드 로그에 남겨서 최소한 "무엇이 배포됐는지"는
-# 보이게 해 뒀다 — 다음에 이 줄을 `tesseract-ocr=<버전>`으로 바꿔 채운다.
+# 그래서 엔진 버전을 좇는 대신 학습 데이터를 직접 고정한다: 정확도 우선
+# 모델(tessdata_best, 느리지만 이 프로덕트는 정확도가 우선이다 — PII를
+# 놓치는 게 느린 것보다 훨씬 나쁘다)을 특정 커밋에 고정해서 받아, apt가 깔아준
+# 파일을 덮어쓴다. 브랜치(main)가 아니라 커밋 해시로 고정하는 이유는 브랜치
+# 최신본을 받으면 다음 빌드에서 또 조용히 달라질 수 있어서다. 실제로 이
+# 커밋에서 두 파일이 정상적으로 받아지는지(200, 정상 크기) 확인했다.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-kor \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 curl tesseract-ocr tesseract-ocr-kor \
     && tesseract --version \
+    && TESSDATA_DIR="$(dirname "$(find /usr/share -name eng.traineddata | head -n1)")" \
+    && test -n "$TESSDATA_DIR" \
+    && TESSDATA_COMMIT=e12c65a915945e4c28e237a9b52bc4a8f39a0cec \
+    && curl -fsSL -o "$TESSDATA_DIR/eng.traineddata" \
+        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/$TESSDATA_COMMIT/eng.traineddata" \
+    && curl -fsSL -o "$TESSDATA_DIR/kor.traineddata" \
+        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/$TESSDATA_COMMIT/kor.traineddata" \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
