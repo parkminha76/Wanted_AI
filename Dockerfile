@@ -25,22 +25,29 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 엔진 버전이 같아도 배포판(apt)과 설치 프로그램(Windows)이 번들하는 학습
 # 데이터 자체가 다를 수 있고, 이게 인식 정확도를 좌우한다.
 #
-# 그래서 엔진 버전을 좇는 대신 학습 데이터를 직접 고정한다: 정확도 우선
-# 모델(tessdata_best, 느리지만 이 프로덕트는 정확도가 우선이다 — PII를
-# 놓치는 게 느린 것보다 훨씬 나쁘다)을 특정 커밋에 고정해서 받아, apt가 깔아준
-# 파일을 덮어쓴다. 브랜치(main)가 아니라 커밋 해시로 고정하는 이유는 브랜치
-# 최신본을 받으면 다음 빌드에서 또 조용히 달라질 수 있어서다. 실제로 이
-# 커밋에서 두 파일이 정상적으로 받아지는지(200, 정상 크기) 확인했다.
+# 그래서 엔진 버전을 좇는 대신 학습 데이터를 직접 고정한다. 처음엔 "정확도
+# 우선이니 tessdata_best가 맞겠다"고 골랐는데, 실측으로 로컬(Windows 설치본,
+# 이 문제를 안 겪던 쪽)과 나란히 비교해보니 **오히려 이 이력서 이미지에서
+# 더 나쁘게 읽었다**("이수민"이 "9"/"이수인"으로 깨짐, 확신도 10). tessdata_fast로
+# 바꿔서 같은 비교를 해보니 로컬 Windows 설치본과 글자·확신도까지 정확히
+# 일치했다 — Windows용 Tesseract 설치본이 기본으로 번들하는 게 이 fast 계열
+# 데이터라서다. "느려도 정확도 우선"이라는 통념이 이 한글 인식 모델에는 안
+# 맞았다: 실측 없이 이름만 보고 골랐으면 계속 틀렸을 것이다.
+#
+# 커밋 해시로 고정하는 이유는 브랜치(main) 최신본을 받으면 다음 빌드에서 또
+# 조용히 달라질 수 있어서다. 실제로 이 커밋에서 두 파일이 정상적으로
+# 받아지는지(200, 정상 크기), 그리고 위 실측 비교 결과가 이 정확한 커밋
+# 기준인지 확인했다.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 curl tesseract-ocr tesseract-ocr-kor \
     && tesseract --version \
     && TESSDATA_DIR="$(dirname "$(find /usr/share -name eng.traineddata | head -n1)")" \
     && test -n "$TESSDATA_DIR" \
-    && TESSDATA_COMMIT=e12c65a915945e4c28e237a9b52bc4a8f39a0cec \
+    && TESSDATA_COMMIT=87416418657359cb625c412a48b6e1d6d41c29bd \
     && curl -fsSL -o "$TESSDATA_DIR/eng.traineddata" \
-        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/$TESSDATA_COMMIT/eng.traineddata" \
+        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$TESSDATA_COMMIT/eng.traineddata" \
     && curl -fsSL -o "$TESSDATA_DIR/kor.traineddata" \
-        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/$TESSDATA_COMMIT/kor.traineddata" \
+        "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$TESSDATA_COMMIT/kor.traineddata" \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
