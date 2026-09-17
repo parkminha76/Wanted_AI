@@ -5,6 +5,7 @@ import DocumentPreview from './DocumentPreview.jsx'
 import EmptyResult from './EmptyResult.jsx'
 import FileSwitcher from './FileSwitcher.jsx'
 import HiddenCommandModal from './HiddenCommandModal.jsx'
+import LandingScanMock from './LandingScanMock.jsx'
 import './scanner.css'
 
 export default function ResultsPage({ batch, file, fileIndex, onSelectFile, findingId, onSelectFinding, navigate, onCancelFile }) {
@@ -42,19 +43,54 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
           { id: 'preview', label: '미리보기' },
         ]}
       />
-      <div className="page-head rv">
-        <div>
-          <h1 className="page-title">분석이 완료되었습니다.</h1>
-          <p className="page-desc">
-            파일 {batch.total_files}개에서 위험 요소 {batch.total_findings}건을 찾았습니다. 위험도가 높은 파일부터 보여 드립니다.
-          </p>
+      <div className="results-head">
+        <div className="results-head__main">
+          <div className="page-head rv">
+            <div>
+              <h1 className="page-title">분석이 완료되었습니다.</h1>
+              <p className="page-desc">
+                파일 {batch.total_files}개에서 위험 요소 {batch.total_findings}건을 찾았습니다. 위험도가 높은 파일부터 보여 드립니다.
+              </p>
+            </div>
+            <div className="page-head__actions">
+              <Button variant="secondary" onClick={() => navigate('')}>
+                다시 검사하기
+              </Button>
+              <Button onClick={() => navigate('results/mask')}>↓ 마스킹 사본 받기</Button>
+            </div>
+          </div>
+
+          <section id="summary" className={`risk-card risk-card--${file.level} rv`} aria-label="위험도 요약">
+            <div className="risk-card__score">
+              <span className="risk-card__icon" aria-hidden="true">
+                !
+              </span>
+              <div>
+                <small>위험도</small>
+                <p className="risk-card__number">
+                  <b>
+                    <DecodeText text={Math.round(file.risk_score)} />
+                  </b>
+                  <span>/100</span>
+                </p>
+                <RiskBadge level={file.level} />
+              </div>
+            </div>
+            <ul className="risk-card__list">
+              {GROUP_ORDER.map((key) => (
+                <li key={key} className={counts[key] === 0 ? 'is-zero' : undefined}>
+                  <span>{GROUPS[key].label}</span>
+                  <b>
+                    <DecodeText text={`${counts[key]}건`} />
+                  </b>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
-        <div className="page-head__actions">
-          <Button variant="secondary" onClick={() => navigate('')}>
-            다시 검사하기
-          </Button>
-          <Button onClick={() => navigate('results/mask')}>↓ 마스킹 사본 받기</Button>
-        </div>
+
+        {/* 첫 화면의 스캔 장면. 지어낸 값이라 sample로 표시한다. */}
+        <LandingScanMock sample />
       </div>
 
       {batch.note && <p className="alert alert--info">{batch.note}</p>}
@@ -64,34 +100,6 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, find
           {file.error}
         </p>
       )}
-
-      <section id="summary" className={`risk-card risk-card--${file.level} rv`} aria-label="위험도 요약">
-        <div className="risk-card__score">
-          <span className="risk-card__icon" aria-hidden="true">
-            !
-          </span>
-          <div>
-            <small>위험도</small>
-            <p className="risk-card__number">
-              <b>
-                <DecodeText text={Math.round(file.risk_score)} />
-              </b>
-              <span>/100</span>
-            </p>
-            <RiskBadge level={file.level} />
-          </div>
-        </div>
-        <ul className="risk-card__list">
-          {GROUP_ORDER.map((key) => (
-            <li key={key} className={counts[key] === 0 ? 'is-zero' : undefined}>
-              <span>{GROUPS[key].label}</span>
-              <b>
-                <DecodeText text={`${counts[key]}건`} />
-              </b>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       {hasHidden && (
         <div className="hidden-banner">
