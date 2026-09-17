@@ -49,7 +49,8 @@ export default function App() {
     setScanJob({ kind, fileCount: files.length, startedAt: Date.now() })
     navigate('scanning')
     try {
-      const result = kind === 'samples' ? await api.samples() : await api.scanFiles(files)
+      // 샘플은 files 자리에 고른 파일 이름(문자열)이 온다. 빈 배열이면 전체 샘플이다.
+      const result = kind === 'samples' ? await api.samples(files) : await api.scanFiles(files)
       setBatch(result)
       // 검사가 성공했을 때만 바꾼다 — 실패했는데 바꾸면 이전 결과의 원본 File이 사라진다.
       setBatchSource(kind)

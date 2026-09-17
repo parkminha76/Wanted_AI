@@ -59,11 +59,14 @@
 }
 
 /* ---------- 공통 글자 ---------- */
+/* 구역 머리말. 옆 목록(SectionRail)과 같은 한국어 이름을 쓴다. 한국어라 본문 글꼴로 두는데,
+   고정폭 글꼴에는 한글이 없어 어차피 폴백되고 영문용 자간(0.16em)은 한글을 흩어 놓는다. */
 .landing-eyebrow {
   color: var(--color-primary);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.16em;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
 }
 
 .landing-h2 {
@@ -147,10 +150,12 @@
   gap: var(--space-1);
 }
 
+/* 이름은 한국어라 본문 글꼴로 둔다 — 고정폭 글꼴에는 한글이 없어 폴백되고, 영문용으로
+   잡아 둔 자간(0.08em)은 한글에서 글자가 흩어져 보인다. 숫자(dd)는 고정폭 그대로다. */
 .landing-metrics dt {
   color: var(--color-text-faint);
+  font-family: var(--font-sans);
   font-size: var(--font-size-xs);
-  letter-spacing: 0.08em;
 }
 
 .landing-metrics dd {
