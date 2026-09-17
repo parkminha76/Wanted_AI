@@ -15,8 +15,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 전화번호·계좌번호 등을 하나도 못 찾으면서도 예외 없이 findings=[]로 조용히
 # 넘어간다(text_ocr.detect가 실패를 삼키는 방어 코드 때문이다) — 로컬에서는
 # 됐는데 배포하면 안 되는 문제라 여기서 반드시 같이 설치해야 한다.
+#
+# 버전을 고정한다: 실측(2026-09-17)으로 확인 — 같은 코드인데도 로컬(Windows,
+# tesseract v5.5.3)과 배포(버전 고정 없이 apt로 설치, 그 시점 최신 bookworm
+# 패키지)가 같은 이미지를 다르게 읽었다. text_ocr.py의 표 줄 인식 보정 자체가
+# Tesseract 레이아웃 분석의 버전별 차이에서 비롯된 문제라, 버전이 고정 안 돼
+# 있으면 다음 배포에서 apt 미러가 올려주는 새 버전으로 또 조용히 바뀔 수 있다.
+#
+# TODO(버전 고정 미완성): 정확한 패키지 버전 문자열을 이 환경(샌드박스, Docker
+# 없음)에서 확인할 방법이 없어 임시로 `apt-cache madison tesseract-ocr`
+# 결과를 이 자리에 채워 넣어야 한다. 잘못된 버전 문자열을 넣으면 그 자리에서
+# 빌드가 실패하므로(조용히 넘어가지 않음), 검증 없이 추측값을 넣지 않았다.
+# 당장은 설치된 버전을 빌드 로그에 남겨서 최소한 "무엇이 배포됐는지"는
+# 보이게 해 뒀다 — 다음에 이 줄을 `tesseract-ocr=<버전>`으로 바꿔 채운다.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-kor \
+    && tesseract --version \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
