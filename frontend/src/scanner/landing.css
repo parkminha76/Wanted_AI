@@ -126,6 +126,16 @@
   word-break: keep-all;
 }
 
+/* 서브카피 첫 줄. 나머지보다 한 톤 밝게 둬서 빈 줄로 끊어 둔 의도가 드러나게 한다. */
+.landing-hero__lead--kicker {
+  color: var(--color-text);
+}
+
+/* 둘째 문단은 제목과의 간격(space-5)이 아니라 문단 사이 간격을 쓴다. */
+.landing-hero__lead + .landing-hero__lead {
+  margin-top: var(--space-3);
+}
+
 .landing-actions {
   display: flex;
   flex-wrap: wrap;
