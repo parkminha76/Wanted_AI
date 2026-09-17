@@ -51,16 +51,20 @@ class IdDetectorPostprocessTest(unittest.TestCase):
         ]
         self.assertEqual(id_detector._require_anchor_evidence(findings), findings)
 
-    def test_face_alone_is_not_an_anchor(self) -> None:
+    def test_face_alone_is_not_an_anchor_but_still_survives(self) -> None:
         """실측 버그: 지원서 사진의 증명사진이 face로 잡히면서 그걸 앵커로 인정해
         "지원동기" 문단이 address 0.05 문턱을 넘어 함께 가려졌다. 자기소개서·
-        이력서에도 얼굴 사진과 생년월일이 흔히 있어 신분증 근거가 될 수 없다."""
+        이력서에도 얼굴 사진과 생년월일이 흔히 있어 신분증 근거가 될 수 없다.
+
+        다만 얼굴 자체는(2026-09-17 재결정) 신분증 여부와 무관하게 계속
+        가려야 할 개인정보라, 앵커가 없어도 face만은 살아남고 date_of_birth/
+        address처럼 앵커에 기대야 하는 클래스만 버려져야 한다."""
         findings = [
             _finding("face", (0, 0, 50, 50)),
             _finding("date_of_birth", (60, 0, 120, 20)),
             _finding("address", (10, 10, 100, 40)),
         ]
-        self.assertEqual(id_detector._require_anchor_evidence(findings), [])
+        self.assertEqual(id_detector._require_anchor_evidence(findings), [findings[0]])
 
     def test_driver_license_adds_missing_secondary_face(self) -> None:
         findings = [

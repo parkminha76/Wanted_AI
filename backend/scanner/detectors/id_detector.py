@@ -180,9 +180,18 @@ def _add_license_secondary_face(
 # 클래스라 이것들만 앵커로 쓴다.
 _ANCHOR_CLASSES = {"resident_number", "license_number", "passport_number", "mrz"}
 
+# 앵커가 없어도 얼굴만은 예외로 살려 둔다. 실측(2026-09-17): 이력서·지원서의
+# 증명사진처럼 신분증이 아닌 문서에도 사람 얼굴 사진이 흔히 실리는데, 이것도
+# 가려야 할 개인정보다. 문제가 됐던 오탐(인보이스 문단이 "주소"로, 자기소개서
+# 문단이 "이름"으로 잡히는 것)은 전부 글자 영역을 잘못 짚는 클래스였지, 얼굴이
+# 아니었다 — 얼굴 탐지는 "이 영역이 사람 얼굴처럼 생겼는가"라는 좁고 시각적으로
+# 뚜렷한 판단이라 신분증 여부와 무관하게 믿을 만하다. 그래서 앵커가 없을 때도
+# 얼굴만은 남기고, 앵커가 있어야 믿을 수 있는 나머지 클래스만 통째로 버린다.
+_KEEP_WITHOUT_ANCHOR = {"face"}
+
 
 def _require_anchor_evidence(findings: list[dict]) -> list[dict]:
-    """앵커 근거가 하나도 없으면 이 사진을 신분증으로 보지 않고 findings를 통째로 버린다.
+    """앵커 근거가 없으면 얼굴을 뺀 나머지 findings를 버린다.
 
     이 모델은 신분증 사진에만 맞춰 학습됐다(모듈 docstring 참고). 신분증이 아닌
     사진(인보이스, 스크린샷)에 돌리면 낮지 않은 확신도로도 가끔 잘못 반응한다
@@ -192,11 +201,18 @@ def _require_anchor_evidence(findings: list[dict]) -> list[dict]:
     훨씬 크므로, 화면에 "신분증 정보를 찾았다"고 보여주는 대신 아무것도 못 찾은
     것으로 취급한다 — 신분증 사진인데 앵커 부분만 잘려서 안 보이는 극단적인
     경우를 놓치더라도, 신분증이 아닌 사진을 신분증이라고 오판하는 쪽이 더 나쁘다.
+    얼굴(`_KEEP_WITHOUT_ANCHOR`)은 이 판단과 무관하게 항상 남긴다.
     """
     has_anchor = any(
         item.get("evidence", {}).get("cnn_class") in _ANCHOR_CLASSES for item in findings
     )
-    return findings if has_anchor else []
+    if has_anchor:
+        return findings
+    return [
+        item
+        for item in findings
+        if item.get("evidence", {}).get("cnn_class") in _KEEP_WITHOUT_ANCHOR
+    ]
 
 
 def _get_model():

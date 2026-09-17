@@ -628,23 +628,36 @@ def _column_boundaries(
 ) -> dict[int, tuple[float, float]]:
     """헤더 셀들을 x좌표로 정렬하고, 인접한 셀 사이 중점을 열 경계로 쓴다.
 
-    첫 열의 왼쪽 끝은 0, 마지막 열의 오른쪽 끝은 무한대다 — 표 자체의 좌우
-    테두리를 따로 알아내지 않고, 이웃 헤더까지의 중간 지점만으로 "이 헤더에
-    속하는 글자"를 판단한다.
+    가운데 열은 양옆 이웃까지의 중간 지점을 경계로 쓴다. 첫 열의 왼쪽 끝과
+    마지막 열의 오른쪽 끝은 이웃이 없어 중점을 구할 수 없으므로, 그 열
+    자신의 폭(반대쪽 이웃까지의 거리)의 절반만큼만 바깥으로 열어 둔다 —
+    표의 실제 좌우 테두리를 몰라도 "이 열이겠거니" 싶은 정도까지만 받는다는
+    뜻이다.
+
+    이 폭 제한이 전에는 없었다(첫 열 왼쪽 끝을 무조건 0, 즉 이미지 왼쪽
+    끝까지 열어 뒀다) — 실측 버그(2026-09-17, 지원서 사진): "직장명" 열
+    왼쪽에 세로 선으로 나뉜 완전히 별도의 병합 셀(여러 행에 걸친 행 그룹
+    라벨 "아르바이트\n경력사항")이 있었는데, 그 라벨 글자가 이미지 왼쪽
+    끝과 "직장명" 열 첫 데이터 사이 어딘가에 있다는 이유만으로 회사명 값으로
+    잘못 잡혀 라벨 자체가 마스킹으로 가려졌다. 열 폭만큼만 바깥으로 열어
+    두면 이런 완전히 다른 셀의 글자까지 삼키는 일이 줄어든다.
     """
     order = sorted(range(len(cells)), key=lambda i: cells[i][0][0])
+    last = len(order) - 1
+    midpoints = [
+        (cells[order[i]][0][2] + cells[order[i + 1]][0][0]) / 2 for i in range(last)
+    ]
+
     boundaries: dict[int, tuple[float, float]] = {}
     for position, cell_index in enumerate(order):
-        left = (
-            0.0
-            if position == 0
-            else (cells[order[position - 1]][0][2] + cells[cell_index][0][0]) / 2
-        )
-        right = (
-            float("inf")
-            if position == len(order) - 1
-            else (cells[cell_index][0][2] + cells[order[position + 1]][0][0]) / 2
-        )
+        cell_left = cells[cell_index][0][0]
+        cell_right = cells[cell_index][0][2]
+        left = midpoints[position - 1] if position > 0 else None
+        right = midpoints[position] if position < last else None
+        if left is None:
+            left = max(0.0, cell_left - (right - cell_left) / 2)
+        if right is None:
+            right = cell_right + (cell_right - left) / 2
         boundaries[cell_index] = (left, right)
     return boundaries
 

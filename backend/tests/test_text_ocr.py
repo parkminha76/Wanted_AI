@@ -569,6 +569,32 @@ class TableColumnCellsTest(unittest.TestCase):
         values = {c["value"] for c in cells}
         self.assertEqual(values, {"Fauget", "Liceria & Co."})
 
+    def test_first_column_does_not_reach_across_into_a_separate_label_cell(self):
+        """실측 버그(2026-09-17, 지원서 사진): "직장명" 열 왼쪽에 세로 선으로
+        나뉜 별도 병합 셀(여러 행에 걸친 행 그룹 라벨 "아르바이트\n경력사항")이
+        있었는데, 첫 열의 왼쪽 끝이 무조건 0(이미지 왼쪽 끝)이라 그 라벨
+        글자가 회사명 값으로 잘못 잡혀 라벨 자체가 마스킹으로 가려졌다.
+        좌표는 그 표를 그대로 실측한 값이다 — 이 표는 "직장명"이 첫 열이라
+        열 자신의 폭만큼만 바깥으로 열어 두는 보정이 실제로 걸리는지 본다."""
+        from backend.scanner.detectors import text_ocr
+
+        header = [
+            ("직장명", (392.5, 755.0, 451.5, 777.0)),
+            ("기간", (663.0, 755.0, 702.5, 776.0)),
+            ("주요", (941.5, 741.0, 1024.0, 786.0)),
+            ("업무", (984.0, 755.0, 1024.0, 776.5)),
+        ]
+        # "아르바이트"는 실제로는 "직장명" 열이 아니라 그 왼쪽의 별도 병합
+        # 셀(행 그룹 라벨)에 있는 글자다 — 이 표에서 OCR은 "A식품"(진짜
+        # 첫 행 값)을 아예 못 읽었다.
+        row_with_label_bleed_only = [
+            ("아르바이트", (176.5, 803.0, 280.0, 824.0)),
+            ("2021", (526.0, 800.0, 598.0, 821.0)),
+            ("년", (584.5, 786.0, 602.5, 843.0)),
+        ]
+        cells = text_ocr._find_table_column_cells([header, row_with_label_bleed_only])
+        self.assertEqual(cells, [])
+
 
 class MergeTableCellsTest(unittest.TestCase):
     def test_overlapping_finding_is_replaced(self):
