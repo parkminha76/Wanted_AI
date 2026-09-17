@@ -84,6 +84,13 @@ try:
 except ImportError:
     id_detector = None
 
+# 일반 이미지(인보이스, 스크린샷 등) 속 글자 OCR. CNN과 별개로 돌고, 찾은 값은
+# rules.py/ner.py와 같은 판정을 그대로 받는다(text_ocr.py가 scan_text를 부른다).
+try:
+    from backend.scanner.detectors import text_ocr
+except ImportError:
+    text_ocr = None
+
 # 파일을 못 읽는 것은 "예상되는 실패"라 ScanResult.error로 바꿔 돌려준다.
 # 반대로 AttributeError 같은 엔진 버그를 여기서 함께 삼키면, 코드 오류가
 # "파일을 읽지 못했습니다"로 위장돼 원인 찾는 데만 한참 걸린다(실제로 겪었다).
@@ -684,28 +691,36 @@ def scan_text(
 
 
 def _scan_image(doc) -> ScanResult:
-    """텍스트 레이어가 없는 파일(신분증 사진, 스캔본 PDF)을 이미지 파이프라인으로 보낸다.
+    """텍스트 레이어가 없는 파일(신분증 사진, 스캔본 PDF, 일반 문서 사진)을
+    이미지 파이프라인으로 보낸다.
 
     parse.py가 kind="image"로 표시해준 파일이 여기로 온다. 정규식·NER·서식 검사는
-    글자가 있어야 돌아가므로 이 파일들에는 아무것도 못 하고, 신분증 CNN이 얼굴
-    사진·서명·발급일자를 찾아야 한다.
+    글자가 있어야 돌아가는데, 이 파일들은 글자가 문서 텍스트 층이 아니라 그림
+    안에 박혀 있다. 그래서 신분증 CNN(id_detector)이 얼굴·서명·발급일자 같은
+    신분증 고정 영역을 찾고, OCR(text_ocr)이 그 밖의 일반 글자(전화번호·계좌번호
+    등)를 읽어 같은 정규식·NER 판정에 태운다. 둘은 서로 다른 것을 본다 — 인보이스
+    사진처럼 얼굴도 신분증도 없는 문서는 CNN은 아무것도 못 찾지만 OCR은 그 안의
+    전화번호·계좌번호를 찾는다(실측: 2026-09-17).
 
-    CNN이 아직 연결되지 않았을 때 findings를 빈 채로 돌려주면 위험점수 0 =
+    검사할 수단이 하나도 없을 때 findings를 빈 채로 돌려주면 위험점수 0 =
     "안전"(초록불)으로 나간다. 신분증 사진은 고유식별정보 덩어리인데 그걸 안전하다고
     표시하는 것은 이 서비스가 낼 수 있는 가장 위험한 오답이다. 그래서 검사할 수단이
-    없으면 error에 남겨, 화면이 점수 대신 안내를 띄우도록 한다.
+    하나도 없으면 error에 남겨, 화면이 점수 대신 안내를 띄우도록 한다.
     """
     result = ScanResult(raw_text="")
+    findings: list[Finding] = []
+    quality_errors: list[str] = []
+    have_detector = False
+
+    # 스캔본 PDF는 페이지마다 그림이 하나씩 구워져 image_paths에 담겨 온다.
+    # doc.path는 그중 첫 장이라, 그것만 넘기면 2쪽부터는 검사가 통째로 빠진다
+    # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
+    # 비어 있으므로 doc.path로 떨어진다.
+    image_paths = getattr(doc, "image_paths", None) or [doc.path]
+
     if id_detector is not None and hasattr(id_detector, "detect"):
-        # 스캔본 PDF는 페이지마다 그림이 하나씩 구워져 image_paths에 담겨 온다.
-        # doc.path는 그중 첫 장이라, 그것만 넘기면 2쪽부터는 검사가 통째로 빠진다
-        # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
-        # 비어 있으므로 doc.path로 떨어진다.
-        findings = []
-        quality_errors = []
-        for page_number, image_path in enumerate(
-            getattr(doc, "image_paths", None) or [doc.path], start=1
-        ):
+        have_detector = True
+        for page_number, image_path in enumerate(image_paths, start=1):
             page_findings = id_detector.detect(image_path)
 
             # 이 모델은 신분증 한 장 또는 여권 한 면을 기준으로 학습했다. 얼굴이
@@ -726,6 +741,17 @@ def _scan_image(doc) -> ScanResult:
                 # 엉뚱한 페이지를 지운다.
                 raw["page"] = page_number
                 findings.append(_raw_to_finding(raw, "cnn"))
+
+    if text_ocr is not None and hasattr(text_ocr, "detect"):
+        have_detector = True
+        for page_number, image_path in enumerate(image_paths, start=1):
+            for raw in text_ocr.detect(image_path):
+                raw["page"] = page_number
+                # text_ocr이 실제 판정 단계("rule"/"ner"/"classifier")를 함께 돌려준다
+                # (scan_text를 그대로 태운 결과이기 때문이다). 없으면 "rule"로 둔다.
+                findings.append(_raw_to_finding(raw, raw.pop("source", "rule")))
+
+    if have_detector:
         result.findings = findings
         _reassign_ids(result.findings)
         if quality_errors:

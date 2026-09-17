@@ -36,6 +36,21 @@ class IdDetectorPostprocessTest(unittest.TestCase):
         self.assertNotIn("resident_number", classes)
         self.assertNotIn("license_number", classes)
 
+    def test_findings_without_any_anchor_class_are_all_discarded(self) -> None:
+        """실측 버그: 신분증이 아닌 인보이스 사진에서 "address"만 0.519 확신도로
+        잡혀 결제약관 문단이 잘못 가려졌다. 얼굴·주민번호 같은 앵커가 하나도 없으면
+        전부 버려야 한다."""
+        findings = [_finding("address", (10, 10, 100, 40)), _finding("name", (10, 60, 100, 90))]
+        self.assertEqual(id_detector._require_anchor_evidence(findings), [])
+
+    def test_findings_with_one_anchor_class_are_all_kept(self) -> None:
+        findings = [
+            _finding("face", (0, 0, 50, 50)),
+            _finding("address", (10, 10, 100, 40)),
+            _finding("name", (10, 60, 100, 90)),
+        ]
+        self.assertEqual(id_detector._require_anchor_evidence(findings), findings)
+
     def test_driver_license_adds_missing_secondary_face(self) -> None:
         findings = [
             {**_finding("face"), "confidence": 0.95},

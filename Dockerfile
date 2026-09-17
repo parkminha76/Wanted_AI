@@ -10,8 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # opencv-python이 headless Linux에서도 import될 수 있게 필요한 런타임 라이브러리만 설치한다.
+# tesseract-ocr(+kor)는 이미지 검사(text_ocr.py)가 인보이스·스크린샷 같은 일반
+# 문서 사진에서 글자를 읽는 데 쓴다. 이게 없으면 컨테이너 안에서는 이미지 속
+# 전화번호·계좌번호 등을 하나도 못 찾으면서도 예외 없이 findings=[]로 조용히
+# 넘어간다(text_ocr.detect가 실패를 삼키는 방어 코드 때문이다) — 로컬에서는
+# 됐는데 배포하면 안 되는 문제라 여기서 반드시 같이 설치해야 한다.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-kor \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
