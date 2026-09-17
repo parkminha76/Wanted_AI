@@ -170,9 +170,15 @@ def _add_license_secondary_face(
 
 # 신분증에서만 나오는 확실한 근거들. address·name·signature·id_meta는 신분증이
 # 아닌 문서(계약서 서명란, 인보이스의 주소·이름 문구)에도 흔해서 이것만으로는
-# "신분증 사진이다"를 보장하지 못한다. 얼굴·주민번호·면허번호·여권번호·생년월일·
-# MRZ는 신분증이 아니면 나올 이유가 없는 클래스라 이것들만 앵커로 쓴다.
-_ANCHOR_CLASSES = {"face", "resident_number", "license_number", "passport_number", "date_of_birth", "mrz"}
+# "신분증 사진이다"를 보장하지 못한다.
+#
+# face와 date_of_birth는 앵커에서 뺐다 — 자기소개서·이력서에도 지원자 증명사진과
+# 생년월일이 흔히 함께 실려서(실측: 2026-09-17, 지원서 사진에서 얼굴이 앵커로
+# 인정되는 바람에 "지원동기" 문단이 address 0.05 문턱을 넘어 같이 가려졌다),
+# 이 둘은 신분증이 아닌 문서에서도 흔히 나와 "신분증이다"를 보장하지 못한다.
+# 주민등록번호·면허번호·여권번호·MRZ는 신분증이 아니면 나올 이유가 없는
+# 클래스라 이것들만 앵커로 쓴다.
+_ANCHOR_CLASSES = {"resident_number", "license_number", "passport_number", "mrz"}
 
 
 def _require_anchor_evidence(findings: list[dict]) -> list[dict]:
