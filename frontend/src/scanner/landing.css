@@ -176,6 +176,16 @@
   min-width: 0;
 }
 
+/* "예시 장면" 안내. 결과 화면에서 진짜 결과와 헷갈리지 않게 카드 위에 먼저 읽히게 둔다. */
+.scan-mock__sample {
+  position: relative;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+}
+
 .scan-mock__glow {
   position: absolute;
   inset: -12% -8% auto;

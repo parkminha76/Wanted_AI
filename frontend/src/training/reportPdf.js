@@ -178,9 +178,10 @@ function drawParagraph(page, font, text, options) {
 }
 
 function drawHeader(page, font, logo) {
-  // The supplied raster includes generous white margins; draw it larger so
-  // its visible DocX-Ray mark aligns with the header without changing A4.
-  page.drawImage(logo, { x: MARGIN - 38, y: 752, width: 210, height: 84 })
+  // Keep the supplied logo's original 1513:1037 aspect ratio.
+  const logoHeight = 94
+  const logoWidth = logoHeight * (1513 / 1037)
+  page.drawImage(logo, { x: MARGIN - 10, y: 744, width: logoWidth, height: logoHeight })
   const right = PAGE.width - MARGIN
   const lineOne = 'AI SECURITY'
   const lineTwo = 'TRAINING REPORT'
@@ -191,8 +192,8 @@ function drawHeader(page, font, logo) {
   page.drawLine({ start: { x: MARGIN, y: 738 }, end: { x: PAGE.width - MARGIN, y: 738 }, thickness: 1.5, color: COLORS.green })
 }
 
-function drawFooter(page, font, pageNumber) {
-  page.drawText(`${String(pageNumber).padStart(2, '0')} / 02`, { x: 512, y: 24, size: 8.5, font, color: COLORS.muted })
+function drawFooter(page, font) {
+  page.drawText('01 / 01', { x: 512, y: 24, size: 8.5, font, color: COLORS.muted })
 }
 
 function drawList(page, font, items, options) {
@@ -231,94 +232,68 @@ function drawSectionCard(page, font, { x, y, width, height, title, number, items
 function drawPageOne(page, font, logo, report, generatedDate) {
   drawHeader(page, font, logo)
   drawWordSpacedText(page, font, '사기 대응 훈련 결과', {
-    x: MARGIN, y: 690, size: LAYOUT.titleSize, color: COLORS.text,
+    x: MARGIN, y: 691, size: 25, color: COLORS.text,
   })
-  drawWordSpacedText(page, font, 'AI가 만드는 더 안전한 일상, DocX-ray와 함께합니다.', { x: MARGIN, y: 656, size: 11, color: COLORS.muted })
+  drawWordSpacedText(page, font, 'AI가 만드는 더 안전한 일상, DocX-ray와 함께합니다.', { x: MARGIN, y: 660, size: 10.5, color: COLORS.muted })
 
-  drawRoundedRect(page, { x: MARGIN, y: 535, width: CONTENT_WIDTH, height: 104, radius: 13, color: COLORS.greenSoft, borderColor: COLORS.greenBorder, borderWidth: 0 })
-  drawVerticalDivider(page, 220, 553, 66)
-  drawVerticalDivider(page, 392, 553, 66)
+  // Keep the compact training facts beside the title so the report remains
+  // self-contained after the detailed second page is removed.
+  const infoX = 390
+  page.drawText('훈련 정보', { x: infoX, y: 699, size: 8.5, font, color: COLORS.text })
+  const compactDate = generatedDate.replace(/\s/g, '')
+  const trainingInfo = [
+    `훈련 레벨 : Level ${report.level}`,
+    `점수 : ${report.score} / 100`,
+    `등급 : ${report.grade || '-'}`,
+    `리포트 생성일 : ${compactDate}`,
+  ]
+  trainingInfo.forEach((line, index) => {
+    drawWordSpacedText(page, font, line, {
+      x: infoX, y: 684 - index * 10, size: 7.2, color: COLORS.muted,
+    })
+  })
+
+  drawRoundedRect(page, { x: MARGIN, y: 549, width: CONTENT_WIDTH, height: 96, radius: 13, color: COLORS.greenSoft, borderColor: COLORS.greenBorder, borderWidth: 0 })
+  drawVerticalDivider(page, 220, 565, 58)
+  drawVerticalDivider(page, 392, 565, 58)
   const centers = [133, 306, 470]
   const values = [`Level ${report.level}`, `${report.score} / 100`, report.grade || '-']
   const labels = ['훈련 레벨', '점수', '등급']
   values.forEach((value, index) => {
     const valueColor = index === 2 ? (GRADE_TONE[report.grade] || COLORS.muted) : index === 1 ? COLORS.cyanStrong : COLORS.text
     drawCenteredText(page, font, value, {
-      centerX: centers[index], y: 581, size: index === 0 ? 20 : 26, color: valueColor, bold: true,
+      centerX: centers[index], y: 591, size: index === 0 ? 20 : 26, color: valueColor, bold: true,
     })
-    drawCenteredText(page, font, labels[index], { centerX: centers[index], y: 554, size: 10, color: COLORS.muted })
+    drawCenteredText(page, font, labels[index], { centerX: centers[index], y: 568, size: 10, color: COLORS.muted })
   })
 
-  drawRoundedRect(page, { x: MARGIN, y: 398, width: CONTENT_WIDTH, height: 126, radius: 12, color: COLORS.surface, borderColor: COLORS.border, borderWidth: 0 })
-  drawCircleIcon(page, font, { x: 76, y: 493, color: COLORS.green, symbol: '✓', size: 14 })
-  drawWordSpacedText(page, font, '종합 평가', { x: 102, y: 487, size: 16, color: COLORS.text })
+  drawRoundedRect(page, { x: MARGIN, y: 420, width: CONTENT_WIDTH, height: 114, radius: 12, color: COLORS.surface, borderColor: COLORS.border, borderWidth: 0 })
+  drawCircleIcon(page, font, { x: 76, y: 504, color: COLORS.green, symbol: '✓', size: 14 })
+  drawWordSpacedText(page, font, '종합 평가', { x: 102, y: 498, size: 16, color: COLORS.text })
   drawParagraph(page, font, report.summary || '분석 결과가 없습니다.', {
-    x: 68, y: 452, width: 458, height: 56, size: LAYOUT.bodySize, minSize: 8.5, color: COLORS.text,
+    x: 68, y: 465, width: 458, height: 52, size: LAYOUT.bodySize, minSize: 8.5, color: COLORS.text,
   })
 
-  drawRoundedRect(page, { x: MARGIN, y: 206, width: 246, height: 180, radius: 12, color: COLORS.greenSoft, borderColor: COLORS.greenBorder, borderWidth: 0 })
-  drawCircleIcon(page, font, { x: 76, y: 358, color: COLORS.green, symbol: '✓', size: 15 })
-  drawWordSpacedText(page, font, '잘한 행동', { x: 103, y: 353, size: 14, color: COLORS.cyanStrong })
-  drawWordSpacedText(page, font, '이런 대응이 안전한 선택입니다!', { x: 103, y: 336, size: 8, color: COLORS.cyanStrong })
+  drawRoundedRect(page, { x: MARGIN, y: 232, width: 246, height: 172, radius: 12, color: COLORS.greenSoft, borderColor: COLORS.greenBorder, borderWidth: 0 })
+  drawCircleIcon(page, font, { x: 76, y: 377, color: COLORS.green, symbol: '✓', size: 15 })
+  drawWordSpacedText(page, font, '잘한 행동', { x: 103, y: 372, size: 14, color: COLORS.cyanStrong })
+  drawWordSpacedText(page, font, '이런 대응이 안전한 선택입니다!', { x: 103, y: 355, size: 8, color: COLORS.cyanStrong })
   drawCardList(page, font, report.good_actions, {
-    x: 72, y: 306, width: 188, height: 96, tone: 'green', emptyMessage: '확인된 항목이 없습니다.',
+    x: 72, y: 325, width: 188, height: 98, tone: 'green', emptyMessage: '확인된 항목이 없습니다.',
   })
-  drawRoundedRect(page, { x: 303, y: 206, width: 246, height: 180, radius: 12, color: COLORS.redSoft, borderColor: COLORS.redBorder, borderWidth: 0 })
-  drawCircleIcon(page, font, { x: 333, y: 358, color: COLORS.red, symbol: '!', size: 15 })
-  drawWordSpacedText(page, font, '주의가 필요한 행동', { x: 360, y: 353, size: 13.5, color: COLORS.red })
-  drawWordSpacedText(page, font, '다음에는 이렇게 주의하세요!', { x: 360, y: 336, size: 8, color: COLORS.muted })
+  drawRoundedRect(page, { x: 303, y: 232, width: 246, height: 172, radius: 12, color: COLORS.redSoft, borderColor: COLORS.redBorder, borderWidth: 0 })
+  drawCircleIcon(page, font, { x: 333, y: 377, color: COLORS.red, symbol: '!', size: 15 })
+  drawWordSpacedText(page, font, '주의가 필요한 행동', { x: 360, y: 372, size: 13.5, color: COLORS.red })
+  drawWordSpacedText(page, font, '다음에는 이렇게 주의하세요!', { x: 360, y: 355, size: 8, color: COLORS.muted })
   drawCardList(page, font, report.risky_actions, {
-    x: 330, y: 306, width: 188, height: 96, tone: 'red', emptyMessage: '확인된 위험 행동이 없습니다.',
+    x: 330, y: 325, width: 188, height: 98, tone: 'red', emptyMessage: '확인된 위험 행동이 없습니다.',
   })
 
-  drawRoundedRect(page, { x: MARGIN, y: 102, width: CONTENT_WIDTH, height: 82, radius: 12, color: COLORS.greenSoft, borderColor: COLORS.greenBorder, borderWidth: 0 })
-  page.drawText('“', { x: 66, y: 150, size: 24, font, color: COLORS.green })
-  drawWordSpacedText(page, font, '작은 의심이 큰 피해를 막습니다.', { x: 92, y: 147, size: 12, color: COLORS.text })
-  drawWordSpacedText(page, font, '언제나 한 번 더 확인하는 습관이 안전한 나를 만듭니다.', { x: 92, y: 124, size: 9.5, color: COLORS.muted })
-  page.drawText('”', { x: 514, y: 113, size: 24, font, color: COLORS.green })
-  page.drawText('DOCX-RAY', { x: 46, y: 79, size: 12, font, color: COLORS.text })
-  page.drawText(compactKoreanSpacing('AI로 더 안전한 문서, 더 안전한 일상'), { x: 46, y: 64, size: 7.5, font, color: COLORS.muted })
-  const dateWidth = font.widthOfTextAtSize(generatedDate, 8)
-  page.drawText(generatedDate, { x: PAGE.width - MARGIN - dateWidth, y: 79, size: 8, font, color: COLORS.muted })
-  const reportLabel = 'DocX-ray Training Report'
-  page.drawText(reportLabel, {
-    x: PAGE.width - MARGIN - font.widthOfTextAtSize(reportLabel, 7.5),
-    y: 64, size: 7.5, font, color: COLORS.muted,
-  })
-  drawFooter(page, font, 1)
-}
-
-function drawPageTwo(page, font, logo, report, generatedDate) {
-  drawHeader(page, font, logo)
   drawSectionCard(page, font, {
-    x: MARGIN, y: 540, width: CONTENT_WIDTH, height: 125, title: '잘한 대응', number: '01',
-    items: report.good_actions, tone: 'green', emptyMessage: '확인된 항목이 없습니다.',
-  })
-  drawSectionCard(page, font, {
-    x: MARGIN, y: 365, width: CONTENT_WIDTH, height: 125, title: '주의가 필요한 행동', number: '02',
-    items: report.risky_actions, tone: 'red', emptyMessage: '확인된 위험 행동이 없습니다.',
-  })
-  drawSectionCard(page, font, {
-    x: MARGIN, y: 172, width: CONTENT_WIDTH, height: 150, title: '다음 훈련에서 이렇게 대응하세요', number: '03',
+    x: MARGIN, y: 73, width: CONTENT_WIDTH, height: 122, title: '다음 훈련에서 이렇게 대응하세요', number: '03',
     items: report.improvements, tone: 'green', numbered: true, emptyMessage: '추가 개선 권고가 없습니다.',
   })
-
-  page.drawLine({ start: { x: MARGIN, y: 151 }, end: { x: PAGE.width - MARGIN, y: 151 }, thickness: 0.7, color: COLORS.border })
-  drawRoundedRect(page, { x: MARGIN, y: 28, width: 300, height: 120, radius: 10, color: COLORS.surface, borderColor: COLORS.border, borderWidth: 0 })
-  drawCircleIcon(page, font, { x: 68, y: 132, color: COLORS.navy, symbol: '✓', size: 10 })
-  page.drawText(compactKoreanSpacing('훈련 정보'), { x: 88, y: 127, size: 11, font, color: COLORS.text })
-  const info = [
-    ['훈련 레벨', `Level ${report.level}`], ['점수', `${report.score} / 100`],
-    ['등급', report.grade], ['리포트 생성일', generatedDate],
-  ]
-  info.forEach(([label, value], index) => {
-    const rowY = 103 - index * 18
-    page.drawText(compactKoreanSpacing(label), { x: 64, y: rowY, size: 7.7, font, color: COLORS.muted })
-    page.drawText(String(value), { x: 145, y: rowY, size: 8.5, font, color: COLORS.text })
-  })
-  page.drawText('DOCX-RAY', { x: 444, y: 78, size: 13, font, color: COLORS.text })
-  page.drawText('Think Before You Share.', { x: 433, y: 61, size: 7.5, font, color: COLORS.muted })
-  drawFooter(page, font, 2)
+  drawFooter(page, font)
 }
 
 export async function createTrainingReportPdf(report, fontBytes) {
@@ -332,13 +307,11 @@ export async function createTrainingReportPdf(report, fontBytes) {
   if (!logoResponse.ok) throw new Error('PDF용 DocX-ray 로고를 불러오지 못했습니다.')
   const logo = await pdfDoc.embedPng(await logoResponse.arrayBuffer())
   const pageOne = pdfDoc.addPage([PAGE.width, PAGE.height])
-  const pageTwo = pdfDoc.addPage([PAGE.width, PAGE.height])
   const generatedDate = new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
 
   drawPageOne(pageOne, font, logo, report, generatedDate)
-  drawPageTwo(pageTwo, font, logo, report, generatedDate)
 
   pdfDoc.setTitle(`DocX-ray Training Level ${report.level} Result`)
   pdfDoc.setAuthor('DocX-ray')
@@ -348,7 +321,7 @@ export async function createTrainingReportPdf(report, fontBytes) {
 }
 
 export async function downloadTrainingReportPdf(report) {
-  const response = await fetch(`${import.meta.env.BASE_URL}fonts/NotoSansKR-Compact.ttf`)
+  const response = await fetch(`${import.meta.env.BASE_URL}fonts/NotoSansKR-Report.ttf`)
   if (!response.ok) throw new Error('PDF용 한글 글꼴을 불러오지 못했습니다.')
 
   const bytes = await createTrainingReportPdf(report, await response.arrayBuffer())

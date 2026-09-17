@@ -470,6 +470,39 @@ def health() -> dict:
     body["db_mode"] = "on" if SessionLocal is not None else "off"
     if _DB_ERROR:
         body["db_mode_error"] = _DB_ERROR
+
+    # 배포 환경의 Tesseract 버전을 여기 노출한다: 실측(2026-09-17)으로 확인 —
+    # 로컬(Windows)과 배포(Dockerfile이 버전 고정 없이 apt로 설치) Tesseract가
+    # 서로 달라서 같은 이미지를 다르게 읽는 사고가 있었는데, 빌드 로그를 뒤져서
+    # 버전을 확인하는 것보다 이 자리에서 바로 보이는 게 훨씬 빠르다.
+    try:
+        from backend.scanner.detectors import text_ocr
+
+        text_ocr._configure_tesseract_cmd()
+        import pytesseract
+
+        body["tesseract_version"] = str(pytesseract.get_tesseract_version())
+    except Exception as exc:  # noqa: BLE001 — /health는 이 정보 없이도 응답해야 한다
+        body["tesseract_version_error"] = type(exc).__name__
+
+    # Dockerfile이 kor.traineddata를 tessdata_fast로 직접 받아 설치하는데,
+    # 그게 실제로 먹혔는지를 버전 문자열만으로는 확인할 수 없다(엔진 버전은
+    # 안 바뀐다). 파일 크기로 어느 학습 데이터가 실제로 로드되는지 바로
+    # 확인한다 — tessdata_fast의 kor.traineddata는 약 1.6MB, apt 기본값과
+    # tessdata_best는 이보다 훨씬 크다(실측: 각각 확인). apt 설치본(/usr/share)과
+    # 소스 빌드본(/usr/local/share, Dockerfile의 TESSDATA_PREFIX) 둘 다 본다 —
+    # 배포 환경이 둘 중 어느 쪽으로 바뀌어도 이 자리에서 바로 보이게.
+    try:
+        import glob
+
+        matches = glob.glob("/usr/share/**/kor.traineddata", recursive=True) + glob.glob(
+            "/usr/local/share/**/kor.traineddata", recursive=True
+        )
+        body["kor_traineddata"] = [
+            {"path": path, "bytes": os.path.getsize(path)} for path in matches
+        ]
+    except Exception as exc:  # noqa: BLE001
+        body["kor_traineddata_error"] = type(exc).__name__
     return body
 
 
