@@ -68,7 +68,7 @@ RiskType = Literal[
     # 사내 식별자 — 사업자등록번호·전화번호와 자릿수가 겹쳐 오탐이 잦다.
     # (오탐 제거 분류기가 "사번 vs 일반 숫자열" 쌍을 다루기 위해 09-09 추가)
     "emp_no",           # 사번
-    "birth_date",       # 생년월일 — 이미지 CNN 탐지 전용, person/address와 동급 위험도
+    "birth_date",       # 생년월일 — "생년월일" 등 단서어 옆 날짜(rules.py) + 이미지 CNN, person/address와 동급 위험도
 
     # --- NER로 잡는 것 — 형식이 없는 값 ---
     "person",           # 이름

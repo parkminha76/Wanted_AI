@@ -148,6 +148,90 @@ _DATE_TIME_ACCOUNT_FALSE_POSITIVE = re.compile(
     r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:[ T]\d{1,2})?"
 )
 
+# ---------- 생년월일 ----------
+# 지금까지는 이미지 신분증(CNN)에서만 잡혔다(schema.py birth_date 주석 참고).
+# 그런데 이력서·지원서 같은 일반 문서(텍스트든 OCR이든)에도 생년월일이 거의 항상
+# 있는데 잡을 방법이 하나도 없었다(실측: 2026-09-17, 이력서·지원서 사진 두 장
+# 모두 생년월일이 마스킹 없이 그대로 남음).
+#
+# 발급일자·만료일·수상일 같은 다른 날짜와 형식이 완전히 같아서(둘 다
+# "YYYY.MM.DD"), 값만으로는 구분할 수 없다. address와 같은 방식으로 **앞쪽에
+# 단서어가 있을 때만** 받는다 — "생년월일" 옆에 없는 날짜는 후보에서 아예
+# 제외되므로, 학력·자격증 표의 다른 날짜들을 생년월일로 오인하지 않는다.
+_BIRTH_DATE_PATTERN = re.compile(
+    r"(?<!\d)(?:19|20)\d{2}[.\-/]\s?\d{1,2}[.\-/]\s?\d{1,2}\.?(?!\d)"
+    r"|(?<!\d)(?:19|20)\d{2}년\s?\d{1,2}월\s?\d{1,2}일"
+)
+# 서식 라벨은 글자 사이를 띄워 쓰는 경우가 흔하다("생 년 월 일"). 공백을
+# 허용하지 않으면 그 형태를 못 찾는다(실측: 2026-09-17, 지원서 서식의
+# "생 년 월 일" 라벨).
+_BIRTH_DATE_CUE = re.compile(r"생\s*년\s*월\s*일|생\s*일|DOB", re.IGNORECASE)
+_BIRTH_DATE_CUE_WINDOW = 10
+
+
+def find_birth_dates(text: str) -> list[dict]:
+    """"생년월일" 같은 단서어 뒤 15자 이내에 온 날짜만 생년월일로 받는다.
+
+    실존하는 날짜인지도 확인한다 — "1996.13.40"처럼 단서어 옆에 있어도 달력에
+    없는 값은 버린다.
+    """
+    matches = []
+    for m in _BIRTH_DATE_PATTERN.finditer(text):
+        window_start = max(0, m.start() - _BIRTH_DATE_CUE_WINDOW)
+        if not _BIRTH_DATE_CUE.search(text[window_start : m.start()]):
+            continue
+        digits = re.findall(r"\d+", m.group())
+        if len(digits) != 3:
+            continue
+        year, month, day = (int(d) for d in digits)
+        try:
+            datetime.date(year, month, day)
+        except ValueError:
+            continue
+        matches.append(
+            {
+                "field": "birth_date",
+                "value": m.group(),
+                "start": m.start(),
+                "end": m.end(),
+                "confidence": 0.6,
+                "reason": "생년월일 단서어 뒤에 온 날짜 형식",
+            }
+        )
+    return matches
+
+
+# ---------- 성명(표 라벨) ----------
+# NER은 "성 명 이수인 성별 여"처럼 표 라벨과 값 여러 개가 한 줄에 붙어 있으면
+# 이름을 놓치거나 망가뜨렸다(실측: 2026-09-17, "이수인"을 "이수"로 잘라 확신도
+# 0.4에 그침 — 오탐 제거 분류기 단계에서 걸러짐). 반면 "지원자 : 이예지 (인)"처럼
+# 자연스러운 문장에서는 0.8대로 정확히 잡았다. 표 라벨 형태에서만 놓치므로,
+# "성명"이라는 라벨 자체를 emp_no와 같은 방식(라벨 옆에 있으면 잡는다)으로
+# 보강한다.
+#
+# "이름"은 쓰지 않는다 — "파일 이름", "회사 이름"처럼 사람이 아닌 대상에도 흔히
+# 쓰여 오탐이 늘어난다. "성명"은 사람의 법적 이름을 가리킬 때만 쓰는 말이다.
+# 라벨과 값 사이에 공백이나 구분자가 없으면 "성명란은"처럼 라벨에 붙은 다음
+# 음절을 이름으로 잘못 캡처한다(실측: "성명란은"의 "란은"이 이름으로 잡힘).
+# 그래서 `\s*` 대신 최소 한 칸 이상의 공백이나 `:`/`|`을 반드시 요구한다.
+_PERSON_NAME_LABEL_PATTERN = re.compile(r"성\s*명(?:\s*[:|]\s*|\s+)([가-힣]{2,4})(?=[\s,:|]|$)")
+
+
+def find_person_names_after_label(text: str) -> list[dict]:
+    """"성명" 라벨 바로 뒤에 오는 2~4음절 한글을 이름 후보로 잡는다."""
+    return [
+        {
+            "field": "person",
+            "value": m.group(1),
+            "start": m.start(1),
+            "end": m.end(1),
+            "confidence": 0.6,
+            "reason": '"성명" 라벨 바로 뒤에 온 값',
+        }
+        for m in _PERSON_NAME_LABEL_PATTERN.finditer(text)
+    ]
+
+
 # ---------- 사번 ----------
 # 사번은 회사마다 형식이 완전히 달라서(2024-0317 / A0317 / EMP-00317 / 24-04821)
 # 표준 형식이 없다. 이걸 다 잡는 값 정규식을 쓰면 문서번호·버전·좌석번호까지 전부
@@ -274,14 +358,18 @@ _ADDRESS_ADMIN_UNIT = r"[가-힣]+(?:특별시|광역시|특별자치시|특별�
 _ADDRESS_ROAD_NAME = r"[가-힣A-Za-z0-9·]+(?:대로|로|길)(?:\d+번길)?"
 _ADDRESS_JIBUN_NAME = r"[가-힣A-Za-z0-9·]+(?:동|가|읍|면|리)"
 _ADDRESS_BUILDING = r"[가-힣A-Za-z0-9·]+(?:아파트|빌라|오피스텔|타워|주택)"
-_ADDRESS_DONG = r"제?(?:\d+|[A-Za-z]|[가나다라마바사])동"
-_ADDRESS_UNIT_DETAIL = rf"(?:(?:,\s*|\s+){_ADDRESS_DONG})?(?:\s+\d+층)?(?:\s+\d+호)?"
+# 숫자와 동/층/호 사이의 공백까지 받는 이유: OCR이 한글 음절 사이에 공백을 끼워
+# 넣는 경우가 흔하다(실측: 2026-09-17, 지원서 사진에서 "101동 101호"가 "101 동
+# 101 호"로 읽혀, 공백 없는 패턴으로는 둘째 줄 전체가 안 이어 붙어 주소가 첫
+# 줄에서 잘렸다). 공백이 없는 원래 형식도 `\s*`가 그대로 받아준다.
+_ADDRESS_DONG = r"제?(?:\d+\s*|[A-Za-z]\s*|[가나다라마바사]\s*)동"
+_ADDRESS_UNIT_DETAIL = rf"(?:(?:,\s*|\s+){_ADDRESS_DONG})?(?:\s+\d+\s*층)?(?:\s+\d+\s*호)?"
 # 건물명 자리에 올 수 없는 말. 이 말 뒤에 층·호가 와도 건물명으로 받지 않는다.
 # 없을 때 "세종대로 110 일대 3층", "… 인근 2층", "… 앞 1층 로비"가 통째로 주소가 됐다
 # (2026-09-14 실측). 사본이 새지는 않지만 멀쩡한 본문이 가려진다.
 _ADDRESS_NOT_BUILDING = r"(?!(?:일대|인근|근처|부근|주변|앞|옆|뒤|건너편|방면|일원|내|외)(?=\s))"
 _ADDRESS_WORD_BEFORE_UNIT = (
-    rf"{_ADDRESS_NOT_BUILDING}[가-힣A-Za-z0-9·]+(?=\s+(?:{_ADDRESS_DONG}|\d+층|\d+호))"
+    rf"{_ADDRESS_NOT_BUILDING}[가-힣A-Za-z0-9·]+(?=\s+(?:{_ADDRESS_DONG}|\d+\s*층|\d+\s*호))"
 )
 _ADDRESS_TAIL = (
     rf"(?:(?:,\s*|\s+)(?:{_ADDRESS_BUILDING}|{_ADDRESS_WORD_BEFORE_UNIT}))?"
@@ -821,6 +909,8 @@ def find_all(text: str) -> list[dict]:
         + find_api_keys_and_tokens(text)
         + find_db_connection_strings(text)
         + find_addresses(text)
+        + find_birth_dates(text)
+        + find_person_names_after_label(text)
     )
     def not_overlapping(candidates: list[dict], claimed: list[tuple[int, int]]) -> list[dict]:
         return [

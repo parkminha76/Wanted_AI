@@ -68,6 +68,45 @@ _UPSCALE = 2
 _MIN_DESKEW_ANGLE = 0.3
 _MAX_DESKEW_ANGLE = 20.0
 
+# 표가 있는 서식(지원서 등)에서 한 줄 전체가 raw_text에 통째로 안 나타나는
+# 경우가 있다(실측: 2026-09-17, 아르바이트 지원서 사진에서 "성 명 이예지",
+# "생 년 월 일" 줄이 --psm 3/4/6/11/12 전부에서 사라짐). hOCR로 원인을 보면
+# Tesseract의 레이아웃 분석이 표 테두리 선 때문에 그 영역을 `ocr_photo`(사진)로
+# 오분류해서 생기는 문제지만, 실제 인식에 쓰는 --psm 6은 이 분류 단계 자체를
+# 건너뛰어 하나로 짚어 고칠 오분류 영역이 없다 — 원인 위치를 안다고 바로
+# 고칠 수 있는 게 아니다.
+#
+# 그래서 원인이 아니라 **결과**로 접근한다: 정상 인식된 두 줄 사이에 글자
+# 한 줄 높이 이상 비어 보이는 구간이 있으면, 그 구간만 따로 잘라 표 테두리
+# 선을 지우고 다시 OCR을 돌려 본다(`_recover_gap_lines` 참고). 이렇게 좁게
+# 잘라내면 그 구간 안에서 표 전체가 아니라 그 한 줄만 보이므로 앞서 말한
+# `ocr_photo` 오분류가 애초에 일어나지 않는다.
+#
+# 문서 전체에 선 지우기를 무조건 적용하는 방법도 시도해봤지만, 실측(다른
+# 이력서 사진)에서 이미 정상 인식되던 줄까지 건드려 오히려 깨졌다("성"이
+# "a"로, "Liceria & Co."가 "Co."로 잘림) — 글자가 테두리 선에 바로 붙어 있으면
+# 선을 지우면서 글자 일부도 같이 지워지기 때문이다. 이미 뭔가 읽힌 구간은
+# 절대 건드리지 않고, **아무것도 못 읽은 구간에서만** 다시 시도하면 이 위험이
+# 사라진다 — 이미 비어 있던 자리이므로 다시 시도해서 나빠질 게 없다.
+_GAP_RECHECK_MIN_HEIGHT = 20.0
+
+# 구간을 위아래로 넓혀 잡으면(여유를 주면) 그만큼 이미 인식된 이웃 줄의
+# 글자 일부가 다시 크롭 안에 들어온다 — 실측(합성 테스트 이미지)으로 확인:
+# 여유 8px만 줘도 "받는 분"/"김하늘"의 위아래 획 일부가 다시 잡혀 "ㄴㄴ", "9",
+# "Ce" 같은 잡음 줄이 생기고, 그 잡음 줄이 "입금 계좌"와 "국민 ..." 사이에
+# 끼어들어 라벨-값 이어붙이기(`_looks_like_label`)가 깨져 계좌번호 탐지가
+# 통째로 실패했다. 그래서 여유를 주지 않는다 — 구간 경계에 걸친 글자 일부를
+# 놓칠 수는 있지만, 이미 잘 읽히던 줄을 다시 건드려 깨뜨리는 쪽보다 안전하다.
+_GAP_RECHECK_PADDING = 0.0
+
+# 긴 직선(길이 40px 이상)만 후보로 보고, 그중에서도 두께 5px 미만인 것만 진짜
+# 테두리 선으로 본다. 어두운 헤더 박스처럼 두꺼운 사각형은 긴 직선 후보에도
+# 걸리지만(가로/세로 어느 방향으로 열어도 살아남음) 5px 두께로 다시 열었을 때도
+# 살아남으므로 걸러지고, 진짜 테두리 선(실측 1~3px)만 두께 필터에서 사라져
+# 지워진다.
+_LINE_MIN_LENGTH = 40
+_LINE_MAX_THICKNESS = 5
+
 # --psm 6: "균일한 텍스트 블록 하나"로 가정한다. 기본값(3, 자동 레이아웃 분석)은
 # 어두운 헤더 박스와 밝은 본문이 섞인 이 레이아웃에서 순서를 잘못 추정해 라벨
 # 여러 개를 통째로 놓쳤다(실측: 같은 이미지에서 "결제 내역", "받는 분" 자체가
@@ -155,12 +194,26 @@ class _Word:
 def _drop_oversized(
     entries: list[tuple[tuple[int, int, int], str, tuple, float]],
 ) -> list[tuple[tuple[int, int, int], str, tuple, float]]:
-    """본문 글자 높이의 중앙값보다 훨씬 큰 글자(제목·로고)를 뺀다. `_OVERSIZED_HEIGHT_RATIO` 참고."""
+    """제목·로고처럼 줄 전체가 본문보다 훨씬 큰 글자를 뺀다. `_OVERSIZED_HEIGHT_RATIO` 참고.
+
+    토큰 하나하나의 높이가 아니라 **그 토큰이 속한 줄의 대표 높이**로 판단한다.
+    Tesseract가 매기는 bbox 높이는 한글 음절과 영문·숫자 글리시프가 같은 폰트
+    크기에서도 서로 다르게 나온다(실측: 2026-09-17, 이력서 사진에서 "생년월일"은
+    9px인데 바로 옆 "1996.05.24"는 17px로 잡혀, 토큰 단위로 비교하면 생년월일
+    본문이 제목급 오탐 없이도 통째로 걸러짐 — 실제 생년월일이 마스킹에서 빠졌다).
+    줄 단위 대표값(그 줄 토큰들의 중앙값)으로 비교하면 한 줄 안에서의 이런 편차는
+    묻히고, 줄 전체가 진짜로 큰 제목만 걸러진다.
+    """
     if not entries:
         return entries
-    median_height = statistics.median(item[3] for item in entries)
-    max_height = median_height * _OVERSIZED_HEIGHT_RATIO
-    return [item for item in entries if item[3] <= max_height]
+    heights_by_line: dict[tuple[int, int, int], list[float]] = {}
+    for key, _text, _bbox, height in entries:
+        heights_by_line.setdefault(key, []).append(height)
+    line_height = {key: statistics.median(hs) for key, hs in heights_by_line.items()}
+
+    doc_median = statistics.median(line_height.values())
+    max_height = doc_median * _OVERSIZED_HEIGHT_RATIO
+    return [item for item in entries if line_height[item[0]] <= max_height]
 
 
 def _touching(a: tuple, b: tuple) -> bool:
@@ -227,6 +280,150 @@ def _deskew(gray_image) -> tuple:
     return Image.fromarray(rotated), cv2.invertAffineTransform(matrix)
 
 
+def _remove_table_lines(gray_image):
+    """표 테두리로 쓰인 가늘고 긴 직선을 지운다. `_LINE_MIN_LENGTH/_LINE_MAX_THICKNESS` 참고.
+
+    선을 지우고 남은 자리는 흰색으로 채운다 — 실제 글자는 이렇게 길고 곧은 직선
+    성분을 만들지 않으므로(자모는 짧고 굽어 있다) 지워질 위험이 없다.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    array = np.array(gray_image)
+    _, thresh = cv2.threshold(array, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+
+    def _thin_lines(thin_size: tuple, thick_size: tuple):
+        thin_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, thin_size)
+        thick_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, thick_size)
+        candidates = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, thin_kernel)
+        thick = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, thick_kernel)
+        return cv2.bitwise_and(candidates, cv2.bitwise_not(thick))
+
+    horizontal = _thin_lines(
+        (_LINE_MIN_LENGTH, 1), (_LINE_MIN_LENGTH, _LINE_MAX_THICKNESS)
+    )
+    vertical = _thin_lines(
+        (1, _LINE_MIN_LENGTH), (_LINE_MAX_THICKNESS, _LINE_MIN_LENGTH)
+    )
+    lines_mask = cv2.dilate(
+        cv2.bitwise_or(horizontal, vertical),
+        cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
+    )
+
+    cleaned = array.copy()
+    cleaned[lines_mask > 0] = 255
+    return Image.fromarray(cleaned)
+
+
+def _words_from_tesseract_data(data: dict, y_offset: float = 0.0) -> list[tuple]:
+    """pytesseract의 raw dict 출력에서 신뢰도 필터를 거친 (key, text, bbox, height) 목록을 뽑는다.
+
+    `_ocr_lines`의 본 OCR과 `_recover_gap_lines`의 보충 OCR이 같은 추출 규칙을
+    쓰도록 공통화한 것 — 규칙이 갈리면(예: 신뢰도 기준이 서로 달라짐) 한쪽만
+    고치고 잊는 실수가 난다.
+
+    `y_offset`은 보충 OCR이 원본 전체가 아니라 잘라낸 구간만 돌렸을 때, 그
+    구간의 y 시작 위치를 다시 더해 전체 이미지 좌표로 되돌리는 용도다.
+    """
+    entries: list[tuple] = []
+    for i in range(len(data["text"])):
+        text = data["text"][i].strip()
+        try:
+            confidence = float(data["conf"][i])
+        except (TypeError, ValueError):
+            confidence = -1.0
+        if not text or confidence < _MIN_WORD_CONFIDENCE:
+            continue
+
+        left, top = data["left"][i], data["top"][i]
+        w, h = data["width"][i], data["height"][i]
+        bbox = (
+            left / _UPSCALE,
+            y_offset + top / _UPSCALE,
+            (left + w) / _UPSCALE,
+            y_offset + (top + h) / _UPSCALE,
+        )
+        key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
+        entries.append((key, text, bbox, h / _UPSCALE))
+    return entries
+
+
+def _group_into_lines(
+    entries: list[tuple],
+) -> list[list[tuple[str, tuple]]]:
+    """`_drop_oversized`를 거친 (key, text, bbox, height) 목록을 같은 key끼리 묶어 줄로 만든다."""
+    lines: list[list[tuple[str, tuple]]] = []
+    line_keys: list[tuple] = []
+    for key, text, bbox, _height in entries:
+        if lines and line_keys[-1] == key:
+            lines[-1].append((text, bbox))
+        else:
+            lines.append([(text, bbox)])
+            line_keys.append(key)
+    return [_merge_adjacent_syllables(line) for line in lines]
+
+
+def _recover_gap_band(deskewed_image, top: float, bottom: float) -> list[list[tuple[str, tuple]]]:
+    """[top, bottom) 구간만 잘라 표 테두리 선을 지우고 다시 OCR한다. 짧으면(`_GAP_RECHECK_MIN_HEIGHT` 미만) 건너뛴다."""
+    if bottom - top < _GAP_RECHECK_MIN_HEIGHT:
+        return []
+
+    import pytesseract
+    from PIL import Image
+
+    width, height = deskewed_image.size
+    top = max(0, int(top - _GAP_RECHECK_PADDING))
+    bottom = min(height, int(bottom + _GAP_RECHECK_PADDING))
+    if bottom <= top:
+        return []
+
+    crop = _remove_table_lines(deskewed_image.crop((0, top, width, bottom)))
+    crop_width, crop_height = crop.size
+    scaled = crop.resize((crop_width * _UPSCALE, crop_height * _UPSCALE), Image.LANCZOS)
+    data = pytesseract.image_to_data(
+        scaled, lang=_LANG, config=_TESSERACT_CONFIG, output_type=pytesseract.Output.DICT
+    )
+    entries = _drop_oversized(_words_from_tesseract_data(data, y_offset=top))
+    return _group_into_lines(entries)
+
+
+def _recover_gap_lines(
+    deskewed_image, lines: list[list[tuple[str, tuple]]]
+) -> list[list[tuple[str, tuple]]]:
+    """글자가 통째로 비어 보이는 구간이 있으면 그 구간만 잘라 다시 OCR한다.
+
+    이미 읽힌 두 줄 사이뿐 아니라 문서 맨 앞(첫 줄 위)과 맨 뒤(마지막 줄 아래)도
+    본다 — 실측(합성 표 이미지)으로 확인: 표 전체가 통째로 안 읽히면 표 위
+    제목줄 하나만 인식되고 그 아래로는 "다음 줄"이 아예 없어, 두 줄 사이만
+    보는 방식으로는 표 전체를 영영 되찾을 수 없었다.
+    문서 맨 앞/맨 뒤가 원래 빈 여백인 경우도 있지만, 그런 곳은 다시 시도해도
+    아무것도 안 나올 뿐이라 손해가 없다(`_GAP_RECHECK_MIN_HEIGHT` 주석 참고).
+
+    이미 읽힌 줄 자체는 절대 다시 건드리지 않는다 — 구간을 그 줄들의 경계
+    밖으로 자르므로, 여기서 표 테두리 선을 지우다가 이미 정상 인식된 글자를
+    깎아내는 일이 없다.
+    """
+    if not lines:
+        return lines
+
+    width, height = deskewed_image.size
+    spans = [
+        (min(b[1] for _, b in line), max(b[3] for _, b in line)) for line in lines
+    ]
+
+    result: list[list[tuple[str, tuple]]] = []
+    result.extend(_recover_gap_band(deskewed_image, 0, spans[0][0]))
+    result.append(lines[0])
+    for index in range(1, len(lines)):
+        result.extend(
+            _recover_gap_band(deskewed_image, spans[index - 1][1], spans[index][0])
+        )
+        result.append(lines[index])
+    result.extend(_recover_gap_band(deskewed_image, spans[-1][1], height))
+    return result
+
+
 def _map_bbox_to_original(bbox: tuple, inverse_matrix) -> tuple:
     """되돌리기 전(원본) 이미지 좌표로 bbox를 되짚는다.
 
@@ -266,36 +463,17 @@ def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, flo
             scaled, lang=_LANG, config=_TESSERACT_CONFIG, output_type=pytesseract.Output.DICT
         )
 
-    entries: list[tuple[tuple[int, int, int], str, tuple, float]] = []
-    for i in range(len(data["text"])):
-        text = data["text"][i].strip()
-        try:
-            confidence = float(data["conf"][i])
-        except (TypeError, ValueError):
-            confidence = -1.0
-        if not text or confidence < _MIN_WORD_CONFIDENCE:
-            continue
+        # 되돌리기 전(deskew) 좌표계로 줄을 다 묶은 다음에 원본 좌표로 옮긴다 —
+        # `_recover_gap_lines`가 여기서 자르고 다시 붙이는 `deskewed` 이미지와
+        # 같은 좌표계를 써야 구간이 어긋나지 않는다.
+        entries = _drop_oversized(_words_from_tesseract_data(data))
+        lines = _group_into_lines(entries)
+        lines = _recover_gap_lines(deskewed, lines)
 
-        left, top = data["left"][i], data["top"][i]
-        w, h = data["width"][i], data["height"][i]
-        bbox = (left / _UPSCALE, top / _UPSCALE, (left + w) / _UPSCALE, (top + h) / _UPSCALE)
-        bbox = _map_bbox_to_original(bbox, inverse_matrix)
-        key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
-        entries.append((key, text, bbox, h / _UPSCALE))
-
-    entries = _drop_oversized(entries)
-
-    lines: list[list[tuple[str, tuple[float, float, float, float]]]] = []
-    line_keys: list[tuple[int, int, int]] = []
-
-    for key, text, bbox, _height in entries:
-        if lines and line_keys[-1] == key:
-            lines[-1].append((text, bbox))
-        else:
-            lines.append([(text, bbox)])
-            line_keys.append(key)
-
-    return [_merge_adjacent_syllables(line) for line in lines]
+    return [
+        [(text, _map_bbox_to_original(bbox, inverse_matrix)) for text, bbox in line]
+        for line in lines
+    ]
 
 
 def _ocr_words(path: str) -> tuple[str, list[_Word]]:

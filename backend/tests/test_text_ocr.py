@@ -137,6 +137,66 @@ class TiltedImageOcrTest(unittest.TestCase):
             self.assertTrue(0 <= top < bottom <= height)
 
 
+@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
+class TableRowGapRecoveryTest(unittest.TestCase):
+    """실측 버그(2026-09-17): 아르바이트 지원서 사진에서 표 테두리 선 때문에
+    Tesseract가 "성 명 이예지", "생 년 월 일 ..." 줄을 --psm 3/4/6/11/12
+    전부에서 통째로 못 읽었다(hOCR로 보면 그 영역을 `ocr_photo`로 오분류).
+    표 테두리 선을 그린 합성 이미지로 같은 실패를 재현해, 이미 읽힌 줄
+    사이의 빈 구간만 다시 잘라 OCR하는 보정(`_recover_gap_lines`)이 살아있는지
+    이 테스트로 고정한다."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from PIL import Image, ImageDraw, ImageFont
+
+        cls.tmpdir = tempfile.mkdtemp(prefix="infoguard_ocr_table_test_")
+        cls.image_path = os.path.join(cls.tmpdir, "application_form.png")
+
+        image = Image.new("RGB", (900, 360), "white")
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.truetype(FONT_PATH, 28)
+        draw.text((40, 20), "아르바이트 지원서", font=font, fill="black")
+
+        draw.rectangle([40, 80, 880, 320], outline="black", width=2)
+        draw.line([(40, 200), (700, 200)], fill="black", width=2)
+        draw.line([(40, 260), (700, 260)], fill="black", width=2)
+        draw.line([(300, 80), (300, 320)], fill="black", width=2)
+        draw.line([(700, 80), (700, 320)], fill="black", width=2)
+
+        draw.text((60, 95), "성    명", font=font, fill="black")
+        draw.text((320, 95), "이예지", font=font, fill="black")
+        draw.text((60, 215), "생 년 월 일", font=font, fill="black")
+        draw.text((320, 215), "2000. 11. 12", font=font, fill="black")
+        draw.text((60, 275), "연락처", font=font, fill="black")
+        draw.text((320, 275), "010-1234-5678", font=font, fill="black")
+        image.save(cls.image_path)
+
+        from backend.scanner.detectors import text_ocr
+
+        cls.text, cls.words = text_ocr._ocr_words(cls.image_path)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.tmpdir, ignore_errors=True)
+
+    def test_table_row_swallowed_by_tesseract_is_recovered(self) -> None:
+        compact = self.text.replace(" ", "").replace("\n", "")
+        self.assertIn("성명", compact)
+        self.assertIn("이예지", compact)
+        self.assertIn("생년월일", compact)
+
+    def test_recovered_row_is_wired_into_person_and_birth_date_rules(self) -> None:
+        from backend.scanner.detectors import rules
+
+        findings = rules.find_all(self.text)
+        self.assertTrue(
+            any(f["field"] == "person" and f["value"] == "이예지" for f in findings)
+        )
+        self.assertTrue(any(f["field"] == "birth_date" for f in findings))
+
+
 class MergeAdjacentSyllablesTest(unittest.TestCase):
     """실제 인보이스에서 실측한 좌표를 그대로 써서 순수 함수를 결정론적으로 검증한다.
 
@@ -208,6 +268,24 @@ class DropOversizedTest(unittest.TestCase):
         ]
         kept = text_ocr._drop_oversized(entries)
         self.assertEqual(len(kept), 3)
+
+    def test_digits_on_a_normal_line_are_not_dropped_as_a_title(self):
+        """실측 버그(2026-09-17, 실제 이력서 사진): Tesseract가 매기는 글자 bbox
+        높이가 한글 음절과 숫자 글리프에서 다르게 나온다 — 같은 줄인데 "생년월일"은
+        9px, 바로 옆 "1996.05.24"는 17px로 잡혔다. 토큰 하나하나를 문서 전체
+        중앙값과 비교하면 이 숫자가 "제목"으로 오인되어 생년월일이 통째로
+        사라진다. 줄 단위 대표 높이로 비교하면 이 편차가 묻혀야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        entries = [
+            ((1, 1, 1), "생명", (0.0, 0.0, 20.0, 9.0), 9.0),
+            ((1, 1, 2), "생년월일", (0.0, 20.0, 40.0, 29.0), 9.0),
+            ((1, 1, 2), "1996.05.24", (45.0, 20.0, 100.0, 37.0), 17.0),
+            ((1, 1, 2), "전", (105.0, 20.0, 115.0, 29.0), 9.0),
+            ((1, 1, 2), "화", (115.0, 20.0, 125.0, 37.0), 17.0),
+        ]
+        kept = text_ocr._drop_oversized(entries)
+        self.assertEqual([text for _, text, _, _ in kept], [text for _, text, _, _ in entries])
 
 
 if __name__ == "__main__":
