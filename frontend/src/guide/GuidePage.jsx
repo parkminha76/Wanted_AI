@@ -1,8 +1,9 @@
+import { UPLOAD_LIMITS } from '../shared/api.js'
 import { Badge, Button, DecodeText, SectionRail } from '../shared/components/index.js'
 import './guide.css'
 
 const STEPS = [
-  { number: '01', icon: '⌑', title: '문서 올리기', copy: 'PDF·Word·Excel·텍스트·이미지 파일을 한 번에 최대 20개까지 올립니다.' },
+  { number: '01', icon: '⌑', title: '문서 올리기', copy: `PDF·Word·Excel·텍스트·이미지 파일을 한 번에 최대 ${UPLOAD_LIMITS.maxFiles}개까지 올립니다.` },
   { number: '02', icon: '✦', title: 'AI 보안 검사', copy: '형식·체크섬 규칙, 개체명 인식, 직접 학습한 분류기가 개인정보와 숨은 AI 명령을 찾습니다.' },
   { number: '03', icon: '◈', title: '위험 요소 확인', copy: '파일별 위험도, 탐지 위치와 판단 근거, 오탐으로 제외한 항목까지 확인합니다.' },
   { number: '04', icon: '✓', title: '안전하게 마스킹', copy: '원본 형식 그대로 위험 요소만 가린 사본을 내려받습니다. 원본은 바로 삭제됩니다.' },

@@ -287,7 +287,7 @@ async def privacy_safe_access_log(request: Request, call_next):
 
 # 업로드 1건 상한. 이걸 안 걸면 큰 파일 하나로 디스크를 채울 수 있다.
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-MAX_FILES_PER_REQUEST = 20
+MAX_FILES_PER_REQUEST = 10
 # 훈련 모드 답장 스캔의 입력 상한. NER이 긴 글을 청킹하므로 길이 자체는 문제가
 # 아니지만, 채팅 한 줄에 소설이 들어올 이유는 없다.
 MAX_TEXT_LENGTH = 100_000
@@ -825,6 +825,7 @@ def download_one(file_id: str) -> FileResponse:
 
 SAMPLE_DIR = os.path.join("sample_data", "demo")
 _sample_cache: dict | None = None
+_sample_batch: schema.ScanBatch | None = None
 
 
 def _sample_paths() -> list[str]:
@@ -836,7 +837,10 @@ def _sample_paths() -> list[str]:
     return sorted(
         os.path.join(SAMPLE_DIR, name)
         for name in os.listdir(SAMPLE_DIR)
-        if os.path.splitext(name)[1].lower() in readable
+        # "~$"로 시작하는 파일은 Word가 문서를 열어 둘 때 만드는 잠금 파일이다.
+        # 확장자가 .docx라 걸러내지 않으면 깨진 문서가 샘플로 한 건 더 잡힌다
+        # (sample_data/demo/~$숨은명령.docx가 실수로 커밋되어 있다).
+        if os.path.splitext(name)[1].lower() in readable and not name.startswith("~$")
     )
 
 
@@ -852,19 +856,59 @@ def _sample_copies_alive(cached: dict) -> bool:
     return bool(file_ids) and all(fid in _masked_files for fid in file_ids)
 
 
+@app.get("/samples/list")
+def sample_list() -> dict:
+    """데모 파일 목록만 돌려준다. **검사는 하지 않는다.**
+
+    /samples는 첫 호출에 모델을 올리고 파일을 전부 검사하느라 수십 초가 걸린다.
+    첫 화면이 "고를 목록"을 그리자고 그것을 부를 수는 없어서 이름만 따로 내보낸다.
+    """
+    return {
+        "samples": [
+            {
+                "filename": os.path.basename(path),
+                # _sample_paths()가 이미 쓰는 표를 그대로 본다. 형식 이름을 여기서 새로 짓지 않는다.
+                "file_type": scan._FILE_TYPE_BY_EXTENSION.get(os.path.splitext(path)[1].lower(), ""),
+                "size_bytes": os.path.getsize(path),
+            }
+            for path in _sample_paths()
+        ]
+    }
+
+
+def _sample_subset(names: str | None) -> dict:
+    """고른 샘플만 남긴 결과. 고르지 않았거나 하나도 못 찾으면 전체를 그대로 돌려준다.
+
+    검사와 캐시는 **늘 전체로** 한다. 파일이 넷뿐이라 고른 것만 따로 검사하면 조합마다
+    캐시가 따로 생기고, 심사위원이 처음 누르는 클릭이 그만큼 느려진다.
+
+    batch_id를 새로 만드는 이유: "사본 전체 받기(.zip)"는 batch_id로 묶인 파일을 담는다.
+    전체 batch_id를 그대로 주면 두 개만 골랐는데 zip에는 네 개가 들어간다.
+    """
+    if not names or _sample_batch is None:
+        return _sample_cache
+    wanted = {name for name in names.split(",") if name}
+    picked = [r for r in _sample_batch.results if r.filename in wanted]
+    if not picked:
+        return _sample_cache
+    subset = schema.ScanBatch(results=picked, batch_id=uuid.uuid4().hex)
+    _batches[subset.batch_id] = [r.file_id for r in picked if r.file_id]
+    return subset.to_dict()
+
+
 @app.get("/samples")
-def samples() -> dict:
+def samples(files: str | None = None) -> dict:
     """샘플을 미리 검사한 결과. 두 번째 호출부터는 캐시에서 즉시 나간다.
 
     캐시한 결과의 사본이 보관 기간을 넘겨 지워졌으면 다시 검사해서 새 사본을 만든다.
     그때는 모델이 이미 올라와 있어서 첫 호출만큼 오래 걸리지 않는다.
     """
-    global _sample_cache
+    global _sample_cache, _sample_batch
     if _sample_cache is not None:
         log_event(logger, logging.INFO, "samples.returned", cache_hit=True)
     _sweep_expired()
     if _sample_cache is not None and _sample_copies_alive(_sample_cache):
-        return _sample_cache
+        return _sample_subset(files)
 
     paths = _sample_paths()
     if not paths:
@@ -888,6 +932,7 @@ def samples() -> dict:
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
 
     _sample_cache = batch.to_dict()
+    _sample_batch = batch          # 고른 것만 추릴 때 ScanBatch의 정렬·집계를 그대로 쓴다
     log_event(
         logger,
         logging.INFO,
@@ -896,7 +941,7 @@ def samples() -> dict:
         file_count=len(batch.results),
         total_findings=sum(len(result.findings) for result in batch.results),
     )
-    return _sample_cache
+    return _sample_subset(files)
 
 
 class SampleMaskRequest(BaseModel):
