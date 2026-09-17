@@ -329,7 +329,7 @@ export async function createTrainingReportPdf(report, fontBytes) {
   const font = await pdfDoc.embedFont(fontBytes, { subset: false })
   const baseUrl = import.meta.env?.BASE_URL ?? '/'
   const logoResponse = await fetch(`${baseUrl}docxray-logo.png`)
-  if (!logoResponse.ok) throw new Error('PDF용 DocX-Ray 로고를 불러오지 못했습니다.')
+  if (!logoResponse.ok) throw new Error('PDF용 DocX-ray 로고를 불러오지 못했습니다.')
   const logo = await pdfDoc.embedPng(await logoResponse.arrayBuffer())
   const pageOne = pdfDoc.addPage([PAGE.width, PAGE.height])
   const pageTwo = pdfDoc.addPage([PAGE.width, PAGE.height])

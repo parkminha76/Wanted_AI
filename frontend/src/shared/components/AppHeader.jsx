@@ -20,12 +20,7 @@ export default function AppHeader({ route, onNavigate }) {
     <header className="app-header">
       <div className="app-header__inner container">
         <button type="button" className="brand" onClick={() => go('')} aria-label="DocX-ray 첫 화면">
-          <span className="brand__mark" aria-hidden="true">
-            <i />
-          </span>
-          <span>
-            DocX<span className="brand__accent">-</span>ray
-          </span>
+          <img className="brand__logo" src="/docxray-wordmark-white.png" alt="DocX-ray" />
         </button>
 
         <button

@@ -1018,32 +1018,12 @@
   min-width: 0;
 }
 
+/* 로고 이미지(public/docxray-logo-white.png). 영문 태그라인까지 들어 있는 한 벌이다. */
 .landing-footer__logo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.02em;
-}
-
-.landing-footer__mark {
-  flex: none;
-  width: 30px;
-  height: 30px;
-}
-
-.landing-footer__mark path {
-  fill: none;
-  stroke: var(--color-primary);
-  stroke-width: 1.4;
-  stroke-linecap: round;
-}
-
-.landing-footer__mark path:first-child {
-  fill: var(--color-primary-soft);
+  display: block;
+  width: 190px;
+  max-width: 100%;
+  height: auto;
 }
 
 .landing-footer__tagline {
@@ -1343,4 +1323,18 @@
     top: 100%;
     opacity: 0;
   }
+}
+
+/* ---------- 스캔 애니메이션 ---------- */
+/* 클로드 디자인 원본(public/scan-animation/index.html)을 iframe으로 그대로 띄운다.
+   별개 문서라 색·폰트는 원본 것을 쓴다 — 앱 토큰이 여기로 넘어가지 않는다.
+   4:3인 이유: 원본이 무대 너비를 (높이 - 72px) x 1.62로 제한해서, 이보다 납작하면
+   무대가 스스로 줄어들어 가운데에 작게 뜬다. */
+.scan-animation {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  /* 원본 문서의 배경색과 같은 값. 투명으로 두면 불러오는 동안 흰 사각형이 번쩍인다. */
+  background: #0a0b12;
 }
