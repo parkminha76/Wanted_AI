@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, UPLOAD_LIMITS } from '../shared/api.js'
-import { Button, DecodeText, GlowCard, RiskBadge, SectionRail } from '../shared/components/index.js'
+import { AppFooter, Badge, Button, DecodeText, GlowCard, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from '../shared/findings.js'
 import LandingScanMock from './LandingScanMock.jsx'
 import './scanner.css'
@@ -214,10 +214,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       <section id="intro" className="container landing-hero">
         <div className="landing-hero__copy rv">
-          <p className="landing-badge">
-            <span className="landing-badge__dot" aria-hidden="true" />
-            DOCUMENT X-RAY SCANNER
-          </p>
+          <Badge>DOCUMENT X-RAY SCANNER</Badge>
           <h1 className="landing-hero__title">
             문서를
             <br />
@@ -652,112 +649,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
       </section>
 
       {/* 바닥글 — 링크는 이 앱 안에서 실제로 동작하는 것만 둔다(없는 페이지로 가는 링크는 누르면 바로 드러난다) */}
-      <footer className="container landing-footer">
-        <div className="landing-footer__top">
-          <div className="landing-footer__brand">
-            <p className="landing-footer__logo">
-              <svg className="landing-footer__mark" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 2.5l7.5 2.8v6.4c0 4.7-3.2 8-7.5 9.3-4.3-1.3-7.5-4.6-7.5-9.3V5.3L12 2.5z" />
-                <path d="M9 9.5h6M9 12.5h6M9 15.5h4" />
-              </svg>
-              DocX-ray
-            </p>
-            <p className="landing-footer__tagline">
-              AI가 문서 속 개인정보와
-              <br />
-              숨겨진 위험 요소를 탐지합니다.
-            </p>
-            <p className="landing-footer__stack" aria-hidden="true">
-              SAFER DOCUMENTS
-              <br />
-              BRIGHTER TOMORROW
-            </p>
-          </div>
-
-          <nav className="landing-footer__col" aria-label="서비스">
-            <p className="landing-footer__title">서비스</p>
-            <ul>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('upload')}>
-                  문서 보안 검사
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" disabled={busy} onClick={() => onScan('samples')}>
-                  샘플 문서로 검사
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => navigate('training')}>
-                  사기 대응 훈련
-                </button>
-              </li>
-            </ul>
-          </nav>
-
-          <nav className="landing-footer__col" aria-label="보안과 프라이버시">
-            <p className="landing-footer__title">Security &amp; Privacy</p>
-            <ul>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('privacy')}>
-                  프라이버시 원칙
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('risk')}>
-                  숨은 위험 탐지
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('proof')}>
-                  성능 측정 결과
-                </button>
-              </li>
-            </ul>
-          </nav>
-
-          <nav className="landing-footer__col" aria-label="안내">
-            <p className="landing-footer__title">About</p>
-            <ul>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('intro')}>
-                  DocX-ray 소개
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => scrollToSection('flow')}>
-                  작동 방식
-                </button>
-              </li>
-              <li>
-                <button type="button" className="landing-footer__link" onClick={() => navigate('guide')}>
-                  이용 가이드
-                </button>
-              </li>
-            </ul>
-          </nav>
-
-          <div className="landing-footer__aside">
-            <svg className="landing-footer__lock" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="4.5" y="10" width="15" height="10.5" rx="2.5" />
-              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-            </svg>
-            <p className="landing-footer__aside-text">
-              당신의 문서가 더 안전한 세상을 위해, <b>DocX-ray</b>가 함께합니다.
-            </p>
-            <p className="landing-footer__stack" aria-hidden="true">
-              SAFE DOCUMENTS
-              <br />
-              SAFE BUSINESS
-            </p>
-          </div>
-        </div>
-
-        <div className="landing-footer__meta">
-          <span>© 2026 DocX-ray 팀 · 2026 원티드 AI Championship 제안 프로젝트</span>
-          <span>문서 보안, 더 안전한 오늘을 만듭니다.</span>
-        </div>
-      </footer>
+      <AppFooter navigate={navigate} onScan={onScan} busy={busy} />
     </div>
   )
 }
