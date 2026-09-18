@@ -1,5 +1,5 @@
 import { UPLOAD_LIMITS } from '../shared/api.js'
-import { Badge, Button, DecodeText, SectionRail } from '../shared/components/index.js'
+import { Badge, Button, DecodeText, GlowCard, SectionRail } from '../shared/components/index.js'
 import './guide.css'
 
 const STEPS = [
@@ -25,19 +25,24 @@ export default function GuidePage({ navigate }) {
         <p className="page-desc">문서를 안전하게 검사하고 보호하는 방법을 확인하세요.</p>
       </section>
 
+      {/* 뜨는 효과(:hover transform)는 바깥 li가 갖고, 빛(GlowCard)은 안쪽 div가 갖는다.
+          둘을 한 요소에 같이 두면 호버 중 transform이 걸리는 순간 GlowCard의
+          background-attachment: fixed 좌표가 요소 로컬 좌표로 다시 해석돼 빛이 카드 밖으로 밀려난다. */}
       <ol id="steps" className="guide-steps stagger">
         {STEPS.map((step) => (
           <li key={step.number} className="guide-step rv">
-            <div className="guide-step__top">
-              <span className="guide-step__number">
-                <DecodeText text={step.number} />
-              </span>
-              <span className="guide-step__icon" aria-hidden="true">
-                {step.icon}
-              </span>
-            </div>
-            <h2 className="guide-step__title">{step.title}</h2>
-            <p className="guide-step__copy">{step.copy}</p>
+            <GlowCard className="guide-step__glow">
+              <div className="guide-step__top">
+                <span className="guide-step__number">
+                  <DecodeText text={step.number} />
+                </span>
+                <span className="guide-step__icon" aria-hidden="true">
+                  {step.icon}
+                </span>
+              </div>
+              <h2 className="guide-step__title">{step.title}</h2>
+              <p className="guide-step__copy">{step.copy}</p>
+            </GlowCard>
           </li>
         ))}
       </ol>
