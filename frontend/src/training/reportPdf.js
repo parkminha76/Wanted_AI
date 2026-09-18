@@ -156,6 +156,51 @@ function drawCircleIcon(page, font, { x, y, color, symbol, size = 18 }) {
   })
 }
 
+// PDF는 HTML 아이콘을 사용할 수 없으므로, 리포트 의미에 맞는 선 아이콘을
+// pdf-lib 도형으로 직접 그린다. 원형 배경과 Icy Blue 색상은 기존과 동일하다.
+function drawReportIcon(page, { x, y, color, kind, size = 16 }) {
+  const stroke = COLORS.white
+  const line = (start, end, thickness = 1.35) => page.drawLine({
+    start, end, thickness, color: stroke, lineCap: 1,
+  })
+
+  page.drawCircle({ x, y, size, color })
+
+  if (kind === 'clipboard-check') {
+    const left = x - size * 0.31
+    const bottom = y - size * 0.39
+    const width = size * 0.62
+    const height = size * 0.8
+    page.drawRectangle({
+      x: left, y: bottom, width, height,
+      borderColor: stroke, borderWidth: 1.25, opacity: 0,
+    })
+    page.drawRectangle({
+      x: x - size * 0.17, y: y + size * 0.28,
+      width: size * 0.34, height: size * 0.16,
+      borderColor: stroke, borderWidth: 1.15, opacity: 0,
+    })
+    line({ x: x - size * 0.2, y: y - size * 0.03 }, { x: x - size * 0.04, y: y - size * 0.2 })
+    line({ x: x - size * 0.04, y: y - size * 0.2 }, { x: x + size * 0.26, y: y + size * 0.1 })
+    return
+  }
+
+  if (kind === 'shield-check') {
+    const top = y + size * 0.39
+    const bottom = y - size * 0.38
+    const left = x - size * 0.37
+    const right = x + size * 0.37
+    line({ x, y: top }, { x: right, y: y + size * 0.23 })
+    line({ x: right, y: y + size * 0.23 }, { x: x + size * 0.26, y: bottom + size * 0.13 })
+    line({ x: x + size * 0.26, y: bottom + size * 0.13 }, { x, y: bottom })
+    line({ x, y: bottom }, { x: x - size * 0.26, y: bottom + size * 0.13 })
+    line({ x: x - size * 0.26, y: bottom + size * 0.13 }, { x: left, y: y + size * 0.23 })
+    line({ x: left, y: y + size * 0.23 }, { x, y: top })
+    line({ x: x - size * 0.2, y: y - size * 0.01 }, { x: x - size * 0.04, y: y - size * 0.17 })
+    line({ x: x - size * 0.04, y: y - size * 0.17 }, { x: x + size * 0.23, y: y + size * 0.11 })
+  }
+}
+
 function drawVerticalDivider(page, x, y, height) {
   page.drawLine({
     start: { x, y }, end: { x, y: y + height },
@@ -202,11 +247,11 @@ function drawList(page, font, items, options) {
   return drawParagraph(page, font, text, options)
 }
 
-function drawSectionCard(page, font, { x, y, width, height, title, number, items, tone, numbered = false, emptyMessage }) {
+function drawSectionCard(page, font, { x, y, width, height, title, icon, items, tone, numbered = false, emptyMessage }) {
   const accent = tone === 'red' ? COLORS.red : COLORS.green
   const soft = tone === 'red' ? COLORS.redSoft : COLORS.greenSoft
   const border = tone === 'red' ? COLORS.redBorder : COLORS.greenBorder
-  drawCircleIcon(page, font, { x: x + 23, y: y + height + 20, color: accent, symbol: number, size: 16 })
+  drawReportIcon(page, { x: x + 23, y: y + height + 20, color: accent, kind: icon, size: 16 })
   drawWordSpacedText(page, font, compactKoreanSpacing(title), { x: x + 48, y: y + height + 13, size: 14, color: COLORS.text })
   const guide = tone === 'red' ? '다음에는 이런 점을 더 주의하세요.' : numbered ? '이런 방법을 기억해보세요.' : '어떤 습관이 안전한 디지털 생활을 만듭니다.'
   const guideWidth = font.widthOfTextAtSize(guide, 8)
@@ -268,7 +313,7 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   })
 
   drawRoundedRect(page, { x: MARGIN, y: 420, width: CONTENT_WIDTH, height: 114, radius: 12, color: COLORS.surface, borderColor: COLORS.border, borderWidth: 0 })
-  drawCircleIcon(page, font, { x: 76, y: 504, color: COLORS.green, symbol: '✓', size: 14 })
+  drawReportIcon(page, { x: 76, y: 504, color: COLORS.green, kind: 'clipboard-check', size: 14 })
   drawWordSpacedText(page, font, '종합 평가', { x: 102, y: 498, size: 16, color: COLORS.text })
   drawParagraph(page, font, report.summary || '분석 결과가 없습니다.', {
     x: 68, y: 465, width: 458, height: 52, size: LAYOUT.bodySize, minSize: 8.5, color: COLORS.text,
@@ -290,7 +335,7 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   })
 
   drawSectionCard(page, font, {
-    x: MARGIN, y: 73, width: CONTENT_WIDTH, height: 122, title: '다음 훈련에서 이렇게 대응하세요', number: '03',
+    x: MARGIN, y: 58, width: CONTENT_WIDTH, height: 122, title: '다음 훈련에서 이렇게 대응하세요', icon: 'shield-check',
     items: report.improvements, tone: 'green', numbered: true, emptyMessage: '추가 개선 권고가 없습니다.',
   })
   drawFooter(page, font)

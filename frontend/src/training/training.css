@@ -836,6 +836,8 @@ body:has(.simulation-page) .scroll-top {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .report-grid {
