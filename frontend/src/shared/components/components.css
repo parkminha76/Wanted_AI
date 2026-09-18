@@ -504,6 +504,12 @@
     left: var(--space-4);
     z-index: 5;
     display: block;
+    /* 뒤 배경과 같은 색으로 채운 상자 — 이게 없으면 스크롤로 지나가는 본문 글자가
+       목차 글자와 겹쳐 보인다. 페이지 바탕색과 맞춰서 "떠 있는 상자"보다는
+       "바탕이 여기만 안 넘어간다"처럼 자연스럽게 보이게 한다. */
+    padding: var(--space-3) var(--space-4) var(--space-3) 0;
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
     transform: translateY(-50%);
   }
 
