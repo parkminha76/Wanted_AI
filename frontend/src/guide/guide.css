@@ -30,13 +30,22 @@
   list-style: none;
 }
 
+/* GlowCard가 쓰는 background-attachment: fixed는 "이 요소 자신"이 transform을 가지면
+   화면 좌표가 아니라 요소 자신의 로컬 좌표로 다시 해석돼 버린다(크롬 확인됨) — 호버 시
+   떠오르는 transform과 같은 요소에 있으면 마우스를 올려도 빛이 카드 밖으로 밀려나 안 보인다.
+   그래서 뜨는 효과는 바깥 li(.guide-step)에 두고, 빛은 안쪽 div(.guide-step__glow = GlowCard)에 둔다. */
 .guide-step {
+  transition: transform 0.2s;
+}
+
+.guide-step__glow {
+  height: 100%;
   padding: var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background-color: var(--color-surface); /* GlowCard의 빛 그림(background-image)을 지우지 않게 */
   box-shadow: var(--shadow-md);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: box-shadow 0.2s;
 }
 
 .guide-step__top {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FileChartColumn, MessageSquareText, ShieldCheck } from 'lucide-react'
 import { api } from '../shared/api.js'
-import { Badge, Button, SectionRail } from '../shared/components/index.js'
+import { Badge, Button, GlowCard, SectionRail } from '../shared/components/index.js'
 import TypingChatMock from './TypingChatMock.jsx'
 import './training.css'
 
@@ -96,13 +96,13 @@ export default function TrainingHomePage({ onStarted }) {
 
       <ul id="features" className="feature-cards stagger">
         {FEATURES.map((feature) => (
-          <li key={feature.title} className="feature-card rv">
+          <GlowCard as="li" key={feature.title} className="feature-card rv">
             <span className="feature-card__icon" aria-hidden="true">
               <feature.Icon size={22} strokeWidth={1.8} />
             </span>
             <h2 className="feature-card__title">{feature.title}</h2>
             <p className="feature-card__copy">{feature.copy}</p>
-          </li>
+          </GlowCard>
         ))}
       </ul>
 
@@ -120,7 +120,8 @@ export default function TrainingHomePage({ onStarted }) {
         )}
         <div className="level-grid stagger">
           {LEVELS.map((item) => (
-            <button
+            <GlowCard
+              as="button"
               key={item.level}
               type="button"
               className="level-card rv"
@@ -135,7 +136,7 @@ export default function TrainingHomePage({ onStarted }) {
                   <span className="spinner" aria-hidden="true" /> 시작하는 중…
                 </span>
               )}
-            </button>
+            </GlowCard>
           ))}
         </div>
       </section>
