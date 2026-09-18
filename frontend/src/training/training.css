@@ -217,7 +217,7 @@
   padding: var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background-color: var(--color-surface); /* GlowCard의 빛 그림(background-image)을 지우지 않게 */
 }
 
 .feature-card__icon {
@@ -259,7 +259,7 @@
   padding: var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background-color: var(--color-surface); /* GlowCard의 빛 그림(background-image)을 지우지 않게 */
   box-shadow: var(--shadow-md);
   text-align: left;
   transition: border-color 0.2s, transform 0.2s;

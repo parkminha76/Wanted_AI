@@ -629,23 +629,25 @@
 }
 
 /* ---------- GlowCard: 마우스를 따라 테두리가 빛나는 카드 ---------- */
-/* 좌표(--glow-x·--glow-y, px 숫자)와 켜짐(--glow-on)은 GlowCard.jsx가 :root에 넣는다.
-   카드 쪽에서는 background-color만 쓴다 — background 줄임말을 쓰면 아래 빛 그림(background-image)이 지워진다.
-   transform이 걸린 동안에는 background-attachment: fixed가 화면 기준을 잃으므로, 떠오르는 hover 효과가 있는 카드에는 쓰지 않는다. */
+/* 좌표(카드마다 --glow-local-x·--glow-local-y, px 숫자)는 GlowCard.jsx가 카드 자신에 직접 넣고,
+   색상각 스침(--glow-xp)과 켜짐(--glow-on)만 :root에 넣는다.
+   카드 쪽에서는 background-color만 쓴다 — background 줄임말을 쓰면 아래 빛 그림(background-image)이 지워진다. */
 .glow-card {
   --glow-hue-now: calc(var(--glow-hue) + var(--glow-xp, 0) * var(--glow-spread));
   position: relative;
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  /* 카드 안쪽에 옅게 번지는 빛 */
+  /* 카드 안쪽에 옅게 번지는 빛. 위치는 이 카드 "자기 자신" 기준 로컬 좌표(--glow-local-x/y, GlowCard.jsx가
+     카드마다 직접 계산해 그 요소에 심는다)라서 배경 첨부는 기본값(scroll)을 그대로 쓴다 —
+     예전에 화면 좌표 + background-attachment: fixed를 함께 쓰던 방식은 크롬에서 커스텀 프로퍼티가
+     바뀌어도 다시 그려지지 않는 경우가 있어(정확한 조건은 규명 못함) 이 방식으로 바꿨다. */
   .glow-card {
     background-image: radial-gradient(
-      var(--glow-size) var(--glow-size) at calc(var(--glow-x, 0) * 1px) calc(var(--glow-y, 0) * 1px),
+      var(--glow-size) var(--glow-size) at calc(var(--glow-local-x, 0) * 1px) calc(var(--glow-local-y, 0) * 1px),
       hsl(var(--glow-hue-now) 90% 65% / calc(var(--glow-on, 0) * var(--glow-fill-alpha))),
       transparent
     );
-    background-attachment: fixed;
   }
 
   /* 테두리 빛(::before 색, ::after 흰 점). 테두리 두께(1px)만 남기고 안쪽은 마스크로 뚫는다. */
@@ -656,7 +658,6 @@
     inset: -1px;
     border: 1px solid transparent;
     border-radius: inherit;
-    background-attachment: fixed;
     background-repeat: no-repeat;
     opacity: var(--glow-on, 0);
     pointer-events: none;
@@ -672,7 +673,7 @@
 
   .glow-card::before {
     background-image: radial-gradient(
-      calc(var(--glow-size) * 0.75) calc(var(--glow-size) * 0.75) at calc(var(--glow-x, 0) * 1px) calc(var(--glow-y, 0) * 1px),
+      calc(var(--glow-size) * 0.75) calc(var(--glow-size) * 0.75) at calc(var(--glow-local-x, 0) * 1px) calc(var(--glow-local-y, 0) * 1px),
       hsl(var(--glow-hue-now) 90% 62%),
       transparent 100%
     );
@@ -680,7 +681,7 @@
 
   .glow-card::after {
     background-image: radial-gradient(
-      calc(var(--glow-size) * 0.35) calc(var(--glow-size) * 0.35) at calc(var(--glow-x, 0) * 1px) calc(var(--glow-y, 0) * 1px),
+      calc(var(--glow-size) * 0.35) calc(var(--glow-size) * 0.35) at calc(var(--glow-local-x, 0) * 1px) calc(var(--glow-local-y, 0) * 1px),
       var(--glow-highlight),
       transparent 100%
     );

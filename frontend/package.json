@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:masking": "node scripts/check-masking-rules.mjs"
+    "check:masking": "node scripts/check-masking-rules.mjs",
+    "fit:animation": "node scripts/fit-scan-animation.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

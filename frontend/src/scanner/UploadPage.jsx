@@ -615,7 +615,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       <section id="risk" className="container landing-section">
         <div className="rv">
-          <p className="landing-eyebrow">숨은 위험</p>
           <h2 className="landing-h2">
             문서는 멀쩡해 보여도
             <br />
@@ -640,7 +639,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
       <section id="flow" className="landing-band">
         <div className="container">
           <div className="rv">
-            <p className="landing-eyebrow">작동 방식</p>
             <h2 className="landing-h2">한 번의 검사로 끝나는 세 단계</h2>
           </div>
           <ol className="landing-steps stagger">
@@ -664,7 +662,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
       <section id="privacy" className="landing-band landing-band--plain">
         <div className="container">
           <div className="rv">
-            <p className="landing-eyebrow">프라이버시</p>
             <h2 className="landing-h2">찾기 위해 보관하지 않습니다</h2>
           </div>
           <ul className="landing-cards landing-cards--privacy stagger">
@@ -680,7 +677,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       <section id="proof" className="container landing-proof">
         <div className="rv">
-          <p className="landing-eyebrow">성능</p>
           <h2 className="landing-h2">놓치는 쪽을 먼저 줄였습니다</h2>
           <p className="landing-lead">
             개인정보 후보 누락률(FNR) 5% 이하를 먼저 만족하도록 운영 임계값(0.3534)을 정했습니다. 같은{' '}

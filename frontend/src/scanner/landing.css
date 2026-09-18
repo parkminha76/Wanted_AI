@@ -59,16 +59,6 @@
 }
 
 /* ---------- 공통 글자 ---------- */
-/* 구역 머리말. 옆 목록(SectionRail)과 같은 한국어 이름을 쓴다. 한국어라 본문 글꼴로 두는데,
-   고정폭 글꼴에는 한글이 없어 어차피 폴백되고 영문용 자간(0.16em)은 한글을 흩어 놓는다. */
-.landing-eyebrow {
-  color: var(--color-primary);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.02em;
-}
-
 .landing-h2 {
   margin-top: var(--space-4);
   font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.875rem);
@@ -1172,8 +1162,11 @@
 }
 
 @media (min-width: 960px) {
+  /* 오른쪽(스캔 애니메이션)을 글 쪽보다 조금 넓게 준다. 애니메이션 무대는 제 칸 너비에
+     맞춰 커지므로 이 비율이 곧 크기다. 글 쪽은 서브카피가 max-width 46ch로 묶여 있어
+     조금 좁아져도 줄바꿈이 달라지지 않는다. */
   .landing-hero {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
     gap: var(--space-10);
   }
 
@@ -1353,13 +1346,26 @@
 /* ---------- 스캔 애니메이션 ---------- */
 /* 클로드 디자인 원본(public/scan-animation/index.html)을 iframe으로 그대로 띄운다.
    별개 문서라 색·폰트는 원본 것을 쓴다 — 앱 토큰이 여기로 넘어가지 않는다.
-   4:3인 이유: 원본이 무대 너비를 (높이 - 72px) x 1.62로 제한해서, 이보다 납작하면
-   무대가 스스로 줄어들어 가운데에 작게 뜬다. */
+   5:4인 이유: 아래로는 프롬프트 인젝션 문장이 다 찍혔을 때(계약서 것이 제일 길어 여섯 줄)
+   패널이 431px을 8px 넘겨 iframe 안에 세로 스크롤바가 생겼다(실측). 위로는 원본이 무대 너비를
+   (높이 - 72px) x 1.62로 제한해서, 너무 납작하면 무대가 스스로 줄어들어 가운데에 작게 뜬다.
+   무대는 폭에 맞춰 잡히므로 높이를 늘려도 그림이 커지지 않는다 — 위아래 여백만 늘고, 그 여백은
+   배경과 같은 색이라 보이지 않는다. */
 .scan-animation {
   width: 100%;
   min-width: 0;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 5 / 4;
   border: 0;
   /* 원본 문서의 배경색과 같은 값. 투명으로 두면 불러오는 동안 흰 사각형이 번쩍인다. */
   background: #0a0b12;
+}
+
+/* 휴대폰에서는 빼둔다. 폭 343px에서는 인젝션 영문 문장이 열 줄 넘게 접혀 패널이 칸(275px)의
+   두 배(555px)까지 불어나고, 애니메이션 안쪽에 세로 스크롤바가 생긴다(실측 375x812).
+   그 크기에서는 문서 카드도 알아보기 어려워서, 칸을 세로로 길게 늘리는 대신 빼기로 했다.
+   640px을 경계로 잡은 근거: 이 아래부터 칸 너비가 데스크톱(575px)보다 좁아진다. */
+@media (max-width: 639px) {
+  .scan-animation {
+    display: none;
+  }
 }
