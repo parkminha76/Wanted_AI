@@ -41,6 +41,14 @@ html = html.replace(
   'min-height:150px;display:flex;flex-direction:column;gap:12px;padding:20px 22px',
 )
 
+// 탐지 표시 오른쪽 문구를 정리한다.
+//   신뢰도 숫자: 지어낸 값이라 화면에 숫자로 못 박아 둘 이유가 없다 — 지운다.
+//   인젝션 문구: 태그에 이미 PROMPT INJECTION이라고 적혀 있어 같은 말이 두 번 나온다 — "위험"만 남긴다.
+html = html.replace(
+  /confLabel:\s*active\.danger \? '[^']*' : [^,]+,/,
+  "confLabel: active.danger ? '위험' : '',",
+)
+
 // 표에 없는 항목은 원본 크기 그대로 남는다 — 새 항목이 생겼다면 알려준다.
 const unknown = [...html.matchAll(/key:'(\w+)'/g)]
   .map((m) => m[1])
