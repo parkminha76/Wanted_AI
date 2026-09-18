@@ -1,5 +1,5 @@
-"""신분증이 아닌 일반 이미지(인보이스, 스크린샷 등) 안의 글자를 OCR로 읽어
-텍스트 파이프라인(rules.py/ner.py/models.py)을 그대로 돌린다.
+"""신분증이 아닌 일반 이미지(인보이스, 스크린샷, 디자인 이력서 등) 안의 글자를
+OCR로 읽어 텍스트 파이프라인(rules.py/ner.py/models.py)을 그대로 돌린다.
 
 왜 필요한가
 -----------
@@ -11,7 +11,7 @@ id_detector.py(CNN)는 신분증 사진에 고정된 12개 영역(얼굴·주민
 
 접근
 ----
-Tesseract로 이미지 속 글자를 읽어 raw_text를 다시 만들고(각 단어가 raw_text의 어느
+EasyOCR로 이미지 속 글자를 읽어 raw_text를 다시 만들고(각 단어가 raw_text의 어느
 구간에서 왔는지도 같이 기록한다), scan.scan_text()를 그대로 불러 문서 텍스트와
 똑같은 정확도(정규식+체크섬, NER, 인젝션, 오탐 제거)로 판정한다. 새 판정 로직을
 따로 만들지 않는다 — 같은 값이라도 이미지에서 왔다고 다르게 판단할 이유가 없고,
@@ -20,6 +20,22 @@ Tesseract로 이미지 속 글자를 읽어 raw_text를 다시 만들고(각 단
 찾은 값의 offset(raw_text 기준)을 다시 그 단어(들)의 픽셀 bbox로 되짚어 돌려준다.
 masking/mask.py의 `_mask_image`는 출처와 무관하게 bbox만 있으면 칠하므로, 여기서
 새로 만질 코드가 없다.
+
+Tesseract에서 EasyOCR로 바꾼 이유(2026-09-18)
+----------------------------------------------
+Tesseract는 스캔한 문서·인쇄물처럼 "밝은 배경 + 어두운 글씨"인 단순한 이미지를
+전제로 만들어진 엔진이다. 캔바·미리캔버스류 이력서 템플릿처럼 화려한 배경
+무늬·장식 폰트·아이콘이 섞인 그래픽 디자인에서는 실측으로 확인된 것만도 이만큼
+있었다 — 히어로 타이틀("최태오")이 완전히 다른 글자("EM"·"2")로 읽힘, 페이지
+전체를 한 번에 읽을 때만 특정 줄의 특정 글자가 통째로 사라짐("최태오의 발자취"
+→"최 오의 발자취"), 위치 핀 아이콘 옆 "서울특별시"에서 "서"가 통째로 사라짐,
+장식 아이콘이 "ITQAAS AS — |" 같은 글자로 오인식되어 인젝션 분류기를 오탐시킴.
+이런 문제들은 --psm 값을 바꾸거나 잘라서 재시도하는 식으로 부분적으로만
+완화됐을 뿐 근본적으로 해결되지 않았다(배포 환경에서는 Tesseract 엔진
+버전(5.5.0 vs 5.5.3)만 달라도 같은 이미지를 다르게 읽는 사고까지 있었다 —
+Dockerfile 참고). EasyOCR(딥러닝 기반 검출+인식)로 바꾸자 같은 이미지 2장에서
+위 문제가 전부 한 번에 해결됐다(실측 비교). 기울어진 사진(`_deskew`가 하던 일)도
+EasyOCR의 검출기가 회전에 강해 별도 보정 없이 바로 읽는다.
 
 한계
 ----
@@ -34,89 +50,18 @@ masking/mask.py의 `_mask_image`는 출처와 무관하게 bbox만 있으면 칠
 
 from __future__ import annotations
 
-import os
 import re
-import shutil
 import statistics
 from dataclasses import dataclass
 
-# Windows 개발 환경은 Tesseract가 PATH에 없어서 실행 파일 경로를 직접 지정해야
-# 한다. Docker(Linux)는 apt로 설치하면 PATH에 잡히므로 shutil.which로 먼저
-# 확인하고, 없을 때만 이 후보 경로를 시도한다.
-_TESSERACT_CMD_CANDIDATES = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-)
+# 한국어 문서이므로 한국어를 기본으로 하되 영어 라벨(Invoice, CHOI-TAEO 등)도
+# 같이 읽는다.
+_EASYOCR_LANGS = ["ko", "en"]
 
-# 한국어 문서이므로 한국어를 기본으로 하되 영어 라벨(Invoice, Villa 등)도 같이 읽는다.
-_LANG = "kor+eng"
-
-# 라벨처럼 작은 글자(14~16px)는 원본 해상도 그대로 돌리면 자모가 뭉개져 인식률이
-# 뚝 떨어진다(실측: 2026-09-17, 업스케일 없이 "청구번호 01234"가 "ob uy a ou 42"로
-# 깨짐). 2배로 키우고 흑백으로 바꾸면 라벨까지 대부분 정확히 읽힌다.
-_UPSCALE = 2
-
-# 카메라로 찍은 사진은 스캐너와 달리 몇 도씩 기울어 있는 게 보통이다. --psm 6은
-# 글자가 수평이라고 가정하므로, 8도만 기울어도 글자를 통째로 못 읽는다(실측:
-# 2026-09-17, 8도 기울인 청구서에서 "국민 6127-02-384915" 계좌번호 줄 전체가
-# 사라지고 "입금 계좌"가 "Bes 계좌"로 깨짐). OCR 직전에 이 각도만큼 되돌린다.
-#
-# 각도가 이 미만이면 보정 자체가 인식률에 도움이 안 돼 건드리지 않는다. 이 초과면
-# 보정하지 않는다 — 신분증처럼 얼굴·그림이 글자보다 넓은 사진에서는 잉크 마스크
-# 기반 각도 추정이 글자 각도가 아니라 엉뚱한 값을 낼 수 있어(실측: 얼굴 실루엣이
-# 있는 신분증 사진에서는 0도로 나와 무해했지만, 항상 그렇다는 보장은 없다),
-# 과도한 보정치는 버리고 원본 그대로 돌리는 쪽이 안전하다.
-_MIN_DESKEW_ANGLE = 0.3
-_MAX_DESKEW_ANGLE = 20.0
-
-# 표가 있는 서식(지원서 등)에서 한 줄 전체가 raw_text에 통째로 안 나타나는
-# 경우가 있다(실측: 2026-09-17, 아르바이트 지원서 사진에서 "성 명 이예지",
-# "생 년 월 일" 줄이 --psm 3/4/6/11/12 전부에서 사라짐). hOCR로 원인을 보면
-# Tesseract의 레이아웃 분석이 표 테두리 선 때문에 그 영역을 `ocr_photo`(사진)로
-# 오분류해서 생기는 문제지만, 실제 인식에 쓰는 --psm 6은 이 분류 단계 자체를
-# 건너뛰어 하나로 짚어 고칠 오분류 영역이 없다 — 원인 위치를 안다고 바로
-# 고칠 수 있는 게 아니다.
-#
-# 그래서 원인이 아니라 **결과**로 접근한다: 정상 인식된 두 줄 사이에 글자
-# 한 줄 높이 이상 비어 보이는 구간이 있으면, 그 구간만 따로 잘라 표 테두리
-# 선을 지우고 다시 OCR을 돌려 본다(`_recover_gap_lines` 참고). 이렇게 좁게
-# 잘라내면 그 구간 안에서 표 전체가 아니라 그 한 줄만 보이므로 앞서 말한
-# `ocr_photo` 오분류가 애초에 일어나지 않는다.
-#
-# 문서 전체에 선 지우기를 무조건 적용하는 방법도 시도해봤지만, 실측(다른
-# 이력서 사진)에서 이미 정상 인식되던 줄까지 건드려 오히려 깨졌다("성"이
-# "a"로, "Liceria & Co."가 "Co."로 잘림) — 글자가 테두리 선에 바로 붙어 있으면
-# 선을 지우면서 글자 일부도 같이 지워지기 때문이다. 이미 뭔가 읽힌 구간은
-# 절대 건드리지 않고, **아무것도 못 읽은 구간에서만** 다시 시도하면 이 위험이
-# 사라진다 — 이미 비어 있던 자리이므로 다시 시도해서 나빠질 게 없다.
-_GAP_RECHECK_MIN_HEIGHT = 20.0
-
-# 구간을 위아래로 넓혀 잡으면(여유를 주면) 그만큼 이미 인식된 이웃 줄의
-# 글자 일부가 다시 크롭 안에 들어온다 — 실측(합성 테스트 이미지)으로 확인:
-# 여유 8px만 줘도 "받는 분"/"김하늘"의 위아래 획 일부가 다시 잡혀 "ㄴㄴ", "9",
-# "Ce" 같은 잡음 줄이 생기고, 그 잡음 줄이 "입금 계좌"와 "국민 ..." 사이에
-# 끼어들어 라벨-값 이어붙이기(`_looks_like_label`)가 깨져 계좌번호 탐지가
-# 통째로 실패했다. 그래서 여유를 주지 않는다 — 구간 경계에 걸친 글자 일부를
-# 놓칠 수는 있지만, 이미 잘 읽히던 줄을 다시 건드려 깨뜨리는 쪽보다 안전하다.
-_GAP_RECHECK_PADDING = 0.0
-
-# 긴 직선(길이 40px 이상)만 후보로 보고, 그중에서도 두께 5px 미만인 것만 진짜
-# 테두리 선으로 본다. 어두운 헤더 박스처럼 두꺼운 사각형은 긴 직선 후보에도
-# 걸리지만(가로/세로 어느 방향으로 열어도 살아남음) 5px 두께로 다시 열었을 때도
-# 살아남으므로 걸러지고, 진짜 테두리 선(실측 1~3px)만 두께 필터에서 사라져
-# 지워진다.
-_LINE_MIN_LENGTH = 40
-_LINE_MAX_THICKNESS = 5
-
-# --psm 6: "균일한 텍스트 블록 하나"로 가정한다. 기본값(3, 자동 레이아웃 분석)은
-# 어두운 헤더 박스와 밝은 본문이 섞인 이 레이아웃에서 순서를 잘못 추정해 라벨
-# 여러 개를 통째로 놓쳤다(실측: 같은 이미지에서 "결제 내역", "받는 분" 자체가
-# 안 잡힘). 6으로 바꾸니 모두 잡혔다.
-_TESSERACT_CONFIG = "--psm 6"
-
-# 이 신뢰도 아래는 잡음으로 보고 raw_text에서 뺀다. 장식체 로고("Villa")나 필기체
-# 서명("Signature")이 30번대 확신도의 알파벳 잡음으로 잡히는 것을 실측으로 확인했다
-# (개인정보 판정에는 안 쓰이는 자리라 걸러도 손해가 없다).
-_MIN_WORD_CONFIDENCE = 40.0
+# 이 밑은 잡음으로 보고 버린다. 배경 장식 무늬(반복되는 옅은 글자 등)가 실측
+# (2026-09-18, 이력서 사진 2장)에서 0.01~0.24 확신도로 잡혔고, 실제 값은 가장
+# 낮은 것도 0.41이었다 — 둘 사이에 뚜렷한 간격이 있어 0.3을 문턱으로 쓴다.
+_EASYOCR_MIN_CONFIDENCE = 0.3
 
 # 서식류(인보이스·명세서)는 "라벨 줄" 다음에 "값 줄"이 따로 오는 경우가 흔하다
 # ("입금 계좌" 다음 줄에 "국민 6127-02-384915"). 줄마다 무조건 줄바꿈으로 끊으면
@@ -129,22 +74,41 @@ _LABEL_MAX_LEN = 12
 _LABEL_DISALLOWED = re.compile(r"[0-9.!?]")
 _HANGUL = re.compile(r"[가-힣]")
 
-# 실제 개인정보 값(전화번호·계좌번호·이름)은 항상 본문 크기로 적힌다 — 제목이나
-# 로고를 개인정보 크기로 인쇄하는 문서는 없다. 실측(2026-09-17): 이 인보이스에서
-# 제목 "INVOICE"는 83px, 본문 라벨/값은 20~26px로 3~4배 차이가 났고, 그 제목이
-# NER에 "회사명"으로 오탐되어 마스킹 상자가 머리말 절반을 뒤덮었다. 그래서 이미지
-# 전체의 본문 글자 높이(중앙값)보다 이 배수 이상 큰 글자는 장식 제목·로고로 보고
-# OCR 결과에서 아예 뺀다 — 애초에 못 읽은 것과 같아지므로 뒤 단계가 오판할 일이
-# 없어진다.
+# 라벨처럼 보이는 줄이라도, 실은 서로 멀리 떨어진 항목 여러 개가 우연히 같은
+# 가로 줄로 묶인 것일 수 있다(실측: 2026-09-18, 2단 이력서 레이아웃에서 왼쪽
+# "개인정보"와 오른쪽 "학력사항"이 같은 세로 위치라 `_group_into_rows`가 한
+# 줄로 묶었고, 둘 다 각자 "라벨처럼 보여서" 다음 줄["고미리" 이름이 있는
+# 줄]까지 공백으로 이어붙었다 — "개인정보 학력사항 고미리 2008 2011
+# 예지디자인고등학교"라는 뒤죽박죽 문맥이 되어 NER이 "고미리"를 이름으로
+# 못 알아봤다, 같은 이름을 단독으로 넣으면 잡힌다). 진짜 한 라벨 문구는 단어
+# 사이 간격이 좁다 — 이 배수보다 넓게 떨어진 항목이 줄 안에 하나라도 있으면
+# 서로 다른 열이 우연히 한 줄로 묶인 것으로 보고 라벨 취급하지 않는다.
+_LABEL_INTERNAL_GAP_RATIO = 2.0
+
+# 이미지 OCR이 숫자 "0"을 글자 "O"로 잘못 읽는 경우가 있다(실측: 2026-09-18,
+# 전화번호 "010-000-0000"이 "010-000-0OOO"로 읽혀 전화번호 정규식이 마지막
+# 네 자리를 숫자로 못 봐서 통째로 놓침). 숫자가 최소 하나는 섞인 연속 구간
+# 안에서만 O/o를 0으로 되돌린다 — 그런 구간 밖의 "O"(예: 영문 단어 속 글자)는
+# 건드리지 않는다.
+_DIGIT_CONFUSABLE_RUN = re.compile(r"[0-9Oo]{2,}")
+
+# 실제 개인정보 값(전화번호·계좌번호·이름)은 항상 본문 크기로 적힌다는 전제가
+# 이력서 히어로 타이틀처럼 이름 자체를 큰 제목으로 인쇄하는 디자인에는 안 맞는다
+# (실측: 2026-09-18). 그래서 오버사이즈 판정은 더 이상 글자를 버리는 데 쓰지
+# 않고, org(회사명) 오탐만 가리는 데 쓴다 — 예전 인보이스 제목 "INVOICE"가
+# 회사명으로 오탐되던 사례(`detect()` 참고)를 막는 용도로만 남긴다.
 _OVERSIZED_HEIGHT_RATIO = 1.8
 
-# Tesseract가 이름 같은 한 단어를 한글 음절 하나씩 따로 뱉는 경우가 있다(실측:
-# 서명란의 "정수연"이 "정"/"수"/"연" 세 단어로 쪼개져 NER이 이름으로 인식하지
-# 못함). 정상적인 단어 사이 공백(이 이미지에서 실측 27~2090px, 서로 다른 열이
-# 한 줄로 묶인 경우까지 포함)보다 훨씬 좁게 붙어 있을 때만(실측 11~28px) 다시
-# 이어 붙인다 — 글자 높이의 이 비율보다 가까우면 "붙어 있다"로 본다.
-_SYLLABLE_GAP_RATIO = 0.9
-_SINGLE_HANGUL = re.compile(r"^[가-힣]$")
+# 같은 "줄"로 볼 세로 중심 오차 허용치. 두 검출의 세로 중심이 (그 줄 높이 ×
+# 이 비율) 이내로 가까우면 같은 줄로 묶는다 — 표 헤더처럼 한 행에 칸이 여러 개
+# 나란히 있으면 칸마다 검출이 따로 나오는데, 그것들을 하나의 줄로 다시 모아야
+# `_find_table_column_cells`가 열 경계를 계산할 수 있다.
+_ROW_CENTER_TOLERANCE = 0.6
+
+# 헤더 문구가 검출 두 개로 쪼개지는 경우("주요"+"업무")를 다시 붙이는 데 쓴다
+# (`_merge_touching_header_cells` 참고). 글자 높이의 이 비율보다 가까우면
+# "붙어 있다"로 본다.
+_TOUCHING_GAP_RATIO = 0.9
 
 # 표에 헤더 행이 있으면("회사명 | 기간 | 경력 | 소속") NER의 자유 텍스트 추론보다
 # 헤더가 열의 의미를 훨씬 정확히 알려준다. 실측(2026-09-17): NER이 옆 칸("경력"
@@ -168,10 +132,8 @@ _COLUMN_FIELD_LABELS: dict[str, str] = {
 _MAX_TABLE_ROWS = 20
 
 # 이번 줄과 이전 줄 사이 세로 간격이 지금까지 본 행 높이 중앙값의 이 배수를
-# 넘으면 표를 벗어난 것으로 본다 — `_recover_gap_lines`가 이미 "비정상적으로
-# 큰 세로 간격 = 구조적 경계"로 판단하는 것과 같은 방식이다. 가로 겹침만으로는
-# 표가 폭이 넓을 때(다음 섹션 제목도 왼쪽 정렬이면 겹쳐 보임) 잘 안 걸려서
-# 보조 신호로만 같이 쓴다.
+# 넘으면 표를 벗어난 것으로 본다. 가로 겹침만으로는 표가 폭이 넓을 때(다음
+# 섹션 제목도 왼쪽 정렬이면 겹쳐 보임) 잘 안 걸려서 보조 신호로만 같이 쓴다.
 _TABLE_ROW_GAP_RATIO = 1.75
 
 
@@ -193,325 +155,163 @@ def _looks_like_label(line_text: str) -> bool:
     return not _LABEL_DISALLOWED.search(compact)
 
 
-_configured = False
+def _row_is_single_cluster(line: list[tuple[str, tuple]]) -> bool:
+    """줄 안의 항목들이 서로 가깝게 붙어 하나의 문구를 이루는가. `_LABEL_INTERNAL_GAP_RATIO` 참고.
+
+    `line`은 이미 x좌표로 정렬돼 있다(`_group_into_rows`가 그렇게 만든다).
+    항목이 하나뿐이면 당연히 하나의 문구다.
+    """
+    if len(line) <= 1:
+        return True
+    for (_prev_text, prev_bbox), (_text, bbox) in zip(line, line[1:]):
+        height = max(prev_bbox[3] - prev_bbox[1], bbox[3] - bbox[1], 1.0)
+        gap = bbox[0] - prev_bbox[2]
+        if gap > height * _LABEL_INTERNAL_GAP_RATIO:
+            return False
+    return True
 
 
-def _configure_tesseract_cmd() -> None:
-    """pytesseract가 부를 tesseract 실행 파일 경로를 한 번만 찾아 둔다."""
-    global _configured
-    if _configured:
-        return
-    _configured = True
-    if shutil.which("tesseract"):
-        return
-    import pytesseract
+def _normalize_digit_confusable_letters(text: str) -> str:
+    """숫자가 섞인 연속 구간 안의 "O"/"o"를 "0"으로 되돌린다. `_DIGIT_CONFUSABLE_RUN` 참고.
 
-    for candidate in _TESSERACT_CMD_CANDIDATES:
-        if os.path.isfile(candidate):
-            pytesseract.pytesseract.tesseract_cmd = candidate
-            return
+    길이를 바꾸지 않는다(한 글자를 한 글자로만 바꾼다) — `_words_from_lines`가
+    이미 만들어 둔 `_Word.start/end` 오프셋이 이 함수 호출 뒤에도 그대로
+    유효해야 하기 때문이다. 순서를 바꾸면(예: 먼저 정규화하고 나중에 offset을
+    매기면) 코드가 더 간단해지지만, 그러면 표 열 인식(`_find_table_column_cells`)이
+    보는 `lines`의 원문 글자와 raw_text가 달라져 헷갈린다 — 그래서 완성된
+    raw_text에 제자리 치환만 한다.
+    """
+
+    def _replace(match: re.Match) -> str:
+        run = match.group()
+        if not any(ch.isdigit() for ch in run):
+            return run
+        return run.replace("O", "0").replace("o", "0")
+
+    return _DIGIT_CONFUSABLE_RUN.sub(_replace, text)
 
 
 @dataclass
 class _Word:
     start: int          # 이 모듈이 다시 만든 raw_text 기준 offset
     end: int
-    bbox: tuple[float, float, float, float]   # 원본 이미지 픽셀 좌표 (업스케일 되돌림)
-
-
-def _drop_oversized(
-    entries: list[tuple[tuple[int, int, int], str, tuple, float]],
-) -> list[tuple[tuple[int, int, int], str, tuple, float]]:
-    """제목·로고처럼 줄 전체가 본문보다 훨씬 큰 글자를 뺀다. `_OVERSIZED_HEIGHT_RATIO` 참고.
-
-    토큰 하나하나의 높이가 아니라 **그 토큰이 속한 줄의 대표 높이**로 판단한다.
-    Tesseract가 매기는 bbox 높이는 한글 음절과 영문·숫자 글리시프가 같은 폰트
-    크기에서도 서로 다르게 나온다(실측: 2026-09-17, 이력서 사진에서 "생년월일"은
-    9px인데 바로 옆 "1996.05.24"는 17px로 잡혀, 토큰 단위로 비교하면 생년월일
-    본문이 제목급 오탐 없이도 통째로 걸러짐 — 실제 생년월일이 마스킹에서 빠졌다).
-    줄 단위 대표값(그 줄 토큰들의 중앙값)으로 비교하면 한 줄 안에서의 이런 편차는
-    묻히고, 줄 전체가 진짜로 큰 제목만 걸러진다.
-    """
-    if not entries:
-        return entries
-    heights_by_line: dict[tuple[int, int, int], list[float]] = {}
-    for key, _text, _bbox, height in entries:
-        heights_by_line.setdefault(key, []).append(height)
-    line_height = {key: statistics.median(hs) for key, hs in heights_by_line.items()}
-
-    doc_median = statistics.median(line_height.values())
-    max_height = doc_median * _OVERSIZED_HEIGHT_RATIO
-    return [item for item in entries if line_height[item[0]] <= max_height]
+    bbox: tuple[float, float, float, float]   # 원본 이미지 픽셀 좌표
 
 
 def _touching(a: tuple, b: tuple) -> bool:
-    """b가 a 바로 옆에 거의 붙어 있는가(같은 단어의 다음 음절일 가능성)."""
+    """b가 a 바로 옆에 거의 붙어 있는가(같은 헤더 문구의 다음 조각일 가능성)."""
     gap = b[0] - a[2]
     height = max(a[3] - a[1], b[3] - b[1])
     if height <= 0:
         return False
-    return gap <= height * _SYLLABLE_GAP_RATIO
+    return gap <= height * _TOUCHING_GAP_RATIO
 
 
 def _union(a: tuple, b: tuple) -> tuple:
     return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 
 
-def _merge_adjacent_syllables(
-    line_words: list[tuple[str, tuple]],
-) -> list[tuple[str, tuple]]:
-    """한 줄 안에서 붙어 있는 한글 음절 하나짜리 토큰들을 원래 단어로 되붙인다."""
-    merged: list[tuple[str, tuple]] = []
-    previous_bbox: tuple | None = None
-    previous_was_single = False
+_reader = None
 
-    for text, bbox in line_words:
-        is_single = bool(_SINGLE_HANGUL.match(text))
-        if merged and previous_was_single and is_single and _touching(previous_bbox, bbox):
-            prev_text, prev_bbox = merged[-1]
-            merged[-1] = (prev_text + text, _union(prev_bbox, bbox))
+
+def _get_reader():
+    """첫 호출 때 한 번만 모델을 불러와 캐싱한다. import 시점에 불러오면 모델 파일이
+    없는 환경에서 `import text_ocr` 자체가 실패해 scan.py 전체가 멎는다."""
+    global _reader
+    if _reader is None:
+        import easyocr
+
+        _reader = easyocr.Reader(_EASYOCR_LANGS, gpu=False)
+    return _reader
+
+
+def _polygon_to_bbox(polygon) -> tuple[float, float, float, float]:
+    """EasyOCR이 주는 4점 다각형(기울어진 글자면 사각형도 기운다)을 축에 나란한
+    bbox로 바꾼다. 원래 다각형보다 넓어질 수 있지만, 마스킹은 덜 가리는 쪽보다
+    넓게 가리는 쪽이 안전하다(이 파일 전체에서 일관된 원칙)."""
+    xs = [float(point[0]) for point in polygon]
+    ys = [float(point[1]) for point in polygon]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _group_into_rows(
+    detections: list[tuple[str, tuple]],
+) -> list[list[tuple[str, tuple]]]:
+    """세로 위치가 가까운 검출들을 같은 줄로 묶는다.
+
+    EasyOCR은 검출 순서를 보장하지 않고, 표처럼 한 행에 칸이 여러 개면 칸마다
+    별개의 검출로 나온다. 중심 y가 비슷한 것들을 한 줄로 묶고, 줄 안에서는 x로
+    정렬해 읽는 순서를 만든다. `_ROW_CENTER_TOLERANCE` 참고.
+    """
+    if not detections:
+        return []
+
+    ordered = sorted(detections, key=lambda item: ((item[1][1] + item[1][3]) / 2, item[1][0]))
+    rows: list[list[tuple[str, tuple]]] = []
+    row_center = 0.0
+    row_height = 0.0
+
+    for text, bbox in ordered:
+        center = (bbox[1] + bbox[3]) / 2
+        height = bbox[3] - bbox[1]
+        if rows and abs(center - row_center) <= max(row_height, height) * _ROW_CENTER_TOLERANCE:
+            rows[-1].append((text, bbox))
         else:
-            merged.append((text, bbox))
-        previous_bbox = bbox
-        previous_was_single = is_single
+            rows.append([(text, bbox)])
+        current = rows[-1]
+        row_center = sum((b[1] + b[3]) / 2 for _, b in current) / len(current)
+        row_height = max(b[3] - b[1] for _, b in current)
 
-    return merged
+    return [sorted(row, key=lambda item: item[1][0]) for row in rows]
 
 
-def _deskew(gray_image) -> tuple:
-    """기울어진 사진을 OCR 전에 수평으로 되돌린다. `_MIN/_MAX_DESKEW_ANGLE` 참고.
+def _oversized_row_flags(rows: list[list[tuple[str, tuple]]]) -> list[bool]:
+    """줄마다 제목 크기인지 표시한다. `_OVERSIZED_HEIGHT_RATIO` 주석 참고.
 
-    (되돌린 PIL 이미지, 원본 좌표로 되짚을 역행렬) 튜플을 돌려준다. 보정하지
-    않았으면 역행렬 자리는 None이다 — 호출부가 그러면 좌표를 그대로 쓴다.
+    줄의 대표 높이는 그 줄에서 가장 큰 검출의 높이로 잡는다.
     """
-    import cv2
-    import numpy as np
-    from PIL import Image
-
-    array = np.array(gray_image)
-    _, thresh = cv2.threshold(array, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-    coords = np.column_stack(np.where(thresh > 0))
-    if coords.size == 0:
-        return gray_image, None
-
-    angle = cv2.minAreaRect(coords)[-1]
-    angle = -(90 + angle) if angle < -45 else -angle
-    if not (_MIN_DESKEW_ANGLE <= abs(angle) <= _MAX_DESKEW_ANGLE):
-        return gray_image, None
-
-    height, width = array.shape
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated = cv2.warpAffine(
-        array, matrix, (width, height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
-    )
-    return Image.fromarray(rotated), cv2.invertAffineTransform(matrix)
+    if not rows:
+        return []
+    row_heights = [max(bbox[3] - bbox[1] for _, bbox in row) for row in rows]
+    doc_median = statistics.median(row_heights)
+    max_height = doc_median * _OVERSIZED_HEIGHT_RATIO
+    return [height > max_height for height in row_heights]
 
 
-def _remove_table_lines(gray_image):
-    """표 테두리로 쓰인 가늘고 긴 직선을 지운다. `_LINE_MIN_LENGTH/_LINE_MAX_THICKNESS` 참고.
+def _ocr_lines(
+    path: str,
+) -> tuple[list[list[tuple[str, tuple[float, float, float, float]]]], list[bool]]:
+    """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, 원본 픽셀 bbox) 목록이다.
 
-    선을 지우고 남은 자리는 흰색으로 채운다 — 실제 글자는 이렇게 길고 곧은 직선
-    성분을 만들지 않으므로(자모는 짧고 굽어 있다) 지워질 위험이 없다.
+    두 번째 반환값은 각 줄이 제목 크기(`_oversized_row_flags` 참고)였는지를 같은
+    순서로 나열한 목록이다.
     """
-    import cv2
-    import numpy as np
-    from PIL import Image
+    reader = _get_reader()
+    results = reader.readtext(path)
 
-    array = np.array(gray_image)
-    _, thresh = cv2.threshold(array, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-
-    def _thin_lines(thin_size: tuple, thick_size: tuple):
-        thin_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, thin_size)
-        thick_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, thick_size)
-        candidates = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, thin_kernel)
-        thick = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, thick_kernel)
-        return cv2.bitwise_and(candidates, cv2.bitwise_not(thick))
-
-    horizontal = _thin_lines(
-        (_LINE_MIN_LENGTH, 1), (_LINE_MIN_LENGTH, _LINE_MAX_THICKNESS)
-    )
-    vertical = _thin_lines(
-        (1, _LINE_MIN_LENGTH), (_LINE_MAX_THICKNESS, _LINE_MIN_LENGTH)
-    )
-    lines_mask = cv2.dilate(
-        cv2.bitwise_or(horizontal, vertical),
-        cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
-    )
-
-    cleaned = array.copy()
-    cleaned[lines_mask > 0] = 255
-    return Image.fromarray(cleaned)
-
-
-def _words_from_tesseract_data(data: dict, y_offset: float = 0.0) -> list[tuple]:
-    """pytesseract의 raw dict 출력에서 신뢰도 필터를 거친 (key, text, bbox, height) 목록을 뽑는다.
-
-    `_ocr_lines`의 본 OCR과 `_recover_gap_lines`의 보충 OCR이 같은 추출 규칙을
-    쓰도록 공통화한 것 — 규칙이 갈리면(예: 신뢰도 기준이 서로 달라짐) 한쪽만
-    고치고 잊는 실수가 난다.
-
-    `y_offset`은 보충 OCR이 원본 전체가 아니라 잘라낸 구간만 돌렸을 때, 그
-    구간의 y 시작 위치를 다시 더해 전체 이미지 좌표로 되돌리는 용도다.
-    """
-    entries: list[tuple] = []
-    for i in range(len(data["text"])):
-        text = data["text"][i].strip()
-        try:
-            confidence = float(data["conf"][i])
-        except (TypeError, ValueError):
-            confidence = -1.0
-        if not text or confidence < _MIN_WORD_CONFIDENCE:
+    detections: list[tuple[str, tuple]] = []
+    for polygon, text, confidence in results:
+        text = text.strip()
+        if not text or confidence < _EASYOCR_MIN_CONFIDENCE:
             continue
+        detections.append((text, _polygon_to_bbox(polygon)))
 
-        left, top = data["left"][i], data["top"][i]
-        w, h = data["width"][i], data["height"][i]
-        bbox = (
-            left / _UPSCALE,
-            y_offset + top / _UPSCALE,
-            (left + w) / _UPSCALE,
-            y_offset + (top + h) / _UPSCALE,
-        )
-        key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
-        entries.append((key, text, bbox, h / _UPSCALE))
-    return entries
-
-
-def _group_into_lines(
-    entries: list[tuple],
-) -> list[list[tuple[str, tuple]]]:
-    """`_drop_oversized`를 거친 (key, text, bbox, height) 목록을 같은 key끼리 묶어 줄로 만든다."""
-    lines: list[list[tuple[str, tuple]]] = []
-    line_keys: list[tuple] = []
-    for key, text, bbox, _height in entries:
-        if lines and line_keys[-1] == key:
-            lines[-1].append((text, bbox))
-        else:
-            lines.append([(text, bbox)])
-            line_keys.append(key)
-    return [_merge_adjacent_syllables(line) for line in lines]
-
-
-def _recover_gap_band(deskewed_image, top: float, bottom: float) -> list[list[tuple[str, tuple]]]:
-    """[top, bottom) 구간만 잘라 표 테두리 선을 지우고 다시 OCR한다. 짧으면(`_GAP_RECHECK_MIN_HEIGHT` 미만) 건너뛴다."""
-    if bottom - top < _GAP_RECHECK_MIN_HEIGHT:
-        return []
-
-    import pytesseract
-    from PIL import Image
-
-    width, height = deskewed_image.size
-    top = max(0, int(top - _GAP_RECHECK_PADDING))
-    bottom = min(height, int(bottom + _GAP_RECHECK_PADDING))
-    if bottom <= top:
-        return []
-
-    crop = _remove_table_lines(deskewed_image.crop((0, top, width, bottom)))
-    crop_width, crop_height = crop.size
-    scaled = crop.resize((crop_width * _UPSCALE, crop_height * _UPSCALE), Image.LANCZOS)
-    data = pytesseract.image_to_data(
-        scaled, lang=_LANG, config=_TESSERACT_CONFIG, output_type=pytesseract.Output.DICT
-    )
-    entries = _drop_oversized(_words_from_tesseract_data(data, y_offset=top))
-    return _group_into_lines(entries)
-
-
-def _recover_gap_lines(
-    deskewed_image, lines: list[list[tuple[str, tuple]]]
-) -> list[list[tuple[str, tuple]]]:
-    """글자가 통째로 비어 보이는 구간이 있으면 그 구간만 잘라 다시 OCR한다.
-
-    이미 읽힌 두 줄 사이뿐 아니라 문서 맨 앞(첫 줄 위)과 맨 뒤(마지막 줄 아래)도
-    본다 — 실측(합성 표 이미지)으로 확인: 표 전체가 통째로 안 읽히면 표 위
-    제목줄 하나만 인식되고 그 아래로는 "다음 줄"이 아예 없어, 두 줄 사이만
-    보는 방식으로는 표 전체를 영영 되찾을 수 없었다.
-    문서 맨 앞/맨 뒤가 원래 빈 여백인 경우도 있지만, 그런 곳은 다시 시도해도
-    아무것도 안 나올 뿐이라 손해가 없다(`_GAP_RECHECK_MIN_HEIGHT` 주석 참고).
-
-    이미 읽힌 줄 자체는 절대 다시 건드리지 않는다 — 구간을 그 줄들의 경계
-    밖으로 자르므로, 여기서 표 테두리 선을 지우다가 이미 정상 인식된 글자를
-    깎아내는 일이 없다.
-    """
-    if not lines:
-        return lines
-
-    width, height = deskewed_image.size
-    spans = [
-        (min(b[1] for _, b in line), max(b[3] for _, b in line)) for line in lines
-    ]
-
-    result: list[list[tuple[str, tuple]]] = []
-    result.extend(_recover_gap_band(deskewed_image, 0, spans[0][0]))
-    result.append(lines[0])
-    for index in range(1, len(lines)):
-        result.extend(
-            _recover_gap_band(deskewed_image, spans[index - 1][1], spans[index][0])
-        )
-        result.append(lines[index])
-    result.extend(_recover_gap_band(deskewed_image, spans[-1][1], height))
-    return result
-
-
-def _map_bbox_to_original(bbox: tuple, inverse_matrix) -> tuple:
-    """되돌리기 전(원본) 이미지 좌표로 bbox를 되짚는다.
-
-    되돌린 이미지에서 축에 나란한 사각형은 원본에서는 기울어진 사각형이 된다.
-    거기에 딱 맞는 사각형(bbox)을 다시 만들면 실제 글자보다 넓어지지만, 마스킹이
-    덜 가리는 쪽보다는 넓게 가리는 쪽이 안전하다.
-    """
-    if inverse_matrix is None:
-        return bbox
-    import numpy as np
-
-    left, top, right, bottom = bbox
-    corners = np.array(
-        [[left, top, 1.0], [right, top, 1.0], [right, bottom, 1.0], [left, bottom, 1.0]]
-    )
-    mapped = corners @ inverse_matrix.T
-    return (
-        float(mapped[:, 0].min()),
-        float(mapped[:, 1].min()),
-        float(mapped[:, 0].max()),
-        float(mapped[:, 1].max()),
-    )
-
-
-def _ocr_lines(path: str) -> list[list[tuple[str, tuple[float, float, float, float]]]]:
-    """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, 원본 픽셀 bbox) 목록이다."""
-    _configure_tesseract_cmd()
-    import pytesseract
-    from PIL import Image
-
-    with Image.open(path) as source:
-        gray = source.convert("L")
-        deskewed, inverse_matrix = _deskew(gray)
-        width, height = deskewed.size
-        scaled = deskewed.resize((width * _UPSCALE, height * _UPSCALE), Image.LANCZOS)
-        data = pytesseract.image_to_data(
-            scaled, lang=_LANG, config=_TESSERACT_CONFIG, output_type=pytesseract.Output.DICT
-        )
-
-        # 되돌리기 전(deskew) 좌표계로 줄을 다 묶은 다음에 원본 좌표로 옮긴다 —
-        # `_recover_gap_lines`가 여기서 자르고 다시 붙이는 `deskewed` 이미지와
-        # 같은 좌표계를 써야 구간이 어긋나지 않는다.
-        entries = _drop_oversized(_words_from_tesseract_data(data))
-        lines = _group_into_lines(entries)
-        lines = _recover_gap_lines(deskewed, lines)
-
-    return [
-        [(text, _map_bbox_to_original(bbox, inverse_matrix)) for text, bbox in line]
-        for line in lines
-    ]
+    rows = _group_into_rows(detections)
+    flags = _oversized_row_flags(rows)
+    return rows, flags
 
 
 def _ocr_words(path: str) -> tuple[str, list[_Word]]:
     """이미지 1장을 OCR해서 (다시 만든 raw_text, 단어별 offset+bbox 목록)을 돌려준다."""
-    return _words_from_lines(_ocr_lines(path))
+    lines, flags = _ocr_lines(path)
+    text, words, _oversized_ranges = _words_from_lines(lines, flags)
+    return text, words
 
 
 def _words_from_lines(
     lines: list[list[tuple[str, tuple[float, float, float, float]]]],
-) -> tuple[str, list[_Word]]:
+    oversized_flags: list[bool] | None = None,
+) -> tuple[str, list[_Word], list[tuple[int, int]]]:
     """`_ocr_lines`가 만든 줄 목록을 raw_text 하나로 이어붙인다.
 
     같은 줄의 단어는 공백으로 잇는다. 줄과 줄 사이는 원칙적으로 줄바꿈이지만,
@@ -521,18 +321,26 @@ def _words_from_lines(
 
     `detect()`가 이 `lines`를 표 열 인식(`_find_table_column_cells`)에도 같이
     쓴다 — OCR을 두 번 돌리지 않으려고 `_ocr_words(path)`에서 분리했다.
+
+    세 번째 반환값은 제목 크기였던 줄들이 raw_text에서 차지하는 [start, end)
+    구간이다. `detect()`가 그 구간과 겹치는 org(회사명) 판정만 가려내는 데 쓴다
+    — 나머지 판정은 이 구간과 무관하게 정상적으로 받는다.
     """
     parts: list[str] = []
     words: list[_Word] = []
+    oversized_ranges: list[tuple[int, int]] = []
     cursor = 0
 
     for line_index, line_words in enumerate(lines):
         if line_index > 0:
-            previous_text = "".join(text for text, _ in lines[line_index - 1])
-            separator = " " if _looks_like_label(previous_text) else "\n"
+            previous_line = lines[line_index - 1]
+            previous_text = "".join(text for text, _ in previous_line)
+            is_label = _looks_like_label(previous_text) and _row_is_single_cluster(previous_line)
+            separator = " " if is_label else "\n"
             parts.append(separator)
             cursor += len(separator)
 
+        line_start = cursor
         for word_index, (text, bbox) in enumerate(line_words):
             if word_index > 0:
                 parts.append(" ")
@@ -542,7 +350,11 @@ def _words_from_lines(
             cursor += len(text)
             words.append(_Word(start=start, end=cursor, bbox=bbox))
 
-    return "".join(parts), words
+        if oversized_flags and line_index < len(oversized_flags) and oversized_flags[line_index]:
+            if cursor > line_start:
+                oversized_ranges.append((line_start, cursor))
+
+    return "".join(parts), words, oversized_ranges
 
 
 def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
@@ -562,16 +374,20 @@ def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
     )
 
 
+def _overlaps_any(start: int, end: int, ranges: list[tuple[int, int]]) -> bool:
+    """[start, end)가 `ranges`의 구간 중 하나와라도 겹치는가. `detect()`의 org 필터용."""
+    return any(start < r_end and r_start < end for r_start, r_end in ranges)
+
+
 def _match_header_labels(
     line: list[tuple[str, tuple]],
 ) -> list[tuple[int, int, str, str]]:
     """줄에서 `_COLUMN_FIELD_LABELS`의 라벨을 찾아 (시작 단어 인덱스, 끝 단어 인덱스, 라벨, 필드유형) 목록을 돌려준다.
 
-    라벨과 정확히 같은 단어 하나만 찾지 않는다 — Tesseract가 "회사명"을
-    "회사"+"명"처럼 단어 경계와 다르게 쪼개는 경우가 있다(`_merge_adjacent_syllables`는
-    한 글자짜리 음절끼리만 다시 붙이므로 이런 분할은 안 고쳐진다). 그래서
-    `_looks_like_label`처럼 줄 전체를 이어붙인 문자열에서 라벨을 찾은 뒤, 그
-    위치가 원래 몇 번째 단어(들)에 걸쳐 있었는지 역으로 찾는다.
+    라벨과 정확히 같은 단어 하나만 찾지 않는다 — OCR이 "회사명"을 "회사"+"명"처럼
+    단어 경계와 다르게 쪼개는 경우가 있다. 그래서 `_looks_like_label`처럼 줄
+    전체를 이어붙인 문자열에서 라벨을 찾은 뒤, 그 위치가 원래 몇 번째 단어(들)에
+    걸쳐 있었는지 역으로 찾는다.
     """
     char_to_word: list[int] = []
     compact_parts: list[str] = []
@@ -634,8 +450,7 @@ def _merge_touching_header_cells(
     데이터가 계산된 범위 밖으로 밀려나 표 끝에 도달한 것으로 잘못 판정되어,
     OCR이 값을 못 읽은 옆 칸조차 방어적으로 가릴 기회를 놓쳤다). 라벨이
     걸린 대상 열은 이미 `_header_cells`가 자기 몫끼리 합쳤으니 그대로 두고,
-    라벨 없는 셀끼리만 본다. `_touching`(음절 재결합에 쓰는 것과 같은
-    "거의 붙어 있다" 판정)을 그대로 재사용한다.
+    라벨 없는 셀끼리만 본다.
     """
     merged: list[tuple[tuple, str | None, str | None]] = []
     for bbox, field, label in cells:
@@ -766,12 +581,10 @@ def _collect_column_rows(
                 break
             # 대상 열은 비었지만 이 행 자체는 진짜 표 행이다(첫 열·마지막
             # 열 둘 다에 값이 있음) — OCR이 이 칸의 글자를 통째로 못 읽었을
-            # 뿐, 표 구조상 값이 있어야 하는 자리라는 건 안다(실측: 2026-09-17,
-            # "A식품"처럼 영문 한 글자와 한글이 공백 없이 붙은 토큰을
-            # Tesseract가 psm/배율/언어 조합을 다 바꿔봐도 못 읽었다). 값을
-            # 모른 채로 자리만이라도 방어적으로 가린다 — `id_detector.py`가
-            # 얼굴 영역을 값을 읽지 않고 좌표만으로 가리는 것과 같은 방식이다.
-            # `None`으로 표시해서 "실제로 읽은 값"과 구분한다.
+            # 뿐, 표 구조상 값이 있어야 하는 자리라는 건 안다. 값을 모른 채로
+            # 자리만이라도 방어적으로 가린다 — `id_detector.py`가 얼굴 영역을
+            # 값을 읽지 않고 좌표만으로 가리는 것과 같은 방식이다. `None`으로
+            # 표시해서 "실제로 읽은 값"과 구분한다.
             rows.append((None, (column_left, top, column_right, bottom)))
 
         row_heights.append(bottom - top)
@@ -799,11 +612,9 @@ def _find_table_column_cells(
 
         # 헤더 셀이 하나뿐이면(이웃 헤더가 없으면) 경계를 계산할 근거가 없다
         # — 왼쪽 끝 0, 오른쪽 끝 무한대인 "열 하나"가 되어 그 아래 모든 행의
-        # 글자를 통째로 삼켜버린다. 표 테두리 선 때문에 Tesseract가 "회사명"
-        # 하나만 다른 헤더들과 분리된 줄로 뽑아내는 경우가 실제로 있어서
-        # (`_GAP_RECHECK_MIN_HEIGHT` 주석 참고), 이럴 땐 아무것도 안 잡는 쪽이
-        # 안전하다 — 지금과 같은 "탐지 안 됨"이지, 다른 정상 결과까지 덮어쓰는
-        # "잘못된 거대한 셀"보다 훨씬 낫다.
+        # 글자를 통째로 삼켜버린다. 이럴 땐 아무것도 안 잡는 쪽이 안전하다 —
+        # 지금과 같은 "탐지 안 됨"이지, 다른 정상 결과까지 덮어쓰는 "잘못된
+        # 거대한 셀"보다 훨씬 낫다.
         if len(cells) < 2:
             continue
 
@@ -901,12 +712,18 @@ def detect(path: str) -> list[dict]:
 
     start/end는 0으로 둔다 — id_detector.detect()와 같은 이유다: 이미지에는
     문자 오프셋이라는 개념이 없고 마스킹은 bbox로 한다.
+
+    제목 크기 글자(`_oversized_row_flags`가 표시한 줄) 안에서 나온 org(회사명)
+    판정은 버린다 — 예전에 인보이스 제목 "INVOICE"가 회사명으로 오탐된 적이
+    있어서다. 그 줄 자체는 raw_text에서 빠지지 않으므로, 이름처럼 큰 글자로
+    인쇄된 진짜 개인정보(이력서 히어로 타이틀 등)는 org가 아닌 한 정상적으로
+    잡힌다.
     """
     try:
-        lines = _ocr_lines(path)
-        text, words = _words_from_lines(lines)
+        lines, oversized_flags = _ocr_lines(path)
+        text, words, oversized_ranges = _words_from_lines(lines, oversized_flags)
         table_cells = _find_table_column_cells(lines)
-    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다. tesseract가
+    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다. OCR 모델이
         return []          # 없거나 이미지가 깨졌어도 이 검사만 건너뛰면 된다. 표 열
                             # 인식(`_find_table_column_cells`)은 순수 함수라 원래
                             # 실패할 일이 거의 없지만, OCR 자체는 성공했는데 이
@@ -915,12 +732,18 @@ def detect(path: str) -> list[dict]:
     if not text.strip():
         return []
 
+    # 글자 수를 바꾸지 않으므로 words/table_cells가 쓰는 오프셋·bbox와 계속 맞는다
+    # (`_normalize_digit_confusable_letters` 참고).
+    text = _normalize_digit_confusable_letters(text)
+
     from backend.scanner import scan   # 지연 임포트 — scan.py가 이 모듈을 불러오므로 순환을 피한다
 
     result = scan.scan_text(text, meta={"filename": path})
 
     findings: list[dict] = []
     for finding in result.findings:
+        if finding.type == "org" and _overlaps_any(finding.start, finding.end, oversized_ranges):
+            continue
         bbox = _bbox_for_range(words, finding.start, finding.end)
         if bbox is None:
             continue
