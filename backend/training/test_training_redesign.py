@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from backend.training.sanitizer import sanitize_training_text
+from backend.training.prompts import build_attacker_prompt
 from backend.training.scenarios import SCENARIOS
 from backend.training.training_flow import (
     MAX_USER_TURNS,
@@ -54,6 +55,16 @@ class TrainingRedesignTests(unittest.TestCase):
             "제 번호는 [PHONE]입니다.",
         )
         self.assertNotIn("010-1234-5678", repr(session))
+
+    def test_attacker_prompt_hides_internal_privacy_tokens_from_user(self):
+        prompt = build_attacker_prompt(
+            state="S2_INFO_REQUEST",
+            level=1,
+            scenario=SCENARIOS[1][0],
+        )
+        self.assertIn("대괄호 표시를 그대로 출력하지 말고", prompt)
+        self.assertIn("휴대전화 번호", prompt)
+        self.assertIn("카드 번호", prompt)
 
     def test_max_turn_finishes_without_calling_attacker(self):
         session = create_training_session(2, SCENARIOS[2][0])
