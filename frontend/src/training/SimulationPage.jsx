@@ -194,7 +194,7 @@ export default function SimulationPage({ training, navigate }) {
           aria-label="AI 사기 대응 훈련"
         >
           <div className="mailbar">
-            <div>
+            <div className="mailbar__intro">
               <b>메시지</b>
               <small>
                 실제 상황이라고 생각하고 직접 대응해 보세요.
