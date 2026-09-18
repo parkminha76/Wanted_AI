@@ -341,6 +341,14 @@
   gap: var(--space-5);
 }
 
+/* 플레이 화면은 전체 높이가 두 화면보다 짧을 수 있어 공용 버튼의 기본 노출 기준에
+   도달하지 못한다. 이 라우트에서만 기존 ScrollTopButton을 항상 사용할 수 있게 한다. */
+body:has(.simulation-page) .scroll-top {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .sim-head {
   display: flex;
   flex-direction: column;
@@ -481,16 +489,59 @@
   background: var(--color-surface-muted);
 }
 
-.mailbar span {
-  color: var(--color-primary);
+.mailbar__intro {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
 }
 
 .mailbar b {
+  flex: 0 0 auto;
   font-size: var(--font-size-sm);
 }
 
 .mailbar small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.training-live {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-1);
   margin-left: auto;
+  color: var(--color-primary);
+}
+
+.response__guide {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.response__guide > span {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+}
+
+.response__guide p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.response__guide b {
+  font-size: var(--font-size-sm);
+}
+
+.response__guide small {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
@@ -548,7 +599,8 @@
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .thread__flag {

@@ -19,7 +19,11 @@ const LEVELS = [
 ]
 
 const FEATURES = [
-  { Icon: MessageSquareText, title: '실전 대화 시뮬레이션', copy: 'AI가 연기하는 사기범의 메시지에 직접 답장하며 대응해 봅니다.' },
+  {
+    Icon: MessageSquareText,
+    title: '실전 대화 시뮬레이션',
+    copy: <>AI가 연기하는 사기범의 메시지에 직접 답장하며<br />대응해 봅니다.</>,
+  },
   { Icon: ShieldCheck, title: '개인정보 보호', copy: '명확한 개인정보 형식은 외부 AI에 전달하기 전에 자동으로 치환합니다.' },
   { Icon: FileChartColumn, title: 'AI 대응 리포트', copy: '대화가 끝나면 잘한 점과 위험했던 순간을 정리해 드립니다.' },
 ]
