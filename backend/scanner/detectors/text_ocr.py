@@ -63,6 +63,22 @@ _EASYOCR_LANGS = ["ko", "en"]
 # 낮은 것도 0.41이었다 — 둘 사이에 뚜렷한 간격이 있어 0.3을 문턱으로 쓴다.
 _EASYOCR_MIN_CONFIDENCE = 0.3
 
+# 표 안에 긴 문단이 통째로 들어간 셀(자기소개서 등)은 글자가 작고 줄도 많아서
+# 정상적으로 적힌 진짜 내용인데도 확신도가 낮게 나온다(실측: 2026-09-18, 지원서
+# 사진의 "지원동기" 문단 — "저는 식품 공장에서... 홍길동입니다: A식품 B식품"
+# 줄이 확신도 0.21로 잡혀 0.3 문턱에 걸려 raw_text에서 통째로 빠졌다. 그 안의
+# "A식품"/"B식품"은 바로 위 표에서 이미 회사명으로 확정된 값이었는데도 문단
+# 쪽에서는 안 가려졌다). 그렇다고 전체 문턱을 낮추면 장식 배경 잡음(위 주석의
+# 0.01~0.24대 글자들)까지 raw_text에 섞여 NER·인젝션 분류기가 오판할 자리가
+# 늘어난다(실측: 2026-09-18, 그런 잡음이 "ITQAAS AS — \|"처럼 읽혀 인젝션
+# 분류기를 오탐시킨 적이 실제로 있었다).
+#
+# 그래서 문턱을 두 단계로 나눈다 — 이 낮은 문턱은 `_find_cross_referenced_values`
+# 전용이다: 표에서 이미 확정된 값과 **정확히 같은 문자열**을 찾는 데만 쓰므로,
+# 이 문턱으로 걸러낸 잡음이 섞여 있어도(잡음이 우연히 "A식품"과 똑같은 문자열일
+# 리는 없다) NER·인젝션 판정에는 전혀 들어가지 않아 위 오탐 경로가 열리지 않는다.
+_CROSS_REFERENCE_MIN_CONFIDENCE = 0.15
+
 # 서식류(인보이스·명세서)는 "라벨 줄" 다음에 "값 줄"이 따로 오는 경우가 흔하다
 # ("입금 계좌" 다음 줄에 "국민 6127-02-384915"). 줄마다 무조건 줄바꿈으로 끊으면
 # 값 줄에는 "계좌"라는 단어가 없어서, 오탐 제거 분류기가 문맥만 보고 진짜
@@ -70,7 +86,15 @@ _EASYOCR_MIN_CONFIDENCE = 0.3
 # 인보이스에서 계좌번호가 통째로 걸러짐 — prob_positive 0.444). 숫자도 문장부호도
 # 없는 짧은 줄은 "라벨"로 보고 다음 줄과 공백으로 이어 붙여, 분류기가 라벨과 값을
 # 한 문맥으로 보게 한다.
-_LABEL_MAX_LEN = 12
+#
+# 원래 12자까지 받았는데, 그러면 실제 서식 라벨("입금계좌" 4자, "생년월일" 4자,
+# "연락처" 3자 — 전부 5자 이하)보다 훨씬 긴, 문장에 가까운 문구까지 "라벨"로
+# 오인된다(실측: 2026-09-18, 이력서 히어로 타이틀 "고미리입니다"(6자)가 라벨로
+# 잡혀 다음 줄["개인정보"/"학력사항"]에 공백으로 이어붙었고, "고미리입니다"가
+# 그 뒤 문맥에 묻혀 NER이 이름을 못 알아봤다 — 단독으로 두면 잡힘). 실제 관찰된
+# 라벨 중 가장 긴 것(5자)보다 살짝만 여유를 두고, 이름·문구가 우연히 여기
+# 걸리지 않도록 좁힌다.
+_LABEL_MAX_LEN = 5
 _LABEL_DISALLOWED = re.compile(r"[0-9.!?]")
 _HANGUL = re.compile(r"[가-힣]")
 
@@ -280,30 +304,45 @@ def _oversized_row_flags(rows: list[list[tuple[str, tuple]]]) -> list[bool]:
 
 def _ocr_lines(
     path: str,
-) -> tuple[list[list[tuple[str, tuple[float, float, float, float]]]], list[bool]]:
+) -> tuple[
+    list[list[tuple[str, tuple[float, float, float, float]]]],
+    list[bool],
+    list[list[tuple[str, tuple[float, float, float, float]]]],
+]:
     """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, 원본 픽셀 bbox) 목록이다.
 
     두 번째 반환값은 각 줄이 제목 크기(`_oversized_row_flags` 참고)였는지를 같은
     순서로 나열한 목록이다.
+
+    세 번째 반환값(`weak_rows`)은 `_CROSS_REFERENCE_MIN_CONFIDENCE`까지 낮춘
+    문턱으로 다시 묶은 줄 목록이다 — `_EASYOCR_MIN_CONFIDENCE`에 걸려 본문
+    `rows`에는 없는, 더 낮은 확신도의 글자까지 담는다. EasyOCR을 다시 부르지
+    않는다(같은 `results`를 재사용) — 이미지 OCR은 비용이 커서 같은 이미지를
+    두 번 돌리지 않는다.
     """
     reader = _get_reader()
     results = reader.readtext(path)
 
     detections: list[tuple[str, tuple]] = []
+    weak_detections: list[tuple[str, tuple]] = []
     for polygon, text, confidence in results:
         text = text.strip()
-        if not text or confidence < _EASYOCR_MIN_CONFIDENCE:
+        if not text or confidence < _CROSS_REFERENCE_MIN_CONFIDENCE:
             continue
-        detections.append((text, _polygon_to_bbox(polygon)))
+        bbox = _polygon_to_bbox(polygon)
+        weak_detections.append((text, bbox))
+        if confidence >= _EASYOCR_MIN_CONFIDENCE:
+            detections.append((text, bbox))
 
     rows = _group_into_rows(detections)
     flags = _oversized_row_flags(rows)
-    return rows, flags
+    weak_rows = _group_into_rows(weak_detections)
+    return rows, flags, weak_rows
 
 
 def _ocr_words(path: str) -> tuple[str, list[_Word]]:
     """이미지 1장을 OCR해서 (다시 만든 raw_text, 단어별 offset+bbox 목록)을 돌려준다."""
-    lines, flags = _ocr_lines(path)
+    lines, flags, _weak_lines = _ocr_lines(path)
     text, words, _oversized_ranges = _words_from_lines(lines, flags)
     return text, words
 
@@ -362,8 +401,33 @@ def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
 
     None을 돌려주면 호출부가 그 finding을 버린다 — 가릴 좌표를 모르는 채로
     findings에 남기면 화면에는 뜨는데 마스킹 사본에서는 안 가려지는 항목이 생긴다.
+
+    EasyOCR은 문장 하나를 통째로 검출 하나(bbox 하나)로 묶어서 돌려줄 때가
+    있다(실측: 2026-09-18, 지원서 사진의 "지원동기" 문단 첫 줄 전체 — "저는
+    식품 공장에서... 홍길동입니다: A식품 B식품" — 가 EasyOCR 검출 하나였다).
+    그 안에서 "A식품"만 찾았다고 해서 검출의 bbox 전체(문장 전체 폭)를
+    그대로 돌려주면, 값과 무관한 문장 전체가 마스킹으로 덮인다. 그래서 구간이
+    한 단어의 일부만 겹치면, 그 단어 폭 안에서 글자 위치 비율만큼 가로로
+    좁혀 돌려준다(글자 폭이 균일하다는 근사라 정확하지는 않지만, 문장 전체를
+    덮는 것보다는 훨씬 낫다 — mask.py의 패딩이 이 근사의 오차를 어느 정도
+    흡수한다). 구간이 단어 전체를 덮으면(대부분의 경우) 비율이 0~1이 되어
+    원래 단어 bbox 그대로 나온다 — 기존 동작과 같다.
     """
-    boxes = [w.bbox for w in words if w.start < end and start < w.end]
+    boxes: list[tuple[float, float, float, float]] = []
+    for w in words:
+        if w.start >= end or w.end <= start:
+            continue
+        word_length = w.end - w.start
+        left, top, right, bottom = w.bbox
+        if word_length <= 0:
+            boxes.append((left, top, right, bottom))
+            continue
+        overlap_start = max(w.start, start)
+        overlap_end = min(w.end, end)
+        width = right - left
+        sub_left = left + width * (overlap_start - w.start) / word_length
+        sub_right = left + width * (overlap_end - w.start) / word_length
+        boxes.append((sub_left, top, sub_right, bottom))
     if not boxes:
         return None
     return (
@@ -509,6 +573,27 @@ def _line_span(line: list[tuple[str, tuple]]) -> tuple[float, float]:
     return (min(b[1] for _, b in line), max(b[3] for _, b in line))
 
 
+def _row_looks_like_header(line: list[tuple[str, tuple]]) -> bool:
+    """이 줄이 (우리가 찾던 표가 아니라) **다른** 표의 헤더 행처럼 보이는가.
+
+    실측(2026-09-18, 실제 지원서 사진): "직장명" 표 바로 밑에 표 사이 간격
+    없이 "자격증" 표("발급일자"/"자격증명"/"등급" 헤더)가 곧장 붙어 있었다 —
+    두 표의 줄 간격이 완전히 같아서(둘 다 44px) `_TABLE_ROW_GAP_RATIO` 세로
+    간격 검사로는 표 경계를 전혀 못 잡았고, "발급일자"·"2020년 4월"이 회사명
+    값으로 잘못 잡혔다.
+
+    헤더 행의 특징은 칸마다 전부 짧은 라벨 모양 글자라는 것이다("발급일자",
+    "자격증명", "등급" — `_looks_like_label` 기준을 전부 통과한다). 반면 진짜
+    데이터 행은 칸마다 성격이 섞여 있다 — 회사명 칸은 라벨 모양이어도
+    ("삼성전자") 기간 칸은 숫자가 섞여 있어 라벨 모양이 아니다. 그래서 "칸이
+    둘 이상이고 전부 라벨 모양"이면 헤더로 본다 — 데이터 행은 보통 날짜·숫자
+    칸이 하나는 있어서 이 조건에 걸리지 않는다.
+    """
+    if len(line) < 2:
+        return False
+    return all(_looks_like_label(text) for text, _bbox in line)
+
+
 def _collect_column_rows(
     following_lines: list[list[tuple[str, tuple]]],
     column_left: float,
@@ -549,6 +634,12 @@ def _collect_column_rows(
             gap = top - previous_bottom
             if gap > statistics.median(row_heights) * _TABLE_ROW_GAP_RATIO:
                 break
+
+        if _row_looks_like_header(line):
+            # 다음 표의 헤더 행으로 넘어간 것이다(`_row_looks_like_header` 참고) —
+            # 세로 간격만으로는 못 잡는다. 여기서 멈추지 않으면 그 표의 헤더
+            # 글자("발급일자" 등)와 첫 데이터 행까지 이 열의 값으로 잘못 잡힌다.
+            break
 
         cell_words = [
             (text, bbox)
@@ -680,6 +771,63 @@ def _find_table_column_cells(
     return results
 
 
+def _find_cross_referenced_values(
+    text: str, words: list[_Word], table_cells: list[dict]
+) -> list[dict]:
+    """표에서 이미 확정된 값이 문서의 다른 자리(자기소개서 같은 자유 서술문)에도
+    그대로 나오면 그 자리도 같이 찾는다.
+
+    NER은 표 밖의 자연스러운 문장에서는 "A식품"처럼 짧고 "영문 한 글자 + 일반
+    명사" 모양인 회사명을 거의 못 알아본다(실측: 2026-09-18, 지원서 사진 —
+    "직장명" 표 안의 "A식품"/"B식품"/"C식품"은 표 구조로 정확히 잡히는데, 바로
+    아래 "지원동기" 문단에 똑같이 적힌 "A식품, B식품, C식품"은 NER이 하나도
+    못 잡았다. 같은 문장의 사람 이름("홍길동")은 정상적으로 잡히는 것과 대비된다
+    — NER 모델 자체가 이 모양의 회사명에 약하다).
+
+    표 헤더로 이미 확정된 값은 근거가 확실하다(사람이 직접 그 열의 헤더를
+    보고 채운 실제 값이다). 같은 문서 안에서 똑같은 글자가 어떤 자리에서는
+    개인정보고 다른 자리에서는 아니라고 볼 이유가 없으므로, 표에서 확정된
+    값과 정확히 같은 문자열이 나오는 다른 위치도 전부 같은 유형으로 잡는다.
+    """
+    confirmed: dict[str, str] = {}
+    for cell in table_cells:
+        value = cell.get("value")
+        # "unread"인 셀은 값 자체를 모른다("{라벨} 미확인 값" 같은 플레이스홀더
+        # 문구다) — 그 문구를 문서에서 찾아봐야 아무 의미가 없다.
+        if not value or cell.get("evidence", {}).get("unread"):
+            continue
+        confirmed.setdefault(value, cell["field"])
+
+    existing_bboxes = [cell["bbox"] for cell in table_cells]
+    results: list[dict] = []
+    for value, field in confirmed.items():
+        for match in re.finditer(re.escape(value), text):
+            bbox = _bbox_for_range(words, match.start(), match.end())
+            if bbox is None:
+                continue
+            # 표 셀 자기 자신의 자리는 다시 안 잡는다 — 그 값이 나온 표
+            # 셀 자체(`table_cells`)가 이미 그 자리를 정확한 bbox로 갖고
+            # 있으므로, 여기서 또 잡으면 같은 자리를 미세하게 다른(단어
+            # bbox를 다시 합친) 사각형으로 덮어쓸 뿐이다.
+            if any(_bboxes_overlap(bbox, existing) for existing in existing_bboxes):
+                continue
+            results.append(
+                {
+                    "field": field,
+                    "value": value,
+                    "start": 0,
+                    "end": 0,
+                    "confidence": 0.9,
+                    "bbox": bbox,
+                    "page": 1,
+                    "reason": f'표 헤더 아래 셀에서 이미 확정된 값("{value}")이 문서의 다른 자리에도 그대로 나옴',
+                    "evidence": {"ocr": True, "cross_referenced_from_table": True},
+                    "source": "rule",
+                }
+            )
+    return results
+
+
 def _bboxes_overlap(a: tuple, b: tuple) -> bool:
     return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
 
@@ -720,8 +868,9 @@ def detect(path: str) -> list[dict]:
     잡힌다.
     """
     try:
-        lines, oversized_flags = _ocr_lines(path)
+        lines, oversized_flags, weak_lines = _ocr_lines(path)
         text, words, oversized_ranges = _words_from_lines(lines, oversized_flags)
+        weak_text, weak_words, _weak_oversized = _words_from_lines(weak_lines)
         table_cells = _find_table_column_cells(lines)
     except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다. OCR 모델이
         return []          # 없거나 이미지가 깨졌어도 이 검사만 건너뛰면 된다. 표 열
@@ -761,6 +910,14 @@ def detect(path: str) -> list[dict]:
                 "source": finding.source,
             }
         )
+    # 표에서 확정된 값이 문서의 다른 자리(자기소개서 등 자유 서술문)에도 그대로
+    # 나오면 그 자리도 같이 잡는다(`_find_cross_referenced_values` 참고) — NER이
+    # 표 밖 문장에서는 놓치는 회사명 모양이 실제로 있다. 확신도를 낮춘 `weak_text`로
+    # 찾는다 — 긴 문단 안 글자는 정상적으로 적혀 있어도 확신도가 낮게 나오는
+    # 경우가 있어(`_CROSS_REFERENCE_MIN_CONFIDENCE` 참고), 본문 `text`만 보면
+    # 그 문단 자체가 통째로 빠져 있어 못 찾는다.
+    table_cells = table_cells + _find_cross_referenced_values(weak_text, weak_words, table_cells)
+
     # 표에서 뽑은 값은 scan_text()가 끝난 뒤에 합친다 — XLSX의 구조화 탐지
     # (`scan.py`의 `_find_structured_xlsx_values`)와 다르게, 이 값들은 오탐
     # 제거 분류기(`_apply_classifier_filters`)나 인젝션 문장 분리를 거치지

@@ -387,7 +387,7 @@ class DropOversizedTest(unittest.TestCase):
                 ],
             )
 
-        with patch.object(text_ocr, "_ocr_lines", return_value=(lines, oversized_flags)), \
+        with patch.object(text_ocr, "_ocr_lines", return_value=(lines, oversized_flags, lines)), \
              patch.object(scan, "scan_text", side_effect=fake_scan_text):
             findings = text_ocr.detect("fake.png")
 
@@ -610,6 +610,155 @@ class TableColumnCellsTest(unittest.TestCase):
         ]
         cells = text_ocr._find_table_column_cells([header, row_with_label_bleed_only])
         self.assertEqual(cells, [])
+
+    def test_stops_before_the_next_tables_header_row(self) -> None:
+        """실측 재현(2026-09-18, 실제 지원서 사진 80-----.jpg): "직장명" 표
+        바로 밑에 표 사이 간격 없이 "자격증" 표("발급일자"/"자격증명"/"등급"
+        헤더)가 곧장 붙어 있었다. 두 표의 줄 간격이 완전히 같아서(44px)
+        세로 간격 검사로는 표 경계를 못 잡고, "발급일자"·"2020년 4월"이
+        회사명 값으로 잘못 잡혔다. 좌표는 그 표를 그대로 실측한 값이다."""
+        from backend.scanner.detectors import text_ocr
+
+        header = [
+            ("직장명", (388.0, 750.0, 458.0, 782.0)),
+            ("기간", (658.0, 752.0, 706.0, 780.0)),
+            ("주요업무", (938.0, 752.0, 1028.0, 782.0)),
+        ]
+        row_a = [
+            ("A식품", (338.0, 796.0, 402.0, 826.0)),
+            ("2021년 3월", (522.0, 796.0, 648.0, 826.0)),
+            ("2022년 5월", (676.0, 796.0, 804.0, 828.0)),
+            ("식품 포장 및 검수 작업", (860.0, 796.0, 1096.0, 828.0)),
+        ]
+        row_b = [
+            ("B식품", (338.0, 840.0, 400.0, 870.0)),
+            ("2022년 6월", (522.0, 840.0, 648.0, 870.0)),
+            ("2023년 2월", (676.0, 840.0, 802.0, 870.0)),
+            ("원재료 투입 및 혼합", (860.0, 840.0, 1066.0, 872.0)),
+        ]
+        row_c = [
+            ("C식품", (338.0, 884.0, 402.0, 914.0)),
+            ("2023년 3월", (522.0, 884.0, 648.0, 914.0)),
+            ("2024년 1월", (676.0, 884.0, 804.0, 914.0)),
+            ("위생 관리", (860.0, 884.0, 958.0, 916.0)),
+        ]
+        next_table_header = [
+            ("발급일자", (378.0, 928.0, 470.0, 960.0)),
+            ("자격증명", (636.0, 928.0, 728.0, 960.0)),
+            ("등급", (960.0, 928.0, 1004.0, 960.0)),
+        ]
+        next_table_row = [
+            ("2020년 4월", (338.0, 974.0, 464.0, 1004.0)),
+            ("영어 회화 능력 우수", (522.0, 972.0, 728.0, 1004.0)),
+            ("TOEIC 850점", (858.0, 974.0, 1000.0, 1004.0)),
+        ]
+        lines = [header, row_a, row_b, row_c, next_table_header, next_table_row]
+        cells = text_ocr._find_table_column_cells(lines)
+        values = {c["value"] for c in cells}
+        self.assertEqual(values, {"A식품", "B식품", "C식품"})
+
+
+class BboxForRangeSubWordInterpolationTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 지원서 사진): EasyOCR이 "지원동기" 문단 첫
+    줄 전체("저는 식품 공장에서... 홍길동입니다: A식품 B식품")를 검출 하나
+    (bbox 하나)로 묶어서 돌려줬다. 그 안에서 "홍길동"·"A식품"만 찾았는데
+    검출의 bbox 전체(문장 전체 폭)를 그대로 마스킹하면, 값과 무관한 문장
+    전체가 덮인다 — 사용자가 스크린샷으로 직접 지적함("그것만 안 보이게
+    해야지 통째로 삭제하면 안되지"). 단어 폭 안에서 글자 위치 비율만큼
+    좁혀야 한다."""
+
+    def test_match_in_the_middle_of_one_merged_word_is_narrowed(self):
+        from backend.scanner.detectors import text_ocr
+
+        # "저는유명한사람입니다" 10글자가 (0,0)~(200,20) 폭에 통째로 검출된
+        # 경우를 흉내낸다. 한 글자당 20px씩 균일하다고 가정하면, 5번째 글자
+        # ("한", 인덱스 4)부터 6번째("사"기 전, 인덱스 6 미포함)까지는
+        # x=80~120이어야 한다.
+        word = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 200.0, 20.0))
+        bbox = text_ocr._bbox_for_range([word], 4, 6)
+        self.assertAlmostEqual(bbox[0], 80.0)
+        self.assertAlmostEqual(bbox[2], 120.0)
+        self.assertEqual((bbox[1], bbox[3]), (0.0, 20.0))
+
+    def test_range_covering_the_whole_word_returns_the_original_bbox(self):
+        """회귀 방지: 구간이 단어 전체를 덮는 보통의 경우(대다수 findings)는
+        원래 단어 bbox 그대로 나와야 한다 — 근사 계산으로 기존 동작이 바뀌면
+        안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        word = text_ocr._Word(start=5, end=15, bbox=(50.0, 10.0, 150.0, 40.0))
+        bbox = text_ocr._bbox_for_range([word], 5, 15)
+        self.assertEqual(bbox, (50.0, 10.0, 150.0, 40.0))
+
+    def test_range_spanning_two_words_still_unions_both_narrowed_parts(self):
+        from backend.scanner.detectors import text_ocr
+
+        word_a = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 100.0, 20.0))
+        word_b = text_ocr._Word(start=11, end=21, bbox=(110.0, 0.0, 210.0, 20.0))
+        # 두 단어에 걸친 구간 — 첫 단어는 뒤쪽 절반만, 둘째 단어는 앞쪽 절반만.
+        bbox = text_ocr._bbox_for_range([word_a, word_b], 5, 16)
+        self.assertAlmostEqual(bbox[0], 50.0)
+        self.assertAlmostEqual(bbox[2], 160.0)
+
+
+class FindCrossReferencedValuesTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 지원서 사진): "직장명" 표에서 "A식품"/"B식품"이
+    회사명으로 확정됐는데, 바로 아래 "지원동기" 자기소개서 문단에 똑같이 적힌
+    "A식품, B식품"은 NER이 하나도 못 잡았다(같은 문장의 사람 이름 "홍길동"은
+    잡히는 것과 대비 — NER 모델 자체가 이 모양의 회사명에 약하다). 표에서
+    이미 확정된 값과 똑같은 문자열이 다른 자리에도 나오면 같이 잡아야 한다."""
+
+    def test_value_confirmed_by_table_is_found_again_in_free_text(self):
+        """`_bbox_for_range`가 검출 하나(문장 전체)의 일부만 비례로 좁혀 돌려주므로
+        (실측 재현: 2026-09-18, 아래 `BboxForRangeSubWordInterpolationTest` 참고),
+        여기서 나오는 bbox는 문장 전체 폭이 아니라 "A식품" 위치 근처로 좁아야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "저는 식품 공장에서 근무한 홍길동입니다. A식품에서 일했습니다."
+        sentence_bbox = (0.0, 0.0, 500.0, 20.0)
+        _t, words, _o = text_ocr._words_from_lines([[(text, sentence_bbox)]])
+        table_cells = [
+            {"field": "org", "value": "A식품", "bbox": (600.0, 600.0, 650.0, 620.0)}
+        ]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["field"], "org")
+        self.assertEqual(found[0]["value"], "A식품")
+        left, top, right, bottom = found[0]["bbox"]
+        self.assertEqual((top, bottom), (0.0, 20.0))
+        self.assertLess(right - left, sentence_bbox[2] - sentence_bbox[0])
+        self.assertGreater(left, 0.0)
+        self.assertLess(right, 500.0)
+
+    def test_the_table_cells_own_position_is_not_duplicated(self):
+        """표 셀 자기 자신의 자리(=table_cells가 이미 갖고 있는 bbox)는
+        다시 잡으면 안 된다 — 안 그러면 같은 값이 같은 자리에서 두 번 잡힌다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "A식품"
+        _t, words, _o = text_ocr._words_from_lines([[(text, (10.0, 10.0, 60.0, 30.0))]])
+        table_cells = [{"field": "org", "value": "A식품", "bbox": (10.0, 10.0, 60.0, 30.0)}]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(found, [])
+
+    def test_unread_placeholder_cells_are_not_searched_for(self):
+        """`_collect_column_rows`가 값을 못 읽어 방어적으로 채운 자리
+        ("{라벨} 미확인 값")는 실제 값이 아니므로 그 문구를 문서에서 찾지
+        않는다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "직장명 미확인 값이라는 말이 우연히 나온 문장입니다."
+        _t, words, _o = text_ocr._words_from_lines([[(text, (0.0, 0.0, 500.0, 20.0))]])
+        table_cells = [
+            {
+                "field": "org",
+                "value": "직장명 미확인 값",
+                "bbox": (600.0, 600.0, 650.0, 620.0),
+                "evidence": {"unread": True},
+            }
+        ]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(found, [])
 
 
 class MergeTableCellsTest(unittest.TestCase):

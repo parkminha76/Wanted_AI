@@ -53,6 +53,24 @@ class FindAddressesOcrSpacingTest(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["value"], text)
 
+    def test_city_then_dong_then_road_four_part_address_is_included(self) -> None:
+        """실측 재현(2026-09-18, 이력서 사진): "서초시 미리동 미리로 128-9"처럼
+        시·구 다음에 번지 없는 동 이름이 오고, 그 뒤에야 도로명+번지가 오는
+        4단 주소는 예전 정규식이 아예 못 잡았다(전화 완전히 노출) — 동 이름
+        다음에 도로명이나 번지 중 하나만 곧장 온다고 가정했기 때문이다."""
+        text = "서초시 미리동 미리로 128-9"
+        matches = rules.find_addresses(text)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["value"], text)
+
+    def test_dong_immediately_followed_by_a_number_is_still_the_jibun_form(self) -> None:
+        """회귀 방지: 동 이름 바로 뒤에 번지가 오는 기존 형태(지번 주소)는
+        새로 추가한 "동 이름 + 도로명" 형태와 헷갈리면 안 된다."""
+        text = "성남시 분당구 정자동 178-1"
+        matches = rules.find_addresses(text)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["value"], text)
+
 
 if __name__ == "__main__":
     unittest.main()

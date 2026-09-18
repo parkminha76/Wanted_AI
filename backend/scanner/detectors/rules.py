@@ -416,9 +416,18 @@ _ADDRESS_TAIL = (
 )
 _ADDRESS_ROAD_BASE = rf"{_ADDRESS_ROAD_NAME}\s+(?:지하\s*)?\d+(?:-\d+)?"
 _ADDRESS_JIBUN_BASE = rf"{_ADDRESS_JIBUN_NAME}\s+(?:산\s*|지하\s*)?\d+(?:-\d+)?"
+
+# 시·도·구 다음에 번지 없는 동 이름이 오고, 그 뒤에야 도로명이 오는 4단 주소도
+# 있다("서초시 미리동 미리로 128-9") — 실측(2026-09-18, 이력서 사진).
+# 지금까지는 admin 단위 바로 다음에 도로명(로/길)이나 번지가 붙은 지번(동/가/
+# 읍/면/리) 둘 중 하나만 곧장 온다고 가정했는데, 이 형태는 번지 없는 동 이름이
+# 도로명 앞에 하나 더 낀다. 그 동 이름을 선택적으로 하나 더 받는다 — 없어도
+# 기존 형태(도로명으로 바로 시작하거나 지번으로 끝나는 주소)는 그대로 받힌다.
+_ADDRESS_LOCALITY = rf"{_ADDRESS_JIBUN_NAME}\s+"
 ADDRESS_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
     rf"(?:{_ADDRESS_ADMIN_UNIT}\s+){{1,4}}"
+    rf"(?:{_ADDRESS_LOCALITY})?"
     rf"(?:{_ADDRESS_ROAD_BASE}|{_ADDRESS_JIBUN_BASE})"
     rf"{_ADDRESS_TAIL}"
 )
