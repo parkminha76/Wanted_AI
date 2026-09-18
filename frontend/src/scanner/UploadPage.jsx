@@ -5,6 +5,15 @@ import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from 
 import './scanner.css'
 import './landing.css'
 
+// 데모 샘플 한 줄 설명. sample_data/README.md의 "최소 4개 필요" 목록과 같은 뜻이다.
+// 여기 없는 파일이 들어와도 화면은 형식만 보여주고 넘어간다.
+const SAMPLE_NOTES = {
+  '고객명단.xlsx': '이름·전화번호·주소가 줄줄이 들어간 고객 명단',
+  '개발문서.md': 'API 키가 그대로 적혀 있는 개발 문서',
+  '계약서.pdf': '사업자등록번호와 계좌번호가 들어간 계약서',
+  '숨은명령.docx': '흰 글씨로 AI 지시문을 숨겨 둔 문서',
+}
+
 // 스캐너가 읽는 확장자. backend/scanner/scan.py의 _FILE_TYPE_BY_EXTENSION(= parse.py의 표)과 같게 둔다.
 const ACCEPTED_EXTENSIONS = [
   '.pdf', '.docx', '.xlsx', '.xlsm',
@@ -17,16 +26,23 @@ const SECTIONS = [
   { id: 'upload', label: '업로드' },
   { id: 'risk', label: '숨은 위험' },
   { id: 'flow', label: '작동 방식' },
-  { id: 'proof', label: '성능' },
   { id: 'privacy', label: '프라이버시' },
+  { id: 'proof', label: '성능' },
 ]
 
 // 성능 수치의 출처는 저장소 루트 README의 "모델" 표(합성 데이터, 5-fold 그룹 교차검증)다. 모델을 다시 학습하면 같이 고친다.
 // 0.9551은 개인정보 탐지 자체가 아니라 "오탐 제거 분류기"의 PR-AUC라서 라벨을 FP FILTER로 적는다.
+// 첫 화면 큰 숫자는 처음 온 사람이 3초 안에 "나한테 뭐가 좋은가"를 알 수 있는 값만 쓴다.
+// 모델 지표(PR-AUC·F1)는 아래 '성능 측정 결과'에 있다 — 심사용으로는 거기가 맞는 자리다.
+// 누적 검사 건수·이용자 수 같은 운영 실적은 아직 없으므로 적지 않는다.
+//   0초   backend/main.py — 원본은 검사가 끝나면 바로 지운다(사본만 30분 보관)
+//   18종  backend/shared/schema.py의 RiskType 중 개인정보 유형
+//         (숨은 명령·숨은 텍스트와 이미지 전용 3종을 빼면 18개)
+//   8종   PDF·DOCX·XLSX·TXT·MD·CSV·LOG·이미지
 const HERO_METRICS = [
-  { value: '0.9551', label: 'FP FILTER PR-AUC' },
-  { value: '0.8832', label: 'INJECTION F1' },
-  { value: '8', label: 'FILE FORMATS' }, // PDF·DOCX·XLSX·TXT·MD·CSV·LOG·이미지
+  { value: '0초', label: '원본 보관 시간' },
+  { value: '18종', label: '찾아내는 개인정보 유형' },
+  { value: '8종', label: '지원 파일 형식' },
 ]
 
 // 누적 검사 건수·이용자 수 같은 운영 실적은 아직 없으므로 적지 않는다. 네 값 모두 저장소에서 직접 셀 수 있는 숫자다.
@@ -115,9 +131,11 @@ function scrollToSection(id, block = 'start') {
 // 업로드 상자의 주 버튼(CTA)은 상태에 따라 바뀐다.
 //   파일 고르기 전  "파일 선택하기"          — 업로드 영역이 크게 보인다.
 //   파일 고른 뒤    "AI 보안 검사 시작"      — 업로드 영역은 "파일 추가하기" 한 줄로 줄어든다.
-// 샘플 문서 체험은 파일이 없는 사람(심사위원 시연 등)을 위한 보조 버튼으로, 소개의 "데모 결과 보기"와 업로드 상자 아래에 둔다.
+// 샘플 문서 체험은 파일이 없는 사람(심사위원 시연 등)을 위한 것이다. 고르는 자리는 업로드 상자 아래 한 곳뿐이고,
+// 소개의 "샘플로 체험하기"는 검사를 바로 시작하지 않고 그 자리로 데려다만 준다 — 무엇을 검사할지 먼저 보게 한다.
 export default function UploadPage({ onScan, error, busy, navigate }) {
   const inputRef = useRef(null)
+  const sampleRef = useRef(null)
   const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
   const [problems, setProblems] = useState([])
@@ -129,7 +147,33 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
   const [textScanning, setTextScanning] = useState(false)
   const [textError, setTextError] = useState('')
   const [copied, setCopied] = useState(false)
+  // 체험용 데모 문서. 목록만 따로 받아서(검사 없이) 고를 수 있게 보여준다.
+  const [samples, setSamples] = useState([])
+  const [pickedSamples, setPickedSamples] = useState([])
   const hasFiles = files.length > 0
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .sampleList()
+      .then(({ samples: list = [] }) => {
+        if (cancelled) return
+        setSamples(list)
+        setPickedSamples(list.map((sample) => sample.filename)) // 처음엔 전부 고른 상태
+      })
+      .catch(() => {
+        // 목록을 못 받으면 고르는 화면을 숨기고 예전처럼 "전체 샘플" 버튼 하나만 둔다.
+        if (!cancelled) setSamples([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const toggleSample = (filename) =>
+    setPickedSamples((picked) =>
+      picked.includes(filename) ? picked.filter((name) => name !== filename) : [...picked, filename],
+    )
 
   // 검사가 실패해 이 화면으로 돌아오면 오류 문구가 있는 업로드 상자를 보여준다(맨 아래라 안 보일 수 있다).
   useEffect(() => {
@@ -139,6 +183,22 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
     if (!busy) inputRef.current?.click()
   }
 
+
+  // 소개의 "샘플로 체험하기" — 검사를 시작하지 않고 고르는 자리로 내려간다.
+  // 목차로 이동할 때와 같은 테두리를 잠깐 띄워, 긴 화면에서 어디로 왔는지 보이게 한다.
+  function goToSamples() {
+    const target = sampleRef.current
+    if (!target) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    // 포커스를 먼저 옮긴다. 부드러운 스크롤이 도는 중에 focus()를 부르면 브라우저가
+    // 그 스크롤을 취소해 버려서 화면이 맨 위에 그대로 남는다(실측).
+    target.querySelector('input, button')?.focus({ preventScroll: true })
+    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })
+    target.classList.remove('section-target')
+    void target.offsetWidth // 연달아 눌러도 테두리가 처음부터 다시 돌게
+    target.classList.add('section-target')
+    setTimeout(() => target.classList.remove('section-target'), 1600)
+  }
 
   function goToUpload() {
     scrollToSection('upload')
@@ -219,16 +279,18 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
             <br />
             <span className="landing-glow">투시</span>합니다.
           </h1>
+          <p className="landing-hero__lead landing-hero__lead--kicker">문서는 보이는 것만이 전부가 아닙니다.</p>
           <p className="landing-hero__lead">
-            눈에 보이는 개인정보부터 흰 글씨·0pt·제로폭 문자로 문서 안에 숨겨진 AI 명령까지 — 보내기 전에 찾아내고, 원본
-            서식을 지킨 채 가립니다.
+            개인정보부터 문서 속에 숨겨진 AI 명령 프롬프트까지.
+            <br />
+            DocX-ray가 문서를 스캔하고, 위험 요소를 찾아 안전하게 가려드립니다.
           </p>
           <div className="landing-actions">
             <Button size="lg" onClick={goToUpload}>
               무료로 스캔 시작
             </Button>
-            <Button size="lg" variant="secondary" disabled={busy} onClick={() => onScan('samples')}>
-              데모 결과 보기
+            <Button size="lg" variant="secondary" disabled={busy} onClick={goToSamples}>
+              샘플로 체험하기
             </Button>
           </div>
           <dl className="landing-metrics">
@@ -241,7 +303,9 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
               </div>
             ))}
           </dl>
-          <p className="landing-metrics__note">합성 데이터 5-fold 그룹 교차검증 기준</p>
+          <p className="landing-metrics__note">
+            원본은 검사가 끝나는 즉시 지웁니다. 마스킹 사본도 30분 뒤 자동 삭제됩니다.
+          </p>
         </div>
         {/* 클로드 디자인에서 만든 스캔 애니메이션. 원본 HTML을 그대로 띄운다.
             파일은 frontend/public/scan-animation/ 에 있고, 디자인을 다시 만들면 그 폴더만 갈아 끼우면 된다. */}
@@ -485,11 +549,45 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                   : '올린 원본은 검사가 끝나면 서버에서 바로 삭제되고, 가린 사본은 30분 동안만 내려받을 수 있습니다.'}
               </p>
 
-              <div className="sample-cta">
+              <div className="sample-cta" ref={sampleRef}>
                 <p className="sample-cta__text">문서가 없어도 바로 체험해 보세요</p>
-                <Button variant="ghost" disabled={busy} onClick={() => onScan('samples')}>
-                  샘플 문서로 검사해보기 →
-                </Button>
+                {samples.length === 0 ? (
+                  <Button variant="ghost" disabled={busy} onClick={() => onScan('samples')}>
+                    샘플 문서로 검사해보기 →
+                  </Button>
+                ) : (
+                  <>
+                    <ul className="sample-pick">
+                      {samples.map((sample) => (
+                        <li key={sample.filename}>
+                          <label className="sample-pick__item">
+                            <input
+                              type="checkbox"
+                              checked={pickedSamples.includes(sample.filename)}
+                              onChange={() => toggleSample(sample.filename)}
+                              disabled={busy}
+                            />
+                            <span className="sample-pick__body">
+                              <b className="sample-pick__name">{sample.filename}</b>
+                              <span className="sample-pick__note">
+                                {SAMPLE_NOTES[sample.filename] ?? sample.file_type}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant="ghost"
+                      disabled={busy || pickedSamples.length === 0}
+                      onClick={() => onScan('samples', pickedSamples)}
+                    >
+                      {pickedSamples.length === 0
+                        ? '문서를 하나 이상 고르세요'
+                        : `선택한 ${pickedSamples.length}개로 검사해보기 →`}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -517,7 +615,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       <section id="risk" className="container landing-section">
         <div className="rv">
-          <p className="landing-eyebrow">01 — THE BLIND SPOT</p>
+          <p className="landing-eyebrow">숨은 위험</p>
           <h2 className="landing-h2">
             문서는 멀쩡해 보여도
             <br />
@@ -542,7 +640,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
       <section id="flow" className="landing-band">
         <div className="container">
           <div className="rv">
-            <p className="landing-eyebrow">02 — ONE PASS</p>
+            <p className="landing-eyebrow">작동 방식</p>
             <h2 className="landing-h2">한 번의 검사로 끝나는 세 단계</h2>
           </div>
           <ol className="landing-steps stagger">
@@ -563,9 +661,26 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
         </div>
       </section>
 
+      <section id="privacy" className="landing-band landing-band--plain">
+        <div className="container">
+          <div className="rv">
+            <p className="landing-eyebrow">프라이버시</p>
+            <h2 className="landing-h2">찾기 위해 보관하지 않습니다</h2>
+          </div>
+          <ul className="landing-cards landing-cards--privacy stagger">
+            {PRIVACY.map((item) => (
+              <GlowCard as="li" key={item.tag} className="landing-card rv">
+                <p className="landing-card__tag">{item.tag}</p>
+                <p className="landing-card__copy landing-card__copy--bright">{item.copy}</p>
+              </GlowCard>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <section id="proof" className="container landing-proof">
         <div className="rv">
-          <p className="landing-eyebrow">03 — MEASURED</p>
+          <p className="landing-eyebrow">성능</p>
           <h2 className="landing-h2">놓치는 쪽을 먼저 줄였습니다</h2>
           <p className="landing-lead">
             개인정보 후보 누락률(FNR) 5% 이하를 먼저 만족하도록 운영 임계값(0.3534)을 정했습니다. 같은{' '}
@@ -586,23 +701,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
             </li>
           ))}
         </GlowCard>
-      </section>
-
-      <section id="privacy" className="landing-band landing-band--plain">
-        <div className="container">
-          <div className="rv">
-            <p className="landing-eyebrow">04 — PRIVACY FIRST</p>
-            <h2 className="landing-h2">찾기 위해 보관하지 않습니다</h2>
-          </div>
-          <ul className="landing-cards landing-cards--privacy stagger">
-            {PRIVACY.map((item) => (
-              <GlowCard as="li" key={item.tag} className="landing-card rv">
-                <p className="landing-card__tag">{item.tag}</p>
-                <p className="landing-card__copy landing-card__copy--bright">{item.copy}</p>
-              </GlowCard>
-            ))}
-          </ul>
-        </div>
       </section>
 
       {/* 전환 띠 — 바닥글 바로 위에서 다음 행동 세 가지를 고르게 한다 */}

@@ -59,11 +59,14 @@
 }
 
 /* ---------- 공통 글자 ---------- */
+/* 구역 머리말. 옆 목록(SectionRail)과 같은 한국어 이름을 쓴다. 한국어라 본문 글꼴로 두는데,
+   고정폭 글꼴에는 한글이 없어 어차피 폴백되고 영문용 자간(0.16em)은 한글을 흩어 놓는다. */
 .landing-eyebrow {
   color: var(--color-primary);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.16em;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
 }
 
 .landing-h2 {
@@ -123,6 +126,16 @@
   word-break: keep-all;
 }
 
+/* 서브카피 첫 줄. 나머지보다 한 톤 밝게 둬서 빈 줄로 끊어 둔 의도가 드러나게 한다. */
+.landing-hero__lead--kicker {
+  color: var(--color-text);
+}
+
+/* 둘째 문단은 제목과의 간격(space-5)이 아니라 문단 사이 간격을 쓴다. */
+.landing-hero__lead + .landing-hero__lead {
+  margin-top: var(--space-3);
+}
+
 .landing-actions {
   display: flex;
   flex-wrap: wrap;
@@ -147,10 +160,12 @@
   gap: var(--space-1);
 }
 
+/* 이름은 한국어라 본문 글꼴로 둔다 — 고정폭 글꼴에는 한글이 없어 폴백되고, 영문용으로
+   잡아 둔 자간(0.08em)은 한글에서 글자가 흩어져 보인다. 숫자(dd)는 고정폭 그대로다. */
 .landing-metrics dt {
   color: var(--color-text-faint);
+  font-family: var(--font-sans);
   font-size: var(--font-size-xs);
-  letter-spacing: 0.08em;
 }
 
 .landing-metrics dd {

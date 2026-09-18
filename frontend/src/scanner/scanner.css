@@ -95,6 +95,66 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* ---------- 체험용 데모 문서 고르기 ---------- */
+/* 목록은 GET /samples/list가 준다(검사는 하지 않는다). 고른 것만 GET /samples?files=로 보낸다. */
+.sample-pick {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: var(--space-3) 0 var(--space-2);
+  list-style: none;
+  text-align: left;
+}
+
+@media (min-width: 640px) {
+  .sample-pick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sample-pick__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  cursor: pointer;
+}
+
+.sample-pick__item:has(input:checked) {
+  border-color: var(--color-primary);
+}
+
+.sample-pick__item input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+.sample-pick__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sample-pick__name {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.sample-pick__note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
 .dropzone-card__note {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
@@ -313,11 +373,6 @@
     padding: var(--space-6);
   }
 
-  .sample-cta {
-    flex-direction: row;
-    justify-content: center;
-    gap: var(--space-3);
-  }
 }
 
 /* ---------- 검사 중 ---------- */

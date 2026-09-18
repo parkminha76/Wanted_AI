@@ -15,7 +15,7 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').
 // backend/main.py의 MAX_FILES_PER_REQUEST / MAX_UPLOAD_BYTES와 같은 값이어야 한다.
 // 서버도 검사하지만, 20MB를 다 올린 뒤에 거절당하지 않도록 화면에서 먼저 막는다.
 export const UPLOAD_LIMITS = {
-  maxFiles: 20,
+  maxFiles: 10,
   maxFileBytes: 20 * 1024 * 1024,
 }
 
@@ -89,8 +89,18 @@ export const api = {
   /** POST /scan/text — 문장 하나. 응답 ScanResult(file_id 없음, masked_text 있음). */
   scanText: (text) => request('/scan/text', { method: 'POST', json: { text }, timeoutMs: TIMEOUT_MS.scan }),
 
-  /** GET /samples — 심사위원용 샘플 검사 결과. /scan과 같은 모양이고 두 번째부터는 캐시라 빠르다. */
-  samples: () => request('/samples', { timeoutMs: TIMEOUT_MS.scan }),
+  /** GET /samples/list — 데모 파일 목록만. 검사를 하지 않아 즉시 돌아온다. { samples: [{ filename, file_type, size_bytes }] } */
+  sampleList: () => request('/samples/list'),
+
+  /**
+   * GET /samples — 심사위원용 샘플 검사 결과. /scan과 같은 모양이고 두 번째부터는 캐시라 빠르다.
+   * filenames를 주면 그 문서만 담아 준다(빈 배열이면 전체). 서버는 늘 전체를 검사하고 추리기만 한다.
+   */
+  samples: (filenames = []) =>
+    request(
+      filenames.length ? `/samples?files=${filenames.map(encodeURIComponent).join(',')}` : '/samples',
+      { timeoutMs: TIMEOUT_MS.scan },
+    ),
 
   /** 마스킹 사본 다운로드 주소. 링크(href)로 쓴다. 사본은 서버에서 30분 뒤 지워진다. */
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
