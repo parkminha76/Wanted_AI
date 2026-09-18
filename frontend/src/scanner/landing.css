@@ -18,7 +18,6 @@
 .landing-marquee,
 .landing-section,
 .landing-band,
-.landing-proof,
 .landing-cta-wrap,
 .landing-footer {
   position: relative;
@@ -114,16 +113,6 @@
   font-size: clamp(1rem, 0.9rem + 0.4vw, 1.1875rem);
   line-height: 1.6;
   word-break: keep-all;
-}
-
-/* 서브카피 첫 줄. 나머지보다 한 톤 밝게 둬서 빈 줄로 끊어 둔 의도가 드러나게 한다. */
-.landing-hero__lead--kicker {
-  color: var(--color-text);
-}
-
-/* 둘째 문단은 제목과의 간격(space-5)이 아니라 문단 사이 간격을 쓴다. */
-.landing-hero__lead + .landing-hero__lead {
-  margin-top: var(--space-3);
 }
 
 .landing-actions {
@@ -715,6 +704,22 @@
   color: var(--color-paper-text);
 }
 
+/* 태그 대신 아이콘 상자를 얹는 카드(공유 위험). 훈련 모드 소개 카드(feature-card__icon)와
+   크기·색을 맞춘다 — training.css를 새로 불러오지 않고 같은 값을 이 파일에도 둔다. */
+.landing-card__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.landing-cards--scenario {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* ---------- 작동 방식 ---------- */
 .landing-band {
   padding-block: var(--space-10);
@@ -772,63 +777,6 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.65;
-  word-break: keep-all;
-}
-
-/* ---------- 성능 ---------- */
-.landing-proof {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.landing-proof__caveat {
-  max-width: 48ch;
-  margin-top: var(--space-5);
-  color: var(--color-text-faint);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-  word-break: keep-all;
-}
-
-/* 수치 띠 — 카드 한 장 안에 큰 숫자와 작은 이름을 나란히 두고, 사이를 세로 괘선으로 나눈다.
-   좁은 화면에서는 한 줄에 하나(600px부터 둘, 960px부터 넷). */
-.landing-statstrip {
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-md);
-  list-style: none;
-  text-align: center;
-}
-
-.landing-statstrip li {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.landing-statstrip b {
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2rem);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-/* 후보 누락률(둘째 칸)은 이 구역에서 가장 먼저 봐야 하는 값이다 */
-.landing-statstrip li:nth-child(2) b {
-  color: var(--color-primary);
-}
-
-.landing-statstrip span {
-  color: var(--color-text-faint);
-  font-size: var(--font-size-xs);
   word-break: keep-all;
 }
 
@@ -981,31 +929,6 @@
   color: var(--color-primary);
 }
 
-.landing-outro__art {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.landing-outro__wave {
-  width: 100%;
-  max-width: 22rem;
-  height: 7rem;
-}
-
-.landing-outro__wave path {
-  fill: none;
-  stroke: var(--color-primary-line);
-  stroke-width: 1;
-}
-
-.landing-outro__wave path:nth-child(-n + 3) {
-  stroke: var(--color-primary);
-  opacity: 0.55;
-}
-
 /* ---------- 바닥글 ---------- */
 .landing-footer {
   display: flex;
@@ -1134,20 +1057,13 @@
 /* ---------- 넓은 화면 ---------- */
 @media (min-width: 600px) {
   .landing-cards--risk,
-  .landing-cards--privacy {
+  .landing-cards--privacy,
+  .landing-cards--scenario {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .landing-cta {
     padding: var(--space-10) var(--space-9);
-  }
-
-  .landing-statstrip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .landing-statstrip li:nth-child(even) {
-    border-left: 1px solid var(--color-divider);
   }
 
   .landing-footer__top {
@@ -1178,14 +1094,6 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .landing-statstrip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .landing-statstrip li + li {
-    border-left: 1px solid var(--color-divider);
-  }
-
   /* 로고·설명 | 링크 3열 | 오른쪽 메시지 */
   .landing-footer__top {
     grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)) minmax(0, 1.1fr);
@@ -1203,7 +1111,7 @@
     justify-content: space-between;
   }
 
-  /* 왼쪽 장식 문구 | 가운데 문구·버튼 | 오른쪽 물결 */
+  /* 왼쪽 장식 문구 | 가운데 문구·버튼 | 오른쪽 장식 문구 */
   .landing-outro {
     grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr);
     align-items: center;
@@ -1213,10 +1121,6 @@
 
   .landing-outro__center {
     text-align: center;
-  }
-
-  .landing-outro__art {
-    align-items: flex-end;
   }
 
   .landing-outro__stack--right {
@@ -1268,6 +1172,11 @@
 
   .landing-marquee__track {
     animation: landing-marquee 34s linear infinite;
+  }
+
+  /* 제목 강조 단어가 숨 쉬듯 밝아지고 옅어진다 */
+  .landing-glow {
+    animation: landing-glow-pulse 1.8s ease-in-out infinite;
   }
 }
 
@@ -1343,6 +1252,19 @@
   }
 }
 
+/* 밝기만 오르내린다 — 색이나 위치는 그대로라 옆 글자와 줄맞춤이 흔들리지 않는다. */
+@keyframes landing-glow-pulse {
+  0%,
+  100% {
+    color: var(--color-primary);
+    text-shadow: 0 0 42px var(--color-primary-glow);
+  }
+  50% {
+    color: var(--color-primary-hover);
+    text-shadow: 0 0 64px var(--color-primary-glow), 0 0 24px var(--color-primary-glow-soft);
+  }
+}
+
 /* ---------- 스캔 애니메이션 ---------- */
 /* 클로드 디자인 원본(public/scan-animation/index.html)을 iframe으로 그대로 띄운다.
    별개 문서라 색·폰트는 원본 것을 쓴다 — 앱 토큰이 여기로 넘어가지 않는다.
@@ -1356,8 +1278,11 @@
   min-width: 0;
   aspect-ratio: 5 / 4;
   border: 0;
-  /* 원본 문서의 배경색과 같은 값. 투명으로 두면 불러오는 동안 흰 사각형이 번쩍인다. */
-  background: #0a0b12;
+  /* 이 페이지의 격자 배경과 같은 무늬를 iframe 안쪽에도 같은 자리에 그려서(UploadPage.jsx의
+     postMessage) 경계가 안 보이게 한다. --color-bg와 같은 값 — 격자가 도착하기 전이나
+     격자 선이 없는 칸에서도 이 색이 페이지 배경과 정확히 같아야 사각형처럼 안 보인다.
+     투명으로 두면 불러오는 동안 흰 사각형이 번쩍인다. */
+  background: var(--color-bg);
 }
 
 /* 휴대폰에서는 빼둔다. 폭 343px에서는 인젝션 영문 문장이 열 줄 넘게 접혀 패널이 칸(275px)의
