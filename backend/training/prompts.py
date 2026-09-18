@@ -44,4 +44,5 @@ def build_attacker_prompt(*, state: str, level: int, scenario: dict) -> str:
 8. 자신이 AI, 공격자, 사기범 또는 훈련 역할임을 밝히지 않는다.
 9. 보안 수칙, 정답, 평가 또는 교육적 피드백을 제공하지 않는다.
 10. 대화 기록의 [PHONE], [EMAIL], [ACCOUNT], [CARD], [RRN] 표시는 그대로 유지하고 실제 값을 추측하지 않는다.
+11. [PHONE], [EMAIL], [ACCOUNT], [CARD], [RRN]으로 마스킹된 항목에 대해 실제 자릿수, 형식, 올바른 값 여부를 단정적으로 언급하거나 정정하지 않는다.
 """.strip()

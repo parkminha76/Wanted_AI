@@ -1,8 +1,8 @@
-"""text_ocr.py 실측 테스트 — 실제로 이미지를 그려서 Tesseract를 돌린다.
+"""text_ocr.py 실측 테스트 — 실제로 이미지를 그려서 EasyOCR를 돌린다.
 
 목(mock)으로 OCR 결과를 흉내 내면 "OCR이 실제로 이 폰트·레이아웃에서 값을
-읽어내는가"라는, 이 모듈이 존재하는 이유 자체를 검증하지 못한다. Tesseract가
-설치돼 있지 않은 환경(CI 등)에서는 건너뛴다.
+읽어내는가"라는, 이 모듈이 존재하는 이유 자체를 검증하지 못한다. EasyOCR
+모델을 못 불러오는 환경(CI 등)에서는 건너뛴다.
 """
 
 from __future__ import annotations
@@ -14,16 +14,16 @@ import unittest
 
 FONT_PATH = os.path.join("ml", "data_generation", "assets", "fonts", "NanumGothic.otf")
 
-_TESSERACT_CANDIDATES = (r"C:\Program Files\Tesseract-OCR\tesseract.exe",)
+
+def _easyocr_available() -> bool:
+    try:
+        import easyocr  # noqa: F401
+    except Exception:      # noqa: BLE001 — 모델 로드 실패까지 포함해 전부 "불가"로 본다
+        return False
+    return True
 
 
-def _tesseract_available() -> bool:
-    if shutil.which("tesseract"):
-        return True
-    return any(os.path.isfile(candidate) for candidate in _TESSERACT_CANDIDATES)
-
-
-@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TextOcrDetectTest(unittest.TestCase):
     @classmethod
@@ -81,12 +81,14 @@ class TextOcrDetectTest(unittest.TestCase):
         self.assertIn(sources["account"], ("rule", "classifier"))
 
 
-@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TiltedImageOcrTest(unittest.TestCase):
-    """실측 버그: 스캐너와 달리 카메라로 찍은 사진은 몇 도씩 기울어 있는 게 보통인데,
-    --psm 6은 글자가 수평이라고 가정해서 8도만 기울어도 계좌번호 줄 전체를 놓쳤다
-    (자세한 내용은 text_ocr.py의 _MIN/_MAX_DESKEW_ANGLE 주석 참고)."""
+    """실측 버그: 스캐너와 달리 카메라로 찍은 사진은 몇 도씩 기울어 있는 게 보통이다.
+    예전 Tesseract 엔진(--psm 6)은 글자가 수평이라고 가정해서 8도만 기울어도
+    계좌번호 줄 전체를 놓쳤고, 그래서 OCR 전에 각도를 되돌리는 보정이 따로
+    있었다. EasyOCR의 검출기는 회전에 강해 그 보정 없이도 바로 읽는다 —
+    이 테스트는 그 사실 자체를 고정한다."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -137,15 +139,13 @@ class TiltedImageOcrTest(unittest.TestCase):
             self.assertTrue(0 <= top < bottom <= height)
 
 
-@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TableRowGapRecoveryTest(unittest.TestCase):
-    """실측 버그(2026-09-17): 아르바이트 지원서 사진에서 표 테두리 선 때문에
-    Tesseract가 "성 명 이예지", "생 년 월 일 ..." 줄을 --psm 3/4/6/11/12
-    전부에서 통째로 못 읽었다(hOCR로 보면 그 영역을 `ocr_photo`로 오분류).
-    표 테두리 선을 그린 합성 이미지로 같은 실패를 재현해, 이미 읽힌 줄
-    사이의 빈 구간만 다시 잘라 OCR하는 보정(`_recover_gap_lines`)이 살아있는지
-    이 테스트로 고정한다."""
+    """표 테두리 선이 있는 서식에서도 셀 안 글자(성명·생년월일 등)를 제대로
+    읽고 person/birth_date 판정까지 이어지는지 확인한다. 예전 Tesseract
+    엔진에서는 표 테두리 선 때문에 이 줄들이 통째로 안 읽히는 문제가 있었는데
+    (`ocr_photo`로 오분류), EasyOCR은 이런 보정 없이도 바로 읽는다."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -168,7 +168,7 @@ class TableRowGapRecoveryTest(unittest.TestCase):
         draw.text((60, 95), "성    명", font=font, fill="black")
         draw.text((320, 95), "이예지", font=font, fill="black")
         draw.text((60, 215), "생 년 월 일", font=font, fill="black")
-        draw.text((320, 215), "2000. 11. 12", font=font, fill="black")
+        draw.text((320, 215), "2000. 05. 24", font=font, fill="black")
         draw.text((60, 275), "연락처", font=font, fill="black")
         draw.text((320, 275), "010-1234-5678", font=font, fill="black")
         image.save(cls.image_path)
@@ -197,7 +197,7 @@ class TableRowGapRecoveryTest(unittest.TestCase):
         self.assertTrue(any(f["field"] == "birth_date" for f in findings))
 
 
-@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TableColumnDetectIntegrationTest(unittest.TestCase):
     """`_find_table_column_cells`가 `detect()` 전체 파이프라인과 실제로 맞물리는지
@@ -226,11 +226,11 @@ class TableColumnDetectIntegrationTest(unittest.TestCase):
         draw.text((240, 55), "기간", font=font, fill="black")
         draw.text((580, 55), "경력", font=font, fill="black")
 
-        draw.text((60, 115), "글로벡스전자", font=font, fill="black")
+        draw.text((60, 115), "한빛전자", font=font, fill="black")
         draw.text((240, 115), "2020-2021", font=font, fill="black")
         draw.text((580, 115), "기획팀 인턴", font=font, fill="black")
 
-        draw.text((60, 175), "테크노메가", font=font, fill="black")
+        draw.text((60, 175), "대한소프트", font=font, fill="black")
         draw.text((240, 175), "2022-2023", font=font, fill="black")
         draw.text((580, 175), "UI 디자인", font=font, fill="black")
         image.save(cls.image_path)
@@ -249,11 +249,11 @@ class TableColumnDetectIntegrationTest(unittest.TestCase):
         # 안 섞이는지지, OCR 음절 분리 자체가 아니다.
         org_values = {f["value"].replace(" ", "") for f in self.findings if f["field"] == "org"}
         self.assertTrue(
-            any("글로벡스" in v for v in org_values),
+            any("한빛전자" in v for v in org_values),
             f"회사명 열 값이 안 잡힘: {org_values}",
         )
         self.assertTrue(
-            any("테크노메가" in v for v in org_values),
+            any("대한소프트" in v for v in org_values),
             f"회사명 열 값이 안 잡힘: {org_values}",
         )
         # 옆 열("기간"/"경력")의 글자가 회사명 값에 안 섞여야 한다.
@@ -263,7 +263,7 @@ class TableColumnDetectIntegrationTest(unittest.TestCase):
             self.assertNotIn("디자인", value)
 
 
-@unittest.skipUnless(_tesseract_available(), "Tesseract-OCR이 설치되지 않은 환경")
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TableColumnSchoolExclusionIntegrationTest(unittest.TestCase):
     """"학교명" 헤더가 있는 표는 구조화 탐지의 영향을 받지 않아야 한다(학교명
@@ -311,95 +311,89 @@ class TableColumnSchoolExclusionIntegrationTest(unittest.TestCase):
         self.assertEqual(structured, [])
 
 
-class MergeAdjacentSyllablesTest(unittest.TestCase):
-    """실제 인보이스에서 실측한 좌표를 그대로 써서 순수 함수를 결정론적으로 검증한다.
-
-    end-to-end(이미지 → OCR → NER)로는 이 규칙을 안정적으로 재현할 수 없다 —
-    Tesseract가 언제 한 단어를 음절 단위로 쪼개는지는 폰트·해상도에 따라 달라져서
-    합성 테스트 이미지로는 실제 실패 그대로 재현되지 않았다. 대신 실제로 실패를
-    일으켰던 좌표값으로 함수 자체를 고정한다.
-    """
-
-    def test_touching_single_syllables_merge_into_one_word(self):
-        from backend.scanner.detectors import text_ocr
-
-        # 2026-09-17 실측: 서명란 "정수연"이 이 좌표로 세 단어로 쪼개져 나왔다.
-        line = [
-            ("정", (192.0, 2142.0, 213.0, 2168.0)),
-            ("수", (223.5, 2142.0, 241.0, 2168.0)),
-            ("연", (246.5, 2142.0, 265.0, 2168.0)),
-        ]
-        merged = text_ocr._merge_adjacent_syllables(line)
-        self.assertEqual([text for text, _ in merged], ["정수연"])
-
-    def test_far_apart_single_syllables_stay_separate(self):
-        from backend.scanner.detectors import text_ocr
-
-        # 같은 줄 번호로 묶였지만 실제로는 다른 열(라벨과 서명)에 있던 두 "정수연".
-        line = [
-            ("정", (192.0, 2142.0, 213.0, 2168.0)),
-            ("수", (223.5, 2142.0, 241.0, 2168.0)),
-            ("연", (246.5, 2142.0, 265.0, 2168.0)),
-            ("정", (1326.0, 2145.0, 1399.0, 2171.0)),
-            ("수", (1358.0, 2142.5, 1376.5, 2178.5)),
-            ("연", (1381.0, 2142.5, 1400.5, 2176.5)),
-        ]
-        merged = text_ocr._merge_adjacent_syllables(line)
-        self.assertEqual([text for text, _ in merged], ["정수연", "정수연"])
-
-    def test_multi_char_tokens_are_never_merged(self):
-        """"번호" + "01234"처럼 라벨과 값이 붙어 있어도, 한 글자짜리 한글이 아니면 안 합친다."""
-        from backend.scanner.detectors import text_ocr
-
-        line = [("번호", (269.0, 672.5, 304.5, 707.0)), ("01234", (302.0, 681.0, 386.0, 701.0))]
-        merged = text_ocr._merge_adjacent_syllables(line)
-        self.assertEqual([text for text, _ in merged], ["번호", "01234"])
-
-
 class DropOversizedTest(unittest.TestCase):
-    def test_glyphs_much_taller_than_median_body_text_are_dropped(self):
+    def test_glyphs_much_taller_than_median_body_text_are_flagged(self):
         """실측 버그: 제목("INVOICE", 본문의 3~4배 크기)이 NER에 회사명으로 오탐되어
-        마스킹 상자가 머리말 절반을 뒤덮었다. 본문 높이 중앙값보다 훨씬 큰 글자는
-        판정 대상에서 아예 빠지는지 확인한다."""
+        마스킹 상자가 머리말 절반을 뒤덮었다. 본문 높이 중앙값보다 훨씬 큰 줄이
+        오버사이즈로 표시되는지 확인한다.
+
+        줄은 버리지 않는다 — 이름을 큰 히어로 타이틀로 박아넣는 이력서
+        디자인에서는 그러면 이름 자체가 raw_text에서 사라져 NER이 볼 기회조차
+        없어졌다(실측). 대신 오버사이즈 표시만 돌려주고, `detect()`가 org
+        판정에만 그 표시를 적용한다."""
         from backend.scanner.detectors import text_ocr
 
-        entries = [
-            ((1, 1, 1), "받는", (0.0, 0.0, 40.0, 26.0), 26.0),
-            ((1, 1, 1), "분", (40.0, 0.0, 60.0, 25.0), 25.0),
-            ((1, 1, 2), "김하늘", (0.0, 30.0, 74.0, 56.0), 26.0),
-            ((1, 1, 3), "INVOICE", (0.0, 60.0, 231.0, 150.0), 90.0),
+        rows = [
+            [("받는 분", (0.0, 0.0, 60.0, 26.0))],
+            [("김하늘", (0.0, 30.0, 74.0, 56.0))],
+            [("INVOICE", (0.0, 60.0, 231.0, 150.0))],
         ]
-        kept = text_ocr._drop_oversized(entries)
-        self.assertEqual([text for _, text, _, _ in kept], ["받는", "분", "김하늘"])
+        flags = text_ocr._oversized_row_flags(rows)
+        self.assertEqual(flags, [False, False, True])
 
-    def test_uniformly_sized_document_keeps_every_word(self):
+    def test_uniformly_sized_document_flags_nothing(self):
         from backend.scanner.detectors import text_ocr
 
-        entries = [
-            ((1, 1, 1), "a", (0.0, 0.0, 10.0, 24.0), 24.0),
-            ((1, 1, 1), "b", (10.0, 0.0, 20.0, 26.0), 26.0),
-            ((1, 1, 1), "c", (20.0, 0.0, 30.0, 25.0), 25.0),
+        rows = [
+            [("a", (0.0, 0.0, 10.0, 24.0))],
+            [("b", (10.0, 0.0, 20.0, 26.0))],
+            [("c", (20.0, 0.0, 30.0, 25.0))],
         ]
-        kept = text_ocr._drop_oversized(entries)
-        self.assertEqual(len(kept), 3)
+        self.assertEqual(text_ocr._oversized_row_flags(rows), [False, False, False])
 
-    def test_digits_on_a_normal_line_are_not_dropped_as_a_title(self):
-        """실측 버그(2026-09-17, 실제 이력서 사진): Tesseract가 매기는 글자 bbox
-        높이가 한글 음절과 숫자 글리프에서 다르게 나온다 — 같은 줄인데 "생년월일"은
-        9px, 바로 옆 "1996.05.24"는 17px로 잡혔다. 토큰 하나하나를 문서 전체
-        중앙값과 비교하면 이 숫자가 "제목"으로 오인되어 생년월일이 통째로
-        사라진다. 줄 단위 대표 높이로 비교하면 이 편차가 묻혀야 한다."""
+    def test_oversized_line_org_finding_is_suppressed_but_person_is_not(self):
+        """`detect()` 통합 테스트: 제목 크기 회사명(INVOICE류)은 여전히 걸러지지만,
+        제목 크기로 인쇄된 사람 이름(이력서 히어로 타이틀)은 이제 잡힌다."""
+        from unittest.mock import patch
+
+        from backend.scanner import scan
         from backend.scanner.detectors import text_ocr
+        from backend.shared.schema import Finding
 
-        entries = [
-            ((1, 1, 1), "생명", (0.0, 0.0, 20.0, 9.0), 9.0),
-            ((1, 1, 2), "생년월일", (0.0, 20.0, 40.0, 29.0), 9.0),
-            ((1, 1, 2), "1996.05.24", (45.0, 20.0, 100.0, 37.0), 17.0),
-            ((1, 1, 2), "전", (105.0, 20.0, 115.0, 29.0), 9.0),
-            ((1, 1, 2), "화", (115.0, 20.0, 125.0, 37.0), 17.0),
+        lines = [
+            [("최민준", (10.0, 0.0, 200.0, 90.0))],  # 오버사이즈로 표시될 줄
+            [("연락처", (10.0, 120.0, 80.0, 146.0)), ("010-1234-5678", (90.0, 120.0, 220.0, 146.0))],
         ]
-        kept = text_ocr._drop_oversized(entries)
-        self.assertEqual([text for _, text, _, _ in kept], [text for _, text, _, _ in entries])
+        oversized_flags = [True, False]
+
+        def fake_scan_text(text, meta=None):
+            person_start = text.index("최민준")
+            phone_start = text.index("010-1234-5678")
+            return scan.ScanResult(
+                raw_text=text,
+                findings=[
+                    Finding(
+                        id="f_1",
+                        type="person",
+                        text="최민준",
+                        start=person_start,
+                        end=person_start + len("최민준"),
+                        confidence=0.9,
+                        reason="test",
+                        source="ner",
+                        evidence={},
+                    ),
+                    Finding(
+                        id="f_2",
+                        type="phone",
+                        text="010-1234-5678",
+                        start=phone_start,
+                        end=phone_start + len("010-1234-5678"),
+                        confidence=0.9,
+                        reason="test",
+                        source="rule",
+                        evidence={},
+                    ),
+                ],
+            )
+
+        with patch.object(text_ocr, "_ocr_lines", return_value=(lines, oversized_flags, lines)), \
+             patch.object(scan, "scan_text", side_effect=fake_scan_text):
+            findings = text_ocr.detect("fake.png")
+
+        types = {f["field"] for f in findings}
+        self.assertIn("person", types)
+        self.assertIn("phone", types)
 
 
 class TableColumnCellsTest(unittest.TestCase):
@@ -617,6 +611,259 @@ class TableColumnCellsTest(unittest.TestCase):
         cells = text_ocr._find_table_column_cells([header, row_with_label_bleed_only])
         self.assertEqual(cells, [])
 
+    def test_stops_before_the_next_tables_header_row(self) -> None:
+        """실측 재현(2026-09-18, 실제 지원서 사진 80-----.jpg): "직장명" 표
+        바로 밑에 표 사이 간격 없이 "자격증" 표("발급일자"/"자격증명"/"등급"
+        헤더)가 곧장 붙어 있었다. 두 표의 줄 간격이 완전히 같아서(44px)
+        세로 간격 검사로는 표 경계를 못 잡고, "발급일자"·"2020년 4월"이
+        회사명 값으로 잘못 잡혔다. 좌표는 그 표를 그대로 실측한 값이다."""
+        from backend.scanner.detectors import text_ocr
+
+        header = [
+            ("직장명", (388.0, 750.0, 458.0, 782.0)),
+            ("기간", (658.0, 752.0, 706.0, 780.0)),
+            ("주요업무", (938.0, 752.0, 1028.0, 782.0)),
+        ]
+        row_a = [
+            ("A식품", (338.0, 796.0, 402.0, 826.0)),
+            ("2021년 3월", (522.0, 796.0, 648.0, 826.0)),
+            ("2022년 5월", (676.0, 796.0, 804.0, 828.0)),
+            ("식품 포장 및 검수 작업", (860.0, 796.0, 1096.0, 828.0)),
+        ]
+        row_b = [
+            ("B식품", (338.0, 840.0, 400.0, 870.0)),
+            ("2022년 6월", (522.0, 840.0, 648.0, 870.0)),
+            ("2023년 2월", (676.0, 840.0, 802.0, 870.0)),
+            ("원재료 투입 및 혼합", (860.0, 840.0, 1066.0, 872.0)),
+        ]
+        row_c = [
+            ("C식품", (338.0, 884.0, 402.0, 914.0)),
+            ("2023년 3월", (522.0, 884.0, 648.0, 914.0)),
+            ("2024년 1월", (676.0, 884.0, 804.0, 914.0)),
+            ("위생 관리", (860.0, 884.0, 958.0, 916.0)),
+        ]
+        next_table_header = [
+            ("발급일자", (378.0, 928.0, 470.0, 960.0)),
+            ("자격증명", (636.0, 928.0, 728.0, 960.0)),
+            ("등급", (960.0, 928.0, 1004.0, 960.0)),
+        ]
+        next_table_row = [
+            ("2020년 4월", (338.0, 974.0, 464.0, 1004.0)),
+            ("영어 회화 능력 우수", (522.0, 972.0, 728.0, 1004.0)),
+            ("TOEIC 850점", (858.0, 974.0, 1000.0, 1004.0)),
+        ]
+        lines = [header, row_a, row_b, row_c, next_table_header, next_table_row]
+        cells = text_ocr._find_table_column_cells(lines)
+        values = {c["value"] for c in cells}
+        self.assertEqual(values, {"A식품", "B식품", "C식품"})
+
+
+class BboxForRangeSubWordInterpolationTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 지원서 사진): EasyOCR이 "지원동기" 문단 첫
+    줄 전체("저는 식품 공장에서... 홍길동입니다: A식품 B식품")를 검출 하나
+    (bbox 하나)로 묶어서 돌려줬다. 그 안에서 "홍길동"·"A식품"만 찾았는데
+    검출의 bbox 전체(문장 전체 폭)를 그대로 마스킹하면, 값과 무관한 문장
+    전체가 덮인다 — 사용자가 스크린샷으로 직접 지적함("그것만 안 보이게
+    해야지 통째로 삭제하면 안되지"). 단어 폭 안에서 글자 위치 비율만큼
+    좁혀야 한다."""
+
+    def test_match_in_the_middle_of_one_merged_word_is_narrowed(self):
+        from backend.scanner.detectors import text_ocr
+
+        # "저는유명한사람입니다" 10글자가 (0,0)~(200,20) 폭에 통째로 검출된
+        # 경우를 흉내낸다. 한 글자당 20px씩 균일하다고 가정하면, 5번째 글자
+        # ("한", 인덱스 4)부터 6번째("사"기 전, 인덱스 6 미포함)까지는 비례로는
+        # x=80~120이지만, 글자 폭 불균일 오차를 흡수하려고 평균 글자 폭(20px)
+        # 만큼 양옆으로 더 넓힌 x=60~140이 나와야 한다.
+        word = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 200.0, 20.0))
+        bbox = text_ocr._bbox_for_range([word], 4, 6)
+        self.assertAlmostEqual(bbox[0], 60.0)
+        self.assertAlmostEqual(bbox[2], 140.0)
+        self.assertEqual((bbox[1], bbox[3]), (0.0, 20.0))
+
+    def test_range_covering_the_whole_word_returns_the_original_bbox(self):
+        """회귀 방지: 구간이 단어 전체를 덮는 보통의 경우(대다수 findings)는
+        원래 단어 bbox 그대로 나와야 한다 — 근사 계산으로 기존 동작이 바뀌면
+        안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        word = text_ocr._Word(start=5, end=15, bbox=(50.0, 10.0, 150.0, 40.0))
+        bbox = text_ocr._bbox_for_range([word], 5, 15)
+        self.assertEqual(bbox, (50.0, 10.0, 150.0, 40.0))
+
+    def test_range_spanning_two_words_still_unions_both_narrowed_parts(self):
+        from backend.scanner.detectors import text_ocr
+
+        word_a = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 100.0, 20.0))
+        word_b = text_ocr._Word(start=11, end=21, bbox=(110.0, 0.0, 210.0, 20.0))
+        # 두 단어에 걸친 구간 — 첫 단어는 뒤쪽 절반만, 둘째 단어는 앞쪽 절반만.
+        # 각 단어 안에서 평균 글자 폭(10px)만큼 안전 여유를 더하되 그 단어
+        # 자신의 bbox 밖으로는 안 나간다: word_a는 [40, 100](오른쪽은 자기
+        # 끝에서 막힘), word_b는 [110, 170]. 둘을 합친 전체 범위가 [40, 170]이다.
+        bbox = text_ocr._bbox_for_range([word_a, word_b], 5, 16)
+        self.assertAlmostEqual(bbox[0], 40.0)
+        self.assertAlmostEqual(bbox[2], 170.0)
+
+
+class FindCareerListEntriesTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 이력서 사진 고미리.png): "경력정보" 섹션은
+    표가 아니라 목록이라 "회사명" 열 헤더가 없다. NER이 "디자인전략 매직
+    디자인 인수"는 아예 못 잡고 "리우나 주거디자인 콘텐츠 마케팅"은 사람
+    이름으로 잘못 잡아서, "연도 - 연도" 구조로 기하학적으로 잡는 함수를
+    추가했다. 좌표는 그 문서를 그대로 실측한 값이다."""
+
+    HEADER_ROW = [("경력정보", (436.0, 696.0, 570.0, 746.0))]
+    # 2단 레이아웃이라 왼쪽 칸("서초시...")이 같은 줄에 같이 잡힌다.
+    HEADER_ROW_WITH_LEFT_COLUMN_BLEED = [
+        ("서초시 미리동 미리로", (109.0, 681.0, 329.0, 717.0)),
+        ("128-9", (110.0, 714.0, 184.0, 744.0)),
+        ("경력정보", (436.0, 696.0, 570.0, 746.0)),
+    ]
+    ENTRY_1 = [
+        ("2006", (446.0, 768.0, 510.0, 798.0)),
+        ("2011", (522.0, 770.0, 582.0, 796.0)),
+        ("디자인전락 매직 디자인 인수", (639.0, 765.0, 943.0, 801.0)),
+    ]
+    # 왼쪽 칸("자격증" 섹션)의 글자가 같이 잡힌 행 — 열 필터가 걸러내야 한다.
+    LEFT_COLUMN_ONLY_ROW = [
+        ("자격증", (43.0, 813.0, 139.0, 857.0)),
+        ("주요 업무 내용이 입력해주세요", (640.0, 804.0, 922.0, 834.0)),
+    ]
+    ENTRY_2_WITH_LEFT_BLEED = [
+        ("2008.03", (52.0, 926.0, 141.0, 952.0)),
+        ("전산운용기능사", (162.0, 924.0, 328.0, 956.0)),
+        ("2006", (446.0, 938.0, 510.0, 966.0)),
+        ("2009", (522.0, 938.0, 586.0, 966.0)),
+        ("(주) MD 디자인예이전시 인터 근무", (638.0, 938.0, 990.0, 970.0)),
+    ]
+    # 연도만 있고 회사명 글자가 이 행엔 없는 경우(다른 행에 있거나 OCR이
+    # 못 읽음) — 값 없이 끝나면 항목을 만들면 안 된다.
+    YEARS_WITHOUT_A_VALUE_ROW = [
+        ("2008.05", (52.0, 1016.0, 144.0, 1044.0)),
+        ("GTQ 일러스트 1급", (162.0, 1014.0, 356.0, 1046.0)),
+        ("2006", (446.0, 1024.0, 510.0, 1054.0)),
+        ("2009", (522.0, 1024.0, 586.0, 1052.0)),
+    ]
+    NEXT_SECTION_ROW = [
+        ("기술 숙권도", (45.0, 1129.0, 207.0, 1173.0)),
+        ("수상경력", (434.0, 1142.0, 568.0, 1192.0)),
+    ]
+
+    def test_entries_after_year_range_are_caught_with_left_column_excluded(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        lines = [
+            self.HEADER_ROW_WITH_LEFT_COLUMN_BLEED,
+            self.ENTRY_1,
+            self.LEFT_COLUMN_ONLY_ROW,
+            self.ENTRY_2_WITH_LEFT_BLEED,
+            self.YEARS_WITHOUT_A_VALUE_ROW,
+            self.NEXT_SECTION_ROW,
+        ]
+        results = text_ocr._find_career_list_entries(lines)
+        values = {r["value"] for r in results}
+        self.assertEqual(values, {"디자인전락 매직 디자인 인수", "(주) MD 디자인예이전시 인터 근무"})
+        for r in results:
+            self.assertEqual(r["field"], "org")
+            # 왼쪽 칸 글자("자격증"·"전산운용기능사" 등)가 값에 안 섞여야 한다.
+            self.assertNotIn("전산운용기능사", r["value"])
+            self.assertNotIn("자격증", r["value"])
+
+    def test_row_with_only_years_and_no_trailing_text_produces_nothing(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        lines = [self.HEADER_ROW, self.YEARS_WITHOUT_A_VALUE_ROW]
+        self.assertEqual(text_ocr._find_career_list_entries(lines), [])
+
+    def test_no_header_produces_nothing(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        self.assertEqual(text_ocr._find_career_list_entries([self.ENTRY_1]), [])
+
+    def test_defers_to_the_real_table_detector_when_column_headers_are_present(self) -> None:
+        """실측 재현(2026-09-18, 실제 이력서 사진 865f267df9c220bf.jpg): "경력사항"이
+        진짜 표(회사명/경력/소속 열이 있는)의 제목으로 쓰인 문서도 있다. 그 표는
+        `_find_table_column_cells`가 이미 정확히 처리하므로, 이 함수는 그 구간에
+        진짜 열 헤더가 보이면 아무것도 잡지 않고 물러나야 한다 — 안 그러면
+        여러 열의 글자를 한 값으로 뭉쳐 잡는다."""
+        from backend.scanner.detectors import text_ocr
+
+        career_title = [("경력사항", (25.0, 337.0, 71.0, 353.0))]
+        real_table_header = [
+            ("기간", (63.0, 367.0, 85.0, 381.0)),
+            ("회사명", (140.5, 369.5, 165.5, 379.0)),
+            ("경력", (252.5, 369.5, 268.5, 379.0)),
+            ("소속", (357.5, 370.0, 374.0, 379.0)),
+        ]
+        data_row = [
+            ("2022", (47.0, 427.0, 71.0, 439.0)),
+            ("2023", (75.0, 427.0, 101.0, 439.0)),
+            ("Liceria", (125.0, 427.0, 157.0, 439.0)),
+            ("디자인팀", (347.0, 427.0, 385.0, 441.0)),
+        ]
+        lines = [career_title, real_table_header, data_row]
+        self.assertEqual(text_ocr._find_career_list_entries(lines), [])
+
+
+class FindCrossReferencedValuesTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 지원서 사진): "직장명" 표에서 "A식품"/"B식품"이
+    회사명으로 확정됐는데, 바로 아래 "지원동기" 자기소개서 문단에 똑같이 적힌
+    "A식품, B식품"은 NER이 하나도 못 잡았다(같은 문장의 사람 이름 "홍길동"은
+    잡히는 것과 대비 — NER 모델 자체가 이 모양의 회사명에 약하다). 표에서
+    이미 확정된 값과 똑같은 문자열이 다른 자리에도 나오면 같이 잡아야 한다."""
+
+    def test_value_confirmed_by_table_is_found_again_in_free_text(self):
+        """`_bbox_for_range`가 검출 하나(문장 전체)의 일부만 비례로 좁혀 돌려주므로
+        (실측 재현: 2026-09-18, 아래 `BboxForRangeSubWordInterpolationTest` 참고),
+        여기서 나오는 bbox는 문장 전체 폭이 아니라 "A식품" 위치 근처로 좁아야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "저는 식품 공장에서 근무한 홍길동입니다. A식품에서 일했습니다."
+        sentence_bbox = (0.0, 0.0, 500.0, 20.0)
+        _t, words, _o = text_ocr._words_from_lines([[(text, sentence_bbox)]])
+        table_cells = [
+            {"field": "org", "value": "A식품", "bbox": (600.0, 600.0, 650.0, 620.0)}
+        ]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["field"], "org")
+        self.assertEqual(found[0]["value"], "A식품")
+        left, top, right, bottom = found[0]["bbox"]
+        self.assertEqual((top, bottom), (0.0, 20.0))
+        self.assertLess(right - left, sentence_bbox[2] - sentence_bbox[0])
+        self.assertGreater(left, 0.0)
+        self.assertLess(right, 500.0)
+
+    def test_the_table_cells_own_position_is_not_duplicated(self):
+        """표 셀 자기 자신의 자리(=table_cells가 이미 갖고 있는 bbox)는
+        다시 잡으면 안 된다 — 안 그러면 같은 값이 같은 자리에서 두 번 잡힌다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "A식품"
+        _t, words, _o = text_ocr._words_from_lines([[(text, (10.0, 10.0, 60.0, 30.0))]])
+        table_cells = [{"field": "org", "value": "A식품", "bbox": (10.0, 10.0, 60.0, 30.0)}]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(found, [])
+
+    def test_unread_placeholder_cells_are_not_searched_for(self):
+        """`_collect_column_rows`가 값을 못 읽어 방어적으로 채운 자리
+        ("{라벨} 미확인 값")는 실제 값이 아니므로 그 문구를 문서에서 찾지
+        않는다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "직장명 미확인 값이라는 말이 우연히 나온 문장입니다."
+        _t, words, _o = text_ocr._words_from_lines([[(text, (0.0, 0.0, 500.0, 20.0))]])
+        table_cells = [
+            {
+                "field": "org",
+                "value": "직장명 미확인 값",
+                "bbox": (600.0, 600.0, 650.0, 620.0),
+                "evidence": {"unread": True},
+            }
+        ]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(found, [])
+
 
 class MergeTableCellsTest(unittest.TestCase):
     def test_overlapping_finding_is_replaced(self):
@@ -647,6 +894,97 @@ class MergeTableCellsTest(unittest.TestCase):
         table_cells = [{"field": "org", "value": "Real Co.", "bbox": (0.0, 0.0, 90.0, 10.0)}]
         merged = text_ocr._merge_table_cells(findings, table_cells)
         self.assertEqual(merged, table_cells)
+
+
+class NormalizeDigitConfusableLettersTest(unittest.TestCase):
+    """실측 재현(2026-09-18): 실제 이력서 사진에서 전화번호 "010-000-0000"의
+    "0"이 EasyOCR로 "O"(영문자)로 읽혀 "010-000-0OOO"가 됐다. 전화번호
+    정규식은 순수 숫자만 받으므로 이 값을 통째로 놓쳤다."""
+
+    def test_letter_o_inside_digit_run_is_restored_to_zero(self):
+        from backend.scanner.detectors import text_ocr
+
+        self.assertEqual(
+            text_ocr._normalize_digit_confusable_letters("전화 010-000-0OOO 문의"),
+            "전화 010-000-0000 문의",
+        )
+
+    def test_length_is_unchanged_so_offsets_stay_valid(self):
+        """한 글자를 한 글자로만 바꿔야 한다 — 길이가 바뀌면 이미 만들어 둔
+        `_Word.start/end` 오프셋이 어긋난다."""
+        from backend.scanner.detectors import text_ocr
+
+        original = "전화 010-000-0OOO 문의"
+        normalized = text_ocr._normalize_digit_confusable_letters(original)
+        self.assertEqual(len(original), len(normalized))
+
+    def test_letters_far_from_any_digit_are_untouched(self):
+        """숫자가 하나도 안 섞인 "O"는 영문 단어의 일부일 수 있다 — 건드리면 안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        self.assertEqual(
+            text_ocr._normalize_digit_confusable_letters("iOS 앱 개발, TOEIC 900점"),
+            "iOS 앱 개발, TOEIC 900점",
+        )
+
+
+class RowIsSingleClusterTest(unittest.TestCase):
+    """실측 재현(2026-09-18): 2단 이력서 레이아웃에서 왼쪽 "개인정보"와 오른쪽
+    "학력사항"이 같은 세로 위치라 한 줄로 묶였다. 둘 다 개별적으로는 라벨처럼
+    보여서(`_looks_like_label`), 그 줄이 통째로 다음 줄("고미리" 이름이 있는
+    줄)에 공백으로 이어붙었다 — "개인정보 학력사항 고미리 2008 2011
+    예지디자인고등학교"라는 뒤죽박죽 문맥이 되어 NER이 "고미리"를 이름으로
+    못 알아봤다(같은 이름을 단독으로 넣으면 잡힘). 서로 멀리 떨어진 항목이
+    줄 안에 있으면 라벨로 취급하지 않아야 한다."""
+
+    def test_two_far_apart_section_headers_are_not_a_single_label(self):
+        from backend.scanner.detectors import text_ocr
+
+        line = [
+            ("개인정보", (42.0, 416.0, 166.0, 464.0)),
+            ("학력사항", (436.0, 402.0, 572.0, 450.0)),
+        ]
+        self.assertFalse(text_ocr._row_is_single_cluster(line))
+
+    def test_words_of_one_real_phrase_stay_a_single_label(self):
+        from backend.scanner.detectors import text_ocr
+
+        line = [
+            ("입금", (0.0, 0.0, 40.0, 26.0)),
+            ("계좌", (44.0, 0.0, 84.0, 26.0)),
+        ]
+        self.assertTrue(text_ocr._row_is_single_cluster(line))
+
+    def test_single_word_row_is_trivially_a_single_cluster(self):
+        from backend.scanner.detectors import text_ocr
+
+        self.assertTrue(text_ocr._row_is_single_cluster([("입금계좌", (0.0, 0.0, 80.0, 26.0))]))
+
+    def test_words_from_lines_does_not_glue_across_unrelated_section_headers(self):
+        """`_words_from_lines`까지 통합해서, 실제로 줄바꿈으로 끊기는지 확인한다."""
+        from backend.scanner.detectors import text_ocr
+
+        lines = [
+            [
+                ("개인정보", (42.0, 416.0, 166.0, 464.0)),
+                ("학력사항", (436.0, 402.0, 572.0, 450.0)),
+            ],
+            [("고미리", (110.0, 488.0, 180.0, 520.0))],
+        ]
+        text, _words, _oversized = text_ocr._words_from_lines(lines)
+        self.assertIn("\n", text)
+        self.assertNotIn("학력사항 고미리", text)
+
+    def test_words_from_lines_still_glues_a_real_label_to_its_value(self):
+        """회귀 방지: 진짜 라벨-값 이어붙이기(`_looks_like_label`)는 계속 살아있어야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        lines = [
+            [("입금", (0.0, 0.0, 40.0, 26.0)), ("계좌", (44.0, 0.0, 84.0, 26.0))],
+            [("국민", (0.0, 30.0, 40.0, 56.0)), ("6127-02-384915", (44.0, 30.0, 200.0, 56.0))],
+        ]
+        text, _words, _oversized = text_ocr._words_from_lines(lines)
+        self.assertEqual(text, "입금 계좌 국민 6127-02-384915")
 
 
 if __name__ == "__main__":
