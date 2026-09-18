@@ -168,9 +168,33 @@ _BIRTH_DATE_PATTERN = re.compile(
 _BIRTH_DATE_CUE = re.compile(r"생\s*년\s*월\s*일|생\s*일|DOB", re.IGNORECASE)
 _BIRTH_DATE_CUE_WINDOW = 10
 
+# 캔바·미리캔버스류 이력서 템플릿은 "생년월일"이라는 글자 대신 사람 아이콘을
+# 라벨로 쓴다(실측: 2026-09-18). 아이콘은 OCR로 글자를 못 읽으니 앞쪽 단서어가
+# 아예 없어서 위 _BIRTH_DATE_CUE만으로는 이런 날짜를 영영 놓친다. 그런데 이
+# 템플릿들은 거의 항상 날짜 바로 뒤에 혈액형("1993.01.14 | B형")을 붙인다 —
+# 혈액형 표기는 경력·자격증 표의 다른 날짜 옆에는 나올 이유가 없는, 개인정보
+# 줄에서만 보이는 특이적인 단서라 뒤쪽에서 찾아도 오탐 위험이 낮다.
+#
+# 혈액형 글자(A/B/O/AB)까지 정확히 요구하지 않는다 — OCR이 "B"를 다른 문자로
+# 오인식하는 경우가 실제로 있었다(실측: 2026-09-18, Tesseract에서 "B"가 "『"로
+# 읽혀 "1993.01.14 | 『 형"이 됐다). 값 자체는 못 믿어도 날짜 바로 뒤에 붙은
+# 한두 글자짜리 "…형" 구조는 이 템플릿들의 혈액형 표기에서만 나오는 형태라
+# 여전히 믿을 만한 단서다.
+#
+# "|" 구분자는 더 이상 필수로 요구하지 않는다 — 처음엔 그 구분자 없이 "형"만
+# 보고 걸면 "직사각형"·"A형 간염"처럼 무관한 단어에도 걸릴까봐 필수로 뒀는데,
+# EasyOCR로 엔진을 바꾼 뒤 실측(2026-09-18)해보니 이 "|"처럼 가느다란 구분
+# 기호는 EasyOCR이 아예 글자로 검출하지 않아("1993.01.14 B형"처럼 공백만
+# 남음) 그 조건 자체가 항상 거짓이 돼버렸다. 대신 "형 앞 두 글자까지만" 이라는
+# 길이 제한이 이미 "직사각형"(형 앞 세 글자)류를 걸러낸다 — "A형 간염"처럼
+# 정말로 두 글자 이내인 무관한 단어가 날짜 바로 뒤에 오는 경우는 이력서
+# 문서군에서 나올 가능성이 낮다고 보고 감수한다.
+_BIRTH_DATE_TRAILING_CUE = re.compile(r"^\s*[|｜]?\s*\S{0,2}\s*형")
+_BIRTH_DATE_TRAILING_WINDOW = 8
+
 
 def find_birth_dates(text: str) -> list[dict]:
-    """"생년월일" 같은 단서어 뒤 15자 이내에 온 날짜만 생년월일로 받는다.
+    """"생년월일" 단서어 앞이나 혈액형 단서어 뒤에 온 날짜만 생년월일로 받는다.
 
     실존하는 날짜인지도 확인한다 — "1996.13.40"처럼 단서어 옆에 있어도 달력에
     없는 값은 버린다.
@@ -178,7 +202,10 @@ def find_birth_dates(text: str) -> list[dict]:
     matches = []
     for m in _BIRTH_DATE_PATTERN.finditer(text):
         window_start = max(0, m.start() - _BIRTH_DATE_CUE_WINDOW)
-        if not _BIRTH_DATE_CUE.search(text[window_start : m.start()]):
+        has_leading_cue = bool(_BIRTH_DATE_CUE.search(text[window_start : m.start()]))
+        trailing = text[m.end() : m.end() + _BIRTH_DATE_TRAILING_WINDOW]
+        has_trailing_cue = bool(_BIRTH_DATE_TRAILING_CUE.match(trailing))
+        if not (has_leading_cue or has_trailing_cue):
             continue
         digits = re.findall(r"\d+", m.group())
         if len(digits) != 3:
@@ -354,7 +381,17 @@ API_KEY_OR_TOKEN_PATTERN = re.compile(
 #
 # 앞쪽 경계(?<!한글·영문·숫자)는 성능 때문에 필요하다. 없으면 띄어쓰기 없는 긴 한글열에서
 # 모든 글자 위치마다 행정구역 이름을 처음부터 다시 맞춰 보느라 느려진다.
-_ADDRESS_ADMIN_UNIT = r"[가-힣]+(?:특별시|광역시|특별자치시|특별자치도|도|시|군|구)"
+#
+# "특별시"/"광역시"/"특별자치시"/"특별자치도" 음절 사이에는 OCR이 끼워 넣는 공백을
+# 허용한다(실측: 2026-09-18, 이력서 사진에서 위치 핀 아이콘 옆의 "서울특별시"가
+# "울특 별시"로 읽혀 "서"까지 통째로 사라졌다). 공백 없이 "특별시" 전체를 하나의
+# 리터럴로만 받으면 이 깨진 형태는 아예 매칭되지 않고, 정규식이 그다음으로 유효한
+# 단위인 "별시"("~시"로 끝나는 2글자)부터 매칭을 시작해 앞의 "울특"이 그대로
+# 노출된다. 음절 사이 공백을 허용하면 적어도 "울특별시"까지는 한 덩어리로 잡혀
+# 노출 범위가 줄어든다("서" 한 글자는 OCR이 아예 안 읽어서 이 정규식으로는 못 살린다).
+_ADDRESS_ADMIN_UNIT = (
+    r"[가-힣]+(?:특\s?별\s?시|광\s?역\s?시|특\s?별\s?자\s?치\s?시|특\s?별\s?자\s?치\s?도|도|시|군|구)"
+)
 _ADDRESS_ROAD_NAME = r"[가-힣A-Za-z0-9·]+(?:대로|로|길)(?:\d+번길)?"
 _ADDRESS_JIBUN_NAME = r"[가-힣A-Za-z0-9·]+(?:동|가|읍|면|리)"
 _ADDRESS_BUILDING = r"[가-힣A-Za-z0-9·]+(?:아파트|빌라|오피스텔|타워|주택)"
@@ -379,9 +416,18 @@ _ADDRESS_TAIL = (
 )
 _ADDRESS_ROAD_BASE = rf"{_ADDRESS_ROAD_NAME}\s+(?:지하\s*)?\d+(?:-\d+)?"
 _ADDRESS_JIBUN_BASE = rf"{_ADDRESS_JIBUN_NAME}\s+(?:산\s*|지하\s*)?\d+(?:-\d+)?"
+
+# 시·도·구 다음에 번지 없는 동 이름이 오고, 그 뒤에야 도로명이 오는 4단 주소도
+# 있다("서초시 미리동 미리로 128-9") — 실측(2026-09-18, 이력서 사진).
+# 지금까지는 admin 단위 바로 다음에 도로명(로/길)이나 번지가 붙은 지번(동/가/
+# 읍/면/리) 둘 중 하나만 곧장 온다고 가정했는데, 이 형태는 번지 없는 동 이름이
+# 도로명 앞에 하나 더 낀다. 그 동 이름을 선택적으로 하나 더 받는다 — 없어도
+# 기존 형태(도로명으로 바로 시작하거나 지번으로 끝나는 주소)는 그대로 받힌다.
+_ADDRESS_LOCALITY = rf"{_ADDRESS_JIBUN_NAME}\s+"
 ADDRESS_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
     rf"(?:{_ADDRESS_ADMIN_UNIT}\s+){{1,4}}"
+    rf"(?:{_ADDRESS_LOCALITY})?"
     rf"(?:{_ADDRESS_ROAD_BASE}|{_ADDRESS_JIBUN_BASE})"
     rf"{_ADDRESS_TAIL}"
 )

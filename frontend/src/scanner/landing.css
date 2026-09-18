@@ -59,16 +59,6 @@
 }
 
 /* ---------- 공통 글자 ---------- */
-/* 구역 머리말. 옆 목록(SectionRail)과 같은 한국어 이름을 쓴다. 한국어라 본문 글꼴로 두는데,
-   고정폭 글꼴에는 한글이 없어 어차피 폴백되고 영문용 자간(0.16em)은 한글을 흩어 놓는다. */
-.landing-eyebrow {
-  color: var(--color-primary);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.02em;
-}
-
 .landing-h2 {
   margin-top: var(--space-4);
   font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.875rem);
@@ -1172,8 +1162,11 @@
 }
 
 @media (min-width: 960px) {
+  /* 오른쪽(스캔 애니메이션)을 글 쪽보다 조금 넓게 준다. 애니메이션 무대는 제 칸 너비에
+     맞춰 커지므로 이 비율이 곧 크기다. 글 쪽은 서브카피가 max-width 46ch로 묶여 있어
+     조금 좁아져도 줄바꿈이 달라지지 않는다. */
   .landing-hero {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
     gap: var(--space-10);
   }
 
