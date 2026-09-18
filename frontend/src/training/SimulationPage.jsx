@@ -26,6 +26,21 @@ const LEVEL_INFO = {
   },
 }
 
+const PRIVATE_FIELD_LABELS = {
+  PHONE: '휴대전화 번호',
+  EMAIL: '이메일 주소',
+  ACCOUNT: '계좌번호',
+  CARD: '카드 번호',
+  RRN: '주민등록번호',
+}
+
+function displayAttackerMessage(text) {
+  return text.replace(
+    /\[(PHONE|EMAIL|ACCOUNT|CARD|RRN)\]/g,
+    (_, field) => PRIVATE_FIELD_LABELS[field],
+  )
+}
+
 export default function SimulationPage({ training, navigate }) {
   const [thread, setThread] = useState(() =>
     training?.firstMessage
@@ -224,7 +239,9 @@ export default function SimulationPage({ training, navigate }) {
                 </span>
 
                 <p className="thread__text">
-                  {message.text}
+                  {message.role === 'attacker'
+                    ? displayAttackerMessage(message.text)
+                    : message.text}
                 </p>
 
               </li>
