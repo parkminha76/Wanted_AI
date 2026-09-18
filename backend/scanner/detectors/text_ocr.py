@@ -160,6 +160,118 @@ _MAX_TABLE_ROWS = 20
 # 섹션 제목도 왼쪽 정렬이면 겹쳐 보임) 잘 안 걸려서 보조 신호로만 같이 쓴다.
 _TABLE_ROW_GAP_RATIO = 1.75
 
+# "경력정보" 같은 목록형 섹션(표 헤더 없이 "연도 - 연도  회사 설명" 줄이 나열된
+# 형태)에서 쓴다. `_COLUMN_FIELD_LABELS`와 달리 표 열이 아니라 섹션 제목이다
+# (실측: 2026-09-18, 이력서 사진 — "경력정보" 밑에 이런 목록이 있었는데 NER이
+# "디자인전략 매직 디자인 인수"는 아예 못 잡고 "리우나 주거디자인 콘텐츠
+# 마케팅"은 사람 이름으로 잘못 잡았다). `_find_career_list_entries` 참고.
+_CAREER_LIST_HEADERS: dict[str, str] = {
+    "경력정보": "org",
+    "경력사항": "org",
+    "근무경력": "org",
+    "직장경력": "org",
+}
+
+# 헤더보다 이만큼 왼쪽까지는 "같은 열"로 본다. 2단 레이아웃에서 왼쪽 칸 글자가
+# 같은 가로줄에 섞여 들어오는 걸 걸러내는 데 쓴다(`_find_career_list_entries`
+# 주석의 "전산운용기능사" 실측 사례 참고) — 헤더 자신보다 왼쪽에 있는 글자는
+# 다른 열의 내용일 가능성이 크다.
+_CAREER_LIST_COLUMN_MARGIN = 40.0
+
+# 항목이 "연도 - 연도"로 시작하는지 볼 때 쓴다. 4자리 두 개를 그대로 요구한다
+# — "수상경력"의 "2008. 06"(연도 + 월)과 모양이 달라서, 이 패턴이 옆 섹션까지
+# 잘못 삼킬 위험이 낮다.
+_BARE_YEAR = re.compile(r"^(?:19|20)\d{2}$")
+
+# 헤더 아래로 몇 줄까지 훑을지, 줄 사이 간격이 얼마나 벌어지면 목록을 벗어난
+# 것으로 볼지 — `_MAX_TABLE_ROWS`/`_TABLE_ROW_GAP_RATIO`와 같은 값을 그대로 쓴다.
+_CAREER_LIST_MAX_ROWS = _MAX_TABLE_ROWS
+_CAREER_LIST_ROW_GAP_RATIO = _TABLE_ROW_GAP_RATIO
+
+
+def _find_career_list_entries(lines: list[list[tuple[str, tuple]]]) -> list[dict]:
+    """"경력정보" 같은 목록형 섹션에서 "연도 - 연도" 뒤에 오는 글자를 회사명으로 잡는다.
+
+    `_find_table_column_cells`는 "회사명" 같은 열 헤더가 있는 진짜 표에만 쓸 수
+    있다. 표가 아니라 목록인 섹션은 그런 헤더가 없어 NER에 기대야 하는데,
+    NER이 이 모양의 회사명(짧은 고유명사+일반명사 조합, 조사 없는 나열문)에
+    약하다는 게 이 세션에서 거듭 확인됐다(`디자인전략 매직 디자인 인수`,
+    `리우나 주거디자인 콘텐츠 마케팅` 등). 대신 이 섹션의 항목이 전부
+    "연도 - 연도  회사 설명" 형태라는 구조를 이용해 기하학적으로 잡는다 —
+    NER 추론이 아니라 `_find_table_column_cells`와 같은 접근이다.
+
+    2단 레이아웃이라 같은 가로줄에 왼쪽 칸("자격증" 등)의 글자가 같이 잡힐 수
+    있다(실측: "2008.03 전산운용기능사"와 "2006 2009 (주) MD..."가 한 줄로
+    묶임). 그래서 헤더와 같은 x축(그 왼쪽 경계 근처)에 있는 단어만 후보로
+    보고, 그보다 왼쪽에 있는 다른 열의 글자는 애초에 뺀다.
+
+    값의 bbox는 문자 위치 비례 계산(`_bbox_for_range`)이 아니라 그 항목에
+    실제로 걸린 단어들의 bbox를 그대로 합친 것이다 — 단어 하나하나가 이미
+    분리돼 있어서 근사가 필요 없다.
+
+    "경력정보"/"경력사항" 같은 섹션 제목은 진짜 표(예: "기간"/"회사명"/"경력"/
+    "소속" 열 헤더가 있는 표)의 제목으로도 쓰인다(실측: 2026-09-18, "이력서"
+    샘플 — `_find_table_column_cells`가 이미 정확히 처리하는 문서인데, 이
+    함수가 "경력사항"이라는 같은 제목만 보고 또 훑다가 "회사명"·"경력"·"소속"
+    여러 칸의 글자를 한 값으로 뭉쳐 잡았다). 그래서 훑을 구간 안에
+    `_match_header_labels`가 인식하는 진짜 열 헤더 행이 하나라도 있으면, 그건
+    표라는 뜻이므로 이 섹션 전체를 건너뛴다 — `_find_table_column_cells`가
+    이미 담당한다.
+    """
+    results: list[dict] = []
+    for header_index, line in enumerate(lines):
+        header = next(
+            ((text, bbox) for text, bbox in line if text in _CAREER_LIST_HEADERS), None
+        )
+        if header is None:
+            continue
+        header_text, header_bbox = header
+        field = _CAREER_LIST_HEADERS[header_text]
+        column_left = header_bbox[0] - _CAREER_LIST_COLUMN_MARGIN
+
+        window = lines[header_index + 1 : header_index + 1 + _CAREER_LIST_MAX_ROWS]
+        if any(_match_header_labels(row) for row in window):
+            continue
+
+        row_heights = [header_bbox[3] - header_bbox[1]]
+        previous_bottom = header_bbox[3]
+        for row in window:
+            top, bottom = _line_span(row)
+            gap = top - previous_bottom
+            if gap > statistics.median(row_heights) * _CAREER_LIST_ROW_GAP_RATIO:
+                break
+            row_heights.append(bottom - top)
+            previous_bottom = bottom
+
+            column_words = [(text, bbox) for text, bbox in row if bbox[0] >= column_left]
+            if len(column_words) < 3:
+                continue
+            first_text, _first_bbox = column_words[0]
+            second_text, _second_bbox = column_words[1]
+            if not (_BARE_YEAR.match(first_text) and _BARE_YEAR.match(second_text)):
+                continue
+
+            remainder = column_words[2:]
+            value = " ".join(text for text, _bbox in remainder)
+            cell_bbox = remainder[0][1]
+            for _text, bbox in remainder[1:]:
+                cell_bbox = _union(cell_bbox, bbox)
+            results.append(
+                {
+                    "field": field,
+                    "value": value,
+                    "start": 0,
+                    "end": 0,
+                    "confidence": 0.85,
+                    "bbox": cell_bbox,
+                    "page": 1,
+                    "reason": f'"{header_text}" 목록에서 연도 뒤에 오는 글자를 회사명으로 판단',
+                    "evidence": {"ocr": True, "career_list_entry": True},
+                    "source": "rule",
+                }
+            )
+    return results
+
 
 def _looks_like_label(line_text: str) -> bool:
     """실제 서식 라벨("입금 계좌" 등)만 다음 줄과 이어 붙인다.
@@ -408,10 +520,18 @@ def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
     그 안에서 "A식품"만 찾았다고 해서 검출의 bbox 전체(문장 전체 폭)를
     그대로 돌려주면, 값과 무관한 문장 전체가 마스킹으로 덮인다. 그래서 구간이
     한 단어의 일부만 겹치면, 그 단어 폭 안에서 글자 위치 비율만큼 가로로
-    좁혀 돌려준다(글자 폭이 균일하다는 근사라 정확하지는 않지만, 문장 전체를
-    덮는 것보다는 훨씬 낫다 — mask.py의 패딩이 이 근사의 오차를 어느 정도
-    흡수한다). 구간이 단어 전체를 덮으면(대부분의 경우) 비율이 0~1이 되어
+    좁혀 돌려준다. 구간이 단어 전체를 덮으면(대부분의 경우) 비율이 0~1이 되어
     원래 단어 bbox 그대로 나온다 — 기존 동작과 같다.
+
+    "글자 폭이 균일하다"는 가정은 따옴표·공백처럼 실제로는 훨씬 좁은 글자가
+    섞여 있으면 깨진다(실측: 2026-09-18, "'쎄게다' 예술아카데미 회원 브랜딩"
+    한 줄 안에서 "쎄게다"를 좁혀 잡았더니, 앞의 따옴표·공백이 평균보다
+    좁아서 계산이 실제 위치보다 오른쪽으로 밀려 "쎄" 글자 왼쪽 절반이 가려지지
+    않고 그대로 노출됐다 — 문장 전체를 덮던 예전 문제와 반대로, 이번엔 **덜**
+    가려져서 더 위험하다). 그래서 평균 글자 폭 하나만큼 양옆으로 더 넓혀
+    돌려준다 — 이 근사가 어느 방향으로 틀리든 그 오차를 흡수할 여유를 준다.
+    단어 자기 자신의 bbox 밖으로는 안 나간다(그러면 예전의 "문장 전체 덮기"
+    문제가 되살아난다).
     """
     boxes: list[tuple[float, float, float, float]] = []
     for w in words:
@@ -425,8 +545,11 @@ def _bbox_for_range(words: list[_Word], start: int, end: int) -> tuple | None:
         overlap_start = max(w.start, start)
         overlap_end = min(w.end, end)
         width = right - left
-        sub_left = left + width * (overlap_start - w.start) / word_length
-        sub_right = left + width * (overlap_end - w.start) / word_length
+        char_width = width / word_length
+        sub_left = left + width * (overlap_start - w.start) / word_length - char_width
+        sub_right = left + width * (overlap_end - w.start) / word_length + char_width
+        sub_left = max(left, sub_left)
+        sub_right = min(right, sub_right)
         boxes.append((sub_left, top, sub_right, bottom))
     if not boxes:
         return None
@@ -871,7 +994,17 @@ def detect(path: str) -> list[dict]:
         lines, oversized_flags, weak_lines = _ocr_lines(path)
         text, words, oversized_ranges = _words_from_lines(lines, oversized_flags)
         weak_text, weak_words, _weak_oversized = _words_from_lines(weak_lines)
-        table_cells = _find_table_column_cells(lines)
+        # `_find_career_list_entries`는 NER이 아니라 "연도 - 연도" 뒤 글자를
+        # 기하학적으로만 뽑는 순수 구조 판정이라, 확신도 낮은 `weak_lines`에
+        # 돌려도 `scan_text`(NER·인젝션)로 잡음이 들어가는 위험이 없다 — 그래서
+        # `_EASYOCR_MIN_CONFIDENCE`에 걸려 `lines`에는 없는 항목까지 마저 본다
+        # (실측: 2026-09-18, 확신도 0.23으로 잡힌 "(주) 리우나 주거디자인..."
+        # 항목).
+        table_cells = (
+            _find_table_column_cells(lines)
+            + _find_career_list_entries(lines)
+            + _find_career_list_entries(weak_lines)
+        )
     except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다. OCR 모델이
         return []          # 없거나 이미지가 깨졌어도 이 검사만 건너뛰면 된다. 표 열
                             # 인식(`_find_table_column_cells`)은 순수 함수라 원래

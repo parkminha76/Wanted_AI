@@ -672,12 +672,13 @@ class BboxForRangeSubWordInterpolationTest(unittest.TestCase):
 
         # "저는유명한사람입니다" 10글자가 (0,0)~(200,20) 폭에 통째로 검출된
         # 경우를 흉내낸다. 한 글자당 20px씩 균일하다고 가정하면, 5번째 글자
-        # ("한", 인덱스 4)부터 6번째("사"기 전, 인덱스 6 미포함)까지는
-        # x=80~120이어야 한다.
+        # ("한", 인덱스 4)부터 6번째("사"기 전, 인덱스 6 미포함)까지는 비례로는
+        # x=80~120이지만, 글자 폭 불균일 오차를 흡수하려고 평균 글자 폭(20px)
+        # 만큼 양옆으로 더 넓힌 x=60~140이 나와야 한다.
         word = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 200.0, 20.0))
         bbox = text_ocr._bbox_for_range([word], 4, 6)
-        self.assertAlmostEqual(bbox[0], 80.0)
-        self.assertAlmostEqual(bbox[2], 120.0)
+        self.assertAlmostEqual(bbox[0], 60.0)
+        self.assertAlmostEqual(bbox[2], 140.0)
         self.assertEqual((bbox[1], bbox[3]), (0.0, 20.0))
 
     def test_range_covering_the_whole_word_returns_the_original_bbox(self):
@@ -696,9 +697,112 @@ class BboxForRangeSubWordInterpolationTest(unittest.TestCase):
         word_a = text_ocr._Word(start=0, end=10, bbox=(0.0, 0.0, 100.0, 20.0))
         word_b = text_ocr._Word(start=11, end=21, bbox=(110.0, 0.0, 210.0, 20.0))
         # 두 단어에 걸친 구간 — 첫 단어는 뒤쪽 절반만, 둘째 단어는 앞쪽 절반만.
+        # 각 단어 안에서 평균 글자 폭(10px)만큼 안전 여유를 더하되 그 단어
+        # 자신의 bbox 밖으로는 안 나간다: word_a는 [40, 100](오른쪽은 자기
+        # 끝에서 막힘), word_b는 [110, 170]. 둘을 합친 전체 범위가 [40, 170]이다.
         bbox = text_ocr._bbox_for_range([word_a, word_b], 5, 16)
-        self.assertAlmostEqual(bbox[0], 50.0)
-        self.assertAlmostEqual(bbox[2], 160.0)
+        self.assertAlmostEqual(bbox[0], 40.0)
+        self.assertAlmostEqual(bbox[2], 170.0)
+
+
+class FindCareerListEntriesTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 이력서 사진 고미리.png): "경력정보" 섹션은
+    표가 아니라 목록이라 "회사명" 열 헤더가 없다. NER이 "디자인전략 매직
+    디자인 인수"는 아예 못 잡고 "리우나 주거디자인 콘텐츠 마케팅"은 사람
+    이름으로 잘못 잡아서, "연도 - 연도" 구조로 기하학적으로 잡는 함수를
+    추가했다. 좌표는 그 문서를 그대로 실측한 값이다."""
+
+    HEADER_ROW = [("경력정보", (436.0, 696.0, 570.0, 746.0))]
+    # 2단 레이아웃이라 왼쪽 칸("서초시...")이 같은 줄에 같이 잡힌다.
+    HEADER_ROW_WITH_LEFT_COLUMN_BLEED = [
+        ("서초시 미리동 미리로", (109.0, 681.0, 329.0, 717.0)),
+        ("128-9", (110.0, 714.0, 184.0, 744.0)),
+        ("경력정보", (436.0, 696.0, 570.0, 746.0)),
+    ]
+    ENTRY_1 = [
+        ("2006", (446.0, 768.0, 510.0, 798.0)),
+        ("2011", (522.0, 770.0, 582.0, 796.0)),
+        ("디자인전락 매직 디자인 인수", (639.0, 765.0, 943.0, 801.0)),
+    ]
+    # 왼쪽 칸("자격증" 섹션)의 글자가 같이 잡힌 행 — 열 필터가 걸러내야 한다.
+    LEFT_COLUMN_ONLY_ROW = [
+        ("자격증", (43.0, 813.0, 139.0, 857.0)),
+        ("주요 업무 내용이 입력해주세요", (640.0, 804.0, 922.0, 834.0)),
+    ]
+    ENTRY_2_WITH_LEFT_BLEED = [
+        ("2008.03", (52.0, 926.0, 141.0, 952.0)),
+        ("전산운용기능사", (162.0, 924.0, 328.0, 956.0)),
+        ("2006", (446.0, 938.0, 510.0, 966.0)),
+        ("2009", (522.0, 938.0, 586.0, 966.0)),
+        ("(주) MD 디자인예이전시 인터 근무", (638.0, 938.0, 990.0, 970.0)),
+    ]
+    # 연도만 있고 회사명 글자가 이 행엔 없는 경우(다른 행에 있거나 OCR이
+    # 못 읽음) — 값 없이 끝나면 항목을 만들면 안 된다.
+    YEARS_WITHOUT_A_VALUE_ROW = [
+        ("2008.05", (52.0, 1016.0, 144.0, 1044.0)),
+        ("GTQ 일러스트 1급", (162.0, 1014.0, 356.0, 1046.0)),
+        ("2006", (446.0, 1024.0, 510.0, 1054.0)),
+        ("2009", (522.0, 1024.0, 586.0, 1052.0)),
+    ]
+    NEXT_SECTION_ROW = [
+        ("기술 숙권도", (45.0, 1129.0, 207.0, 1173.0)),
+        ("수상경력", (434.0, 1142.0, 568.0, 1192.0)),
+    ]
+
+    def test_entries_after_year_range_are_caught_with_left_column_excluded(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        lines = [
+            self.HEADER_ROW_WITH_LEFT_COLUMN_BLEED,
+            self.ENTRY_1,
+            self.LEFT_COLUMN_ONLY_ROW,
+            self.ENTRY_2_WITH_LEFT_BLEED,
+            self.YEARS_WITHOUT_A_VALUE_ROW,
+            self.NEXT_SECTION_ROW,
+        ]
+        results = text_ocr._find_career_list_entries(lines)
+        values = {r["value"] for r in results}
+        self.assertEqual(values, {"디자인전락 매직 디자인 인수", "(주) MD 디자인예이전시 인터 근무"})
+        for r in results:
+            self.assertEqual(r["field"], "org")
+            # 왼쪽 칸 글자("자격증"·"전산운용기능사" 등)가 값에 안 섞여야 한다.
+            self.assertNotIn("전산운용기능사", r["value"])
+            self.assertNotIn("자격증", r["value"])
+
+    def test_row_with_only_years_and_no_trailing_text_produces_nothing(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        lines = [self.HEADER_ROW, self.YEARS_WITHOUT_A_VALUE_ROW]
+        self.assertEqual(text_ocr._find_career_list_entries(lines), [])
+
+    def test_no_header_produces_nothing(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        self.assertEqual(text_ocr._find_career_list_entries([self.ENTRY_1]), [])
+
+    def test_defers_to_the_real_table_detector_when_column_headers_are_present(self) -> None:
+        """실측 재현(2026-09-18, 실제 이력서 사진 865f267df9c220bf.jpg): "경력사항"이
+        진짜 표(회사명/경력/소속 열이 있는)의 제목으로 쓰인 문서도 있다. 그 표는
+        `_find_table_column_cells`가 이미 정확히 처리하므로, 이 함수는 그 구간에
+        진짜 열 헤더가 보이면 아무것도 잡지 않고 물러나야 한다 — 안 그러면
+        여러 열의 글자를 한 값으로 뭉쳐 잡는다."""
+        from backend.scanner.detectors import text_ocr
+
+        career_title = [("경력사항", (25.0, 337.0, 71.0, 353.0))]
+        real_table_header = [
+            ("기간", (63.0, 367.0, 85.0, 381.0)),
+            ("회사명", (140.5, 369.5, 165.5, 379.0)),
+            ("경력", (252.5, 369.5, 268.5, 379.0)),
+            ("소속", (357.5, 370.0, 374.0, 379.0)),
+        ]
+        data_row = [
+            ("2022", (47.0, 427.0, 71.0, 439.0)),
+            ("2023", (75.0, 427.0, 101.0, 439.0)),
+            ("Liceria", (125.0, 427.0, 157.0, 439.0)),
+            ("디자인팀", (347.0, 427.0, 385.0, 441.0)),
+        ]
+        lines = [career_title, real_table_header, data_row]
+        self.assertEqual(text_ocr._find_career_list_entries(lines), [])
 
 
 class FindCrossReferencedValuesTest(unittest.TestCase):
