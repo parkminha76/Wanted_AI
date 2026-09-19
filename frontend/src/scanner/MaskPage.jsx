@@ -15,26 +15,20 @@ import './scanner.css'
 // 부분 마스킹은 탐지된 항목 전부에 표준 규칙(010-****)을 적용한다. 항목을 하나씩 고르는 단계는
 // 두지 않는다 — 파일이 10개면 고르는 일만 열 번이 된다.
 
-// 파일 하나를 내려받는다. 숨은 iframe을 쓰는 이유가 있다 — location.href도 <a>.click()도
-// 최상위 화면 이동이라, 다음 파일을 걸면 브라우저가 앞의 이동을 취소한다. 파일 4개를 이어서
-// 걸었더니 2개만 저장됐다(네트워크 기록에서 확인). iframe은 각자 따로라 서로를 취소하지 않는다.
-// 응답에 Content-Disposition: attachment가 붙어 있어서 iframe은 빈 채로 남고 파일만 저장된다.
-function saveFile(url) {
-  const frame = document.createElement('iframe')
-  frame.hidden = true
-  frame.src = url
-  document.body.appendChild(frame)
-  // 내려받기가 시작되고 나면 iframe은 할 일이 없다. 쌓이지 않게 치운다.
-  setTimeout(() => frame.remove(), 30000)
-}
-
 // 사본은 방식을 바꿀 때마다 만들지 않는다. 받기를 누를 때 필요한 것만 만든다 — 고르는 동안
 // 만들면 쓰지도 않을 사본이 서버에 쌓이고, 먼저 만든 것부터 30분 TTL이 돌기 시작한다.
 function needsCopy(row) {
   return row.mode === 'partial' && !row.partialFileId
 }
 
-export default function MaskPage({ batch, file, navigate, uploads = [], batchSource = null }) {
+export default function MaskPage({
+  batch,
+  file,
+  navigate,
+  uploads = [],
+  batchSource = null,
+  onRetryExpired,
+}) {
   // { [file_id]: { mode: 'full' | 'partial', checked, partialFileId } }
   const [picks, setPicks] = useState({})
   const [busy, setBusy] = useState('')
@@ -70,6 +64,7 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
   const picked = rows.filter((row) => row.checked)
   const skipped = batch.results.length - rows.length
   const blocked = picked.filter((row) => row.mode === 'partial' && !row.canPartial)
+  const allBlocked = rows.filter((row) => row.mode === 'partial' && !row.canPartial)
   // 머리 칸 체크는 "하나라도 골랐나"다. 누르면 고른 게 있을 때는 전부 끄고, 없을 때는 전부 켠다.
   const anyPicked = picked.length > 0
 
@@ -78,21 +73,50 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
       Object.fromEntries(rows.map((row) => [row.id, { ...prev[row.id], checked: !anyPicked }])),
     )
 
-  // 보관 기간이 지났을 때 FastAPI가 돌려준 404 JSON이 화면에 그대로 뜨지 않게, 먼저 상태
-  // 코드만 확인하고 살아 있을 때만 브라우저에 넘긴다.
-  async function downloadCopy(url) {
+  // 응답을 확인하려고 같은 URL을 두 번 호출하면 안 된다. /download/all은 요청마다 임시 zip을
+  // 만들고 응답 뒤 지우며, 배포 환경에서는 두 요청이 서로 다른 인스턴스로 갈 수도 있다.
+  // 한 번 받은 응답을 Blob URL로 바꿔 그대로 저장한다.
+  async function downloadCopy(url, fallbackName) {
     try {
       const response = await fetch(url)
-      response.body?.cancel()
       if (response.status === 404) {
         setExpired(true)
         return false
       }
-    } catch {
-      // 서버에 닿지 못한 것은 만료가 아니다. 평소대로 브라우저에 맡긴다.
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(
+          typeof data?.detail === 'string' ? data.detail : `다운로드에 실패했습니다. (${response.status})`,
+        )
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const disposition = response.headers.get('content-disposition') || ''
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+      const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+      let filename = fallbackName
+      try {
+        filename = encodedName ? decodeURIComponent(encodedName) : plainName || fallbackName
+      } catch {
+        filename = fallbackName
+      }
+
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      // Chrome은 클릭 이벤트가 끝난 뒤 실제 파일 저장을 시작할 수 있다. 즉시 revoke하면
+      // 저장이 시작되기 전에 Blob URL이 사라져 버튼을 눌러도 아무 반응이 없는 경우가 있다.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
+      return true
+    } catch (err) {
+      setError(err.message || '파일을 다운로드하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      return false
     }
-    saveFile(url)
-    return true
   }
 
   // 부분 마스킹 사본을 만든다. replaces로 어느 사본을 대신하는지 알려 주면, 서버가 새 사본을
@@ -113,10 +137,10 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
     return made.file_id
   }
 
-  // 고른 파일 중 부분 마스킹으로 바꾼 것의 사본을 먼저 만든다. 받을 사본의 id 목록을 돌려준다.
+  // 받을 파일 중 부분 마스킹으로 바꾼 것의 사본을 먼저 만든다. 받을 사본의 id 목록을 돌려준다.
   // 부분 마스킹 사본은 새 id를 받으므로 원래 id를 그대로 쓰면 전체 마스킹본이 내려간다.
-  async function prepare() {
-    const pending = picked.filter(needsCopy)
+  async function prepare(targetRows) {
+    const pending = targetRows.filter(needsCopy)
     const made = {}
     try {
       for (const [index, row] of pending.entries()) {
@@ -129,34 +153,38 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
     } finally {
       setBusy('')
     }
-    return picked.map((row) => {
+    return targetRows.map((row) => {
       const partial = made[row.id] ?? row.partialFileId
       return row.mode === 'partial' && partial ? partial : row.id
     })
   }
 
   // 받기는 한 번에 하나만. 두 번 눌러도 앞의 것이 끝날 때까지 두 번째는 그냥 버린다.
-  async function once(work) {
+  async function once(targetRows, work) {
     if (running.current) return
     running.current = true
     setError('')
     try {
-      const ids = await prepare()
+      const ids = await prepare(targetRows)
       if (ids) await work(ids)
     } finally {
       running.current = false
     }
   }
 
-  // 고른 파일을 하나씩 받는다. 사본마다 이름이 따로 붙어서, 몇 개 안 될 때는 zip을 푸는 것보다 빠르다.
-  const downloadEach = () =>
-    once(async (ids) => {
-      for (const id of ids) {
-        if (!(await downloadCopy(api.downloadUrl(id)))) return
+  // 체크한 파일은 각각의 원래 형식으로 받는다. ZIP 버튼과 역할을 섞지 않는다.
+  const downloadSelected = () =>
+    once(picked, async (ids) => {
+      for (const [index, id] of ids.entries()) {
+        const filename = picked[index]?.result.filename || `masked_file_${index + 1}`
+        if (!(await downloadCopy(api.downloadUrl(id), `masked_${filename}`))) return
       }
     })
 
-  const downloadZip = () => once((ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids)))
+  // ZIP은 체크 상태와 무관하게 현재 목록 전체를 한 파일로 받는다. 각 행에서 고른
+  // 전체/부분 마스킹 방식은 그대로 반영한다.
+  const downloadZip = () =>
+    once(rows, (ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'infoguard_masked.zip'))
 
   const busyLabel = (
     <>
@@ -164,6 +192,7 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
     </>
   )
   const stopped = picked.length === 0 || blocked.length > 0 || Boolean(busy)
+  const zipStopped = rows.length === 0 || allBlocked.length > 0 || Boolean(busy)
 
   return (
     <div className="container mask-page">
@@ -181,50 +210,47 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
             로 가세요.
           </p>
         </div>
-        {!expired && (
-          <div className="page-head__actions">
-            <Button disabled={stopped} onClick={downloadEach}>
-              {busy ? busyLabel : '↓ 선택 파일 다운받기'}
+        <div className="page-head__actions">
+          <Button disabled={expired || stopped} onClick={downloadSelected}>
+            {busy ? busyLabel : `↓ 선택 파일 다운받기${picked.length > 1 ? ` (${picked.length}개)` : ''}`}
+          </Button>
+          <Button variant="secondary" disabled={expired || zipStopped} onClick={downloadZip}>
+            전체 파일 ZIP 받기
+          </Button>
+          {expired && (
+            <Button onClick={onRetryExpired ?? (() => navigate('', { replace: true }))}>
+              ↻ 사본 다시 만들기
             </Button>
-            {/* 하나만 골랐을 때 .zip은 푸는 수고만 는다. 둘 이상일 때만 둔다. */}
-            {picked.length > 1 && (
-              <Button variant="secondary" disabled={stopped} onClick={downloadZip}>
-                선택 파일 한번에 받기 (.zip)
-              </Button>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {expired ? (
-        <div className="stack stack--tight">
-          <p className="alert alert--error" role="alert">
-            사본이 만료되었습니다. 다시 시도하세요.
-          </p>
-          <Button onClick={() => navigate('')}>다시 시도하기</Button>
-        </div>
-      ) : (
-        <>
-          {busy && (
-            <p className="alert alert--info" role="status">
-              {busy}
-            </p>
-          )}
-          {error && (
-            <p className="alert alert--error" role="alert">
-              {error}
-            </p>
-          )}
-          {blocked.length > 0 && (
-            <p className="alert alert--info">
-              {blocked.map((row) => row.result.filename).join(' · ')}: 올린 원본이 브라우저에 없어 부분 마스킹
-              사본을 만들 수 없습니다. 전체 마스킹으로 받거나 파일을 다시 올려 주세요.
-            </p>
-          )}
+      {expired && (
+        <p className="alert alert--error" role="alert">
+          서버가 업데이트되었거나 사본 보관 시간이 지났습니다. 선택 내용은 그대로 두었습니다. 위의
+          사본 다시 만들기를 눌러 새 사본을 만들어 주세요.
+        </p>
+      )}
+      {busy && (
+        <p className="alert alert--info" role="status">
+          {busy}
+        </p>
+      )}
+      {error && (
+        <p className="alert alert--error" role="alert">
+          {error}
+        </p>
+      )}
+      {blocked.length > 0 && (
+        <p className="alert alert--info">
+          {blocked.map((row) => row.result.filename).join(' · ')}: 올린 원본이 브라우저에 없어 부분 마스킹
+          사본을 만들 수 없습니다. 전체 마스킹으로 받거나 파일을 다시 올려 주세요.
+        </p>
+      )}
 
-          <div className="mask-picks__caption">받을 파일과 가리는 방식을 고르세요.</div>
+      <div className="mask-picks__caption">받을 파일과 가리는 방식을 고르세요.</div>
 
-          <table className="mask-picks" aria-label="받을 파일과 가리는 방식">
+      <table className="mask-picks" aria-label="받을 파일과 가리는 방식">
             <thead>
               <tr>
                 <th scope="col">
@@ -272,19 +298,17 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
                 </tr>
               ))}
             </tbody>
-          </table>
+      </table>
 
-          {skipped > 0 && (
-            <p className="mask-summary__note">{skipped}개는 원본 형식의 사본을 만들지 못해 목록에서 뺐습니다.</p>
-          )}
-
-          <MaskExample />
-
-          <p className="mask-summary__note">
-            원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.
-          </p>
-        </>
+      {skipped > 0 && (
+        <p className="mask-summary__note">{skipped}개는 원본 형식의 사본을 만들지 못해 목록에서 뺐습니다.</p>
       )}
+
+      <MaskExample />
+
+      <p className="mask-summary__note">
+        원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.
+      </p>
     </div>
   )
 }

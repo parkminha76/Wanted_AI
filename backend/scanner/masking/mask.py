@@ -65,9 +65,24 @@ _SUFFIX = "_masked"
 # 이미지 형식. parse.IMAGE_EXTENSIONS와 같은 목록이다 (그쪽이 kind="image"를 정한다).
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff"}
 
-# 칠하는 색. 검정으로 덮는 이유는 PDF 리댁션과 같다 — 흐리게(blur) 처리하면
-# 원본을 되살리는 복원 공격이 알려져 있다. 불투명하게 덮어야 실제로 사라진다.
-_IMAGE_FILL = (0, 0, 0)
+# 칠하는 색. 사용자 피드백(2026-09-18): 순검정이 너무 삭막해 보여 부드러운
+# 중간 회색으로 바꿨다 — 문서에 밝은 배경과 어두운 배경이 섞여 있어도 양쪽
+# 다 눈에 띄어야 하므로 중간 톤을 골랐다(순백은 밝은 배경에 묻혀 "가려졌다"는
+# 사실 자체가 안 보인다). 색만 바뀌었을 뿐 여전히 불투명 단색이다 — 흐리게
+# (blur) 처리하면 원본을 되살리는 복원 공격이 알려져 있어서, 어떤 색이든
+# 불투명하게 덮어야 실제로 사라진다는 원칙은 그대로다.
+_IMAGE_FILL = (140, 140, 140)
+
+# 흑백(L 모드) 이미지용 밝기값. RGB를 중립 회색(R=G=B)으로 골라서 그대로 쓴다 —
+# `mask_check.py`가 "상자 안에 채도 있는 색이 남았는가"로 누출을 판정하는데,
+# 채우는 색 자체가 채도를 가지면(R≠G≠B) 그 판정과 섞여 버린다.
+_IMAGE_FILL_GRAYSCALE = _IMAGE_FILL[0]
+
+# 상자 모서리를 둥글게 깎는 최대 반지름(픽셀). 사용자 피드백(2026-09-18): 각진
+# 사각형이 여러 개 흩어져 있으니 지저분해 보인다 — 디자인만 다듬는 변경이라
+# 불투명하게 덮는다는 원칙(위 주석)은 그대로 유지한다. 실제로 쓰는 반지름은
+# `_padded_image_box`가 그 상자의 여백(x_pad, y_pad)을 보고 더 줄일 수 있다.
+_BOX_CORNER_RADIUS = 10
 
 # xml:space="preserve". 이게 없으면 워드가 run의 앞뒤 공백을 버린다.
 _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -789,30 +804,78 @@ def _image_box(finding, width: int, height: int):
     return (left, top, right, bottom)
 
 
-def _padded_image_box(finding, box, width: int, height: int):
-    """CNN 박스 경계 밖으로 삐져나온 글자 획까지 포함한다.
+def _padded_image_box(finding, box, width: int, height: int) -> tuple[tuple, int]:
+    """CNN/OCR 박스 경계 밖으로 삐져나온 글자 획까지 포함한다.
+
+    `(여백을 더한 상자, 둥근 모서리 반지름)`을 함께 돌려준다 — 반지름을 여기서
+    같이 정하는 이유는 바로 아래 "모서리를 얼마나 깎아도 안전한가" 참고.
 
     YOLO 라벨은 글자의 중심 영역에 맞춰져 있어 받침·밑줄이나 여러 줄 주소의 마지막
-    줄이 몇 픽셀 남을 수 있다. 텍스트 필드는 높이에 비례해 넓히고, 얼굴은 주변 문서
-    내용을 과도하게 덮지 않도록 최소 여백만 준다.
+    줄이 몇 픽셀 남을 수 있다. 얼굴은 주변 문서 내용을 과도하게 덮지 않도록 최소
+    여백만 준다.
+
+    텍스트 필드는 "줄 두께" 방향(글자가 삐져나올 수 있는 방향)에는 넉넉히,
+    "읽는 방향"(옆 글자·다음 단어가 있는 방향)에는 최소한만 넓힌다. 어느 축이
+    줄 두께이고 어느 축이 읽는 방향인지는 상자 자신의 가로세로 비율로 정한다 —
+    보통은 가로로 눕는 글자라 짧은 변(세로)이 줄 두께이지만, 세로로 선 글자라면
+    반대다.
+
+    실측 버그(2026-09-18, 모바일로 화면을 세로로 세워 찍은 사진): 이런 사진은
+    글자가 세로로 서 있어(`text_ocr.py`의 회전 복구가 읽어서 되돌린 좌표) 이름
+    하나의 bbox가 가로 50px·세로 148px처럼 세로가 훨씬 길다. 옛날처럼 "세로 축은
+    항상 넉넉히"로 고정해 두면 세로(=읽는 방향) 여백이 148*0.30≈44px나 붙어서
+    "최태오" 바로 뒤에 이어진 "의 발자취"까지 뭉텅 가렸다(실측: 이름 세 곳
+    전부 옆 단어까지 침범). 상자가 가로로 눕든 세로로 서든, 짧은 변에만 넉넉한
+    여백을 주면 이 문제가 없다 — 가로쓰기 문서에서는 원래 동작과 완전히 같다
+    (짧은 변=세로일 때만 세로에 넉넉한 여백이 붙으므로).
+
+    모서리를 얼마나 깎아도 안전한가
+    --------------------------------
+    둥근 모서리는 상자 네 귀퉁이에 원래 안 칠해지는 부분을 만든다. 그 자리가
+    실제 탐지 내용(패딩을 더하기 전의 좁은 상자) 안쪽까지 파고들면, 모서리로
+    글자·얼굴 조각이 살짝 드러나는 "예쁘게 만들려다 가리는 걸 덜 가리는" 사고가
+    난다. 반지름을 이번에 넣은 여백(x_pad, y_pad)보다 항상 작게 잡으면 — 여유
+    있게 1px을 더 깎아서 — 깎이는 부분이 여백(안전 마진)에만 걸치고 원래
+    좁은 상자 쪽으로는 절대 안 넘어온다. 그래서 얼굴처럼 여백이 2px뿐인 상자는
+    자동으로 반지름도 거의 0에 가깝게 줄어든다(2px 여백에 10px을 깎으면 얼굴
+    가장자리가 그대로 드러난다).
     """
     left, top, right, bottom = box
     if finding.type == "id_photo":
         x_pad = y_pad = 2
-    elif finding.type == "address":
-        # 여러 줄 주소는 YOLO 박스가 마지막 줄의 중심까지만 잡아 받침이 아래로
-        # 남는 사례가 있다. 주소는 다른 짧은 필드보다 세로 여백을 넉넉히 둔다.
-        x_pad = max(4, round((right - left) * 0.03))
-        y_pad = max(8, round((bottom - top) * 0.55))
     else:
-        x_pad = max(3, round((right - left) * 0.02))
-        y_pad = max(5, round((bottom - top) * 0.30))
-    return (
-        max(0, left - x_pad),
-        max(0, top - y_pad),
-        min(width, right + x_pad),
-        min(height, bottom + y_pad),
-    )
+        if finding.type == "address":
+            cross_frac, cross_min = 0.55, 8
+        else:
+            cross_frac, cross_min = 0.30, 5
+        along_frac, along_min = 0.02, 3
+
+        box_w, box_h = right - left, bottom - top
+        short_side, long_side = min(box_w, box_h), max(box_w, box_h)
+        cross_pad = max(cross_min, round(short_side * cross_frac))
+        along_pad = max(along_min, round(long_side * along_frac))
+        # 짧은 변(줄 두께)에 넉넉한 여백을, 긴 변(읽는 방향)에 최소 여백을 준다.
+        if box_h >= box_w:
+            x_pad, y_pad = cross_pad, along_pad
+        else:
+            x_pad, y_pad = along_pad, cross_pad
+
+    padded_left, padded_top = max(0, left - x_pad), max(0, top - y_pad)
+    padded_right, padded_bottom = min(width, right + x_pad), min(height, bottom + y_pad)
+
+    # 이미지 경계에 닿아 위의 여백이 잘렸으면(예: 상자가 왼쪽 끝에 바짝 붙어
+    # `left - x_pad`가 0 밑으로 안 내려가고 0에서 멈춘 경우), 그쪽으로는
+    # 의도한 x_pad/y_pad만큼 실제로 여백이 안 생긴 것이다. 반지름을 잘리기
+    # 전의 x_pad/y_pad로만 정하면 그 모서리에서 실제 탐지 내용까지 깎일 수
+    # 있으므로, 네 변 각각 "실제로 생긴" 여백을 다시 재서 그중 가장 좁은
+    # 쪽에 맞춘다.
+    actual_left = left - padded_left
+    actual_top = top - padded_top
+    actual_right = padded_right - right
+    actual_bottom = padded_bottom - bottom
+    radius = max(0, min(_BOX_CORNER_RADIUS, actual_left - 1, actual_top - 1,
+                         actual_right - 1, actual_bottom - 1))
+    return (padded_left, padded_top, padded_right, padded_bottom), radius
 
 
 def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
@@ -852,7 +915,7 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
             else:
                 image = source.convert("RGB")
 
-        fill = 0 if image.mode == "L" else (
+        fill = _IMAGE_FILL_GRAYSCALE if image.mode == "L" else (
             _IMAGE_FILL + (255,) if image.mode == "RGBA" else _IMAGE_FILL
         )
         draw = ImageDraw.Draw(image)
@@ -863,8 +926,8 @@ def _mask_image(path: str, doc, findings, out_dir: str | None) -> str | None:
             box = _image_box(finding, width, height)
             if box is None:
                 return None               # 좌표가 이미지 밖이다. 가릴 수 없다.
-            box = _padded_image_box(finding, box, width, height)
-            draw.rectangle(box, fill=fill)
+            box, radius = _padded_image_box(finding, box, width, height)
+            draw.rounded_rectangle(box, radius=radius, fill=fill)
             # 이미지 사본에는 유형 문구를 새기지 않는다. 같은 영역을 겹쳐 탐지하면
             # 문구도 겹치고, 얼굴처럼 큰 영역에서는 라벨이 원본보다 더 눈에 띈다.
             # 유형과 근거는 API findings에서 확인할 수 있다.
@@ -1024,7 +1087,10 @@ def _mask_scanned_pdf(path: str, doc, findings, out_dir: str | None) -> str | No
                 box = (max(0, box[0] - _SCANNED_PAD_PX), max(0, box[1] - _SCANNED_PAD_PX),
                        min(image.width, box[2] + _SCANNED_PAD_PX),
                        min(image.height, box[3] + _SCANNED_PAD_PX))
-                draw.rectangle(box, fill=_IMAGE_FILL)
+                # `_padded_image_box`와 같은 원칙: 반지름이 여백(_SCANNED_PAD_PX)보다
+                # 작아야 모서리가 실제 탐지 내용을 파고들지 않는다.
+                radius = max(0, min(_BOX_CORNER_RADIUS, _SCANNED_PAD_PX - 1))
+                draw.rounded_rectangle(box, radius=radius, fill=_IMAGE_FILL)
 
             target = os.path.join(work_dir, f"page{index:03d}.png")
             image.save(target, format=_SCANNED_PAGE_FORMAT)

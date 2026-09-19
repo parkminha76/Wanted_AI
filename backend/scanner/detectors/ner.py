@@ -137,6 +137,17 @@ def _is_education_institution(text: str, start: int, end: int) -> bool:
     lookahead = value + text[end : end + 3]
     return lookahead.endswith(_EDU_INSTITUTION_SUFFIXES)
 
+
+# 단독으로는 절대 회사명이 아닌, 자격/인증을 뜻하는 흔한 수식어. 실측(2026-09-18,
+# 저해상도 이력서 사진 865f267df9c220bf.jpg): "자격증" 섹션의 자격증 이름이 OCR로
+# "공인 임어시럽"처럼 깨져 읽혔는데(원문은 아마 "컴활 1급시험" 류), 모델이 그
+# 문맥에서 "공인"만 떼어 회사명으로 오판했다(확신도 0.401). 신뢰도로 거르면 안
+# 된다 — 같은 문서 밖 실측에서 진짜 회사명 "네이버"도 0.364로 이보다 낮게 나와서,
+# 확신도 기준을 올리면 진짜 회사명까지 함께 놓친다. "공인"은 "공인중개사"·
+# "공인회계사"처럼 항상 뒤에 명사가 붙어야 뜻이 서는 말이라, 그 자체로 단독
+# 개체(회사명)가 되는 일이 사실상 없다 — 값이 정확히 이 목록과 같을 때만 뺀다.
+_ORG_STANDALONE_MODIFIERS = {"공인"}
+
 _ORG_SUFFIX_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
     r"(?:주식회사\s+)?[가-힣A-Za-z0-9·]{2,}"
@@ -228,6 +239,8 @@ def detect(text: str) -> list[dict]:
                 if end < len(text) and text[end - 1].isalnum() and text[end].isalnum():
                     continue
                 if _is_education_institution(text, start, end):
+                    continue
+                if text[start:end] in _ORG_STANDALONE_MODIFIERS:
                     continue
 
             if end <= start:

@@ -244,7 +244,14 @@ def _sentence_around(text: str, start: int, end: int) -> tuple[str, int]:
     호출부가 f.start - 시작 자리로 문장 안 위치를 바로 계산해 넘긴다.
     """
     for sentence, s, e in _iter_sentences(text):
-        if s <= start and end <= e:
+        # 문장이 값 자기 자신과 정확히 같으면(=이 "문장"에 값 말고는 아무 글자도
+        # 없으면) 쓸 수 있는 문맥이 아니다. 실측 버그(2026-09-19, 숨은명령.docx):
+        # "정산 계좌\n1401-839-183201"처럼 라벨과 값이 줄바꿈으로만 나뉘어 있으면,
+        # `_SENTENCE_SPLIT_PATTERN`이 줄바꿈마다 끊어서 값 혼자만 "문장"이 된다.
+        # 그 빈 문맥으로 분류기를 부르면 진짜 계좌번호도 오탐(확신도 0.41)으로
+        # 걸러진다 — 라벨을 붙여 주면 0.99로 뒤집힌다. 이럴 때는 이 문장을 쓰지
+        # 않고 아래 고정 폭 문맥으로 넘어가 앞 줄의 라벨까지 같이 담는다.
+        if s <= start and end <= e and not (s == start and e == end):
             return sentence, s
     left = max(0, start - _CLASSIFIER_CONTEXT_RADIUS)
     right = min(len(text), end + _CLASSIFIER_CONTEXT_RADIUS)
@@ -344,6 +351,23 @@ def _has_explicit_positive_label(finding: Finding, raw_text: str) -> bool:
     return bool(pattern.search(prefix))
 
 
+# 값 바로 뒤에 "~는 아니다"류의 명시적 부정문이 오면, 분류기가 그 부정을 못 읽고
+# 잘못 통과시키는 경우가 실측으로 확인됐다(2026-09-19, 개발문서.md): "쿠폰번호
+# 4111-1111-1111-1111은 결제 카드번호가 아니다"를 카드번호로(확신도 0.718),
+# "장비 접수번호 123-45-67891은 사업자등록번호가 아니다"를 사업자등록번호로
+# (확신도 0.788) 오판했다. 두 값 다 라벨이 "카드번호"/"사업자등록번호"가 아니라
+# "쿠폰번호"/"장비 접수번호"라서 위 `_EXPLICIT_POSITIVE_LABELS`(값 **앞**의 라벨)
+# 로는 못 막는다 — 값 **뒤**의 명시적 부정만 유일한 신호다.
+_EXPLICIT_NEGATIVE_CUE = re.compile(r"^[`'\")\]]{0,3}\s*(?:이|가|은|는)\s*[^.\n]{0,20}?아니(?:다|에요|예요|었다|라)")
+_NEGATIVE_CUE_WINDOW = 30
+
+
+def _has_explicit_negative_cue(finding: Finding, raw_text: str) -> bool:
+    """값 바로 뒤에 그 유형이 아니라고 명시한 문장이 있는지 확인한다."""
+    suffix = raw_text[finding.end : finding.end + _NEGATIVE_CUE_WINDOW]
+    return bool(_EXPLICIT_NEGATIVE_CUE.match(suffix))
+
+
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
@@ -353,6 +377,10 @@ def _apply_classifier_filters(
     for f in findings:
         if f.type == "injection":
             kept.append(f)
+            continue
+        if _has_explicit_negative_cue(f, raw_text):
+            f.reason = "값 바로 뒤에 명시적 부정문이 있어 개인정보로 보지 않음"
+            filtered_out.append(f)
             continue
         # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
         # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만

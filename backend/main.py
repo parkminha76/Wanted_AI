@@ -756,13 +756,30 @@ def download_all(batch_id: str, files: str | None = None) -> FileResponse:
         raise HTTPException(status_code=404, detail="배치가 없거나 보관 기간이 지났습니다")
 
     if files is not None:
-        # 배치 목록(file_ids)이 아니라 사본에 붙은 배치 표시로 거른다. 부분 마스킹 사본은
-        # 검사 뒤에 만들어져 목록에는 없지만 같은 배치의 것이다.
-        file_ids = [fid for fid in files.split(",") if _batch_of(fid) == batch_id]
+        # 배치 목록(file_ids)이 아니라 사본에 붙은 배치 표시로 확인한다. 부분 마스킹 사본은
+        # 검사 뒤에 만들어져 목록에는 없지만 같은 배치의 것이다. 중복 id는 순서를 유지하며
+        # 한 번만 넣는다.
+        file_ids = list(dict.fromkeys(fid for fid in files.split(",") if fid))
+        if not file_ids:
+            raise HTTPException(status_code=404, detail="내려받을 사본을 선택해 주세요")
 
-    entries = [_masked_files[fid] for fid in file_ids if fid in _masked_files]
-    if not entries:
-        raise HTTPException(status_code=404, detail="내려받을 사본이 없습니다")
+    # 일부만 조용히 zip에 넣지 않는다. 선택한 사본 중 하나라도 만료됐거나 다른 배치의
+    # 것이면 사용자는 '전체를 받았다'고 오해할 수 있으므로, 전부 실패시키고 다시 검사를
+    # 안내한다.
+    unavailable = [
+        fid
+        for fid in file_ids
+        if _batch_of(fid) != batch_id
+        or fid not in _masked_files
+        or not os.path.exists(_masked_files[fid].path)
+    ]
+    if unavailable:
+        raise HTTPException(
+            status_code=404,
+            detail="선택한 사본 중 일부가 없거나 보관 기간이 지났습니다. 다시 검사해 주세요",
+        )
+
+    entries = [_masked_files[fid] for fid in file_ids]
 
     zip_dir = tempfile.mkdtemp(prefix="infoguard_zip_")
     zip_path = os.path.join(zip_dir, "infoguard_masked.zip")
@@ -904,6 +921,15 @@ def _sample_subset(names: str | None) -> dict:
 
     batch_id를 새로 만드는 이유: "사본 전체 받기(.zip)"는 batch_id로 묶인 파일을 담는다.
     전체 batch_id를 그대로 주면 두 개만 골랐는데 zip에는 네 개가 들어간다.
+
+    실측 버그(2026-09-19): 새 batch_id를 `_batches`(배치 -> 파일 목록)에는 등록해
+    놓고, 정작 각 파일의 `_masked_files[fid].batch_id`(파일 -> 배치 역방향 조회,
+    `_batch_of`가 쓰는 값)는 예전 배치를 그대로 가리키고 있었다. `/download/all`이
+    파일마다 `_batch_of(fid) != batch_id`로 소속을 확인하는데, 골라 받은 파일은
+    전부 이 새 batch_id와 맞지 않아 하나도 못 넘어가서 zip이 매번 404였다("선택
+    파일 다운받기"는 파일 하나씩 `/download/{id}`만 확인해서 같은 상황에서도 잘
+    됐다 — 증상이 갈렸던 이유). 골라 받은 파일들의 등록도 이 새 batch_id로
+    같이 옮겨야 한다.
     """
     if not names or _sample_batch is None:
         return _sample_cache
@@ -912,7 +938,12 @@ def _sample_subset(names: str | None) -> dict:
     if not picked:
         return _sample_cache
     subset = schema.ScanBatch(results=picked, batch_id=uuid.uuid4().hex)
-    _batches[subset.batch_id] = [r.file_id for r in picked if r.file_id]
+    file_ids = [r.file_id for r in picked if r.file_id]
+    _batches[subset.batch_id] = file_ids
+    for file_id in file_ids:
+        entry = _masked_files.get(file_id)
+        if entry is not None:
+            entry.batch_id = subset.batch_id
     return subset.to_dict()
 
 
