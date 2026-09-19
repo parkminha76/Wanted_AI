@@ -178,10 +178,23 @@ _CAREER_LIST_HEADERS: dict[str, str] = {
 # 다른 열의 내용일 가능성이 크다.
 _CAREER_LIST_COLUMN_MARGIN = 40.0
 
+# 실측(2026-09-18, 865f267df9c220bf.jpg): "회사명" 열 값과 "소속" 열 값 사이
+# 가로 간격이 줄 높이(14px)의 12배가 넘었다(176px). 반면 진짜 여러 단어짜리
+# 회사명은 EasyOCR이 한 덩어리로 검출해 애초에 이 정도로 벌어질 일이 없다 —
+# 넉넉히 5배를 문턱으로 잡는다.
+_CAREER_LIST_VALUE_GAP_RATIO = 5.0
+
 # 항목이 "연도 - 연도"로 시작하는지 볼 때 쓴다. 4자리 두 개를 그대로 요구한다
 # — "수상경력"의 "2008. 06"(연도 + 월)과 모양이 달라서, 이 패턴이 옆 섹션까지
 # 잘못 삼킬 위험이 낮다.
 _BARE_YEAR = re.compile(r"^(?:19|20)\d{2}$")
+
+# 실측(2026-09-18, 저해상도 이력서 사진 865f267df9c220bf.jpg): "연도 - 연도"가
+# 항상 두 칸으로 따로 검출되는 게 아니다 — 같은 문서 안에서도 어떤 줄은
+# "2022"/"2023"로 갈리고, 어떤 줄은 "2020 - 2021"처럼 한 칸으로 통째로
+# 검출됐다(구분자도 "-"뿐 아니라 저해상도 오독으로 "2024 * 2025"처럼 "*"가
+# 나오기도 한다). 한 칸짜리도 놓치지 않는다.
+_YEAR_RANGE_MERGED = re.compile(r"^(?:19|20)\d{2}\s*[-*~–—]\s*(?:19|20)\d{2}$")
 
 # 헤더 아래로 몇 줄까지 훑을지, 줄 사이 간격이 얼마나 벌어지면 목록을 벗어난
 # 것으로 볼지 — `_MAX_TABLE_ROWS`/`_TABLE_ROW_GAP_RATIO`와 같은 값을 그대로 쓴다.
@@ -244,14 +257,41 @@ def _find_career_list_entries(lines: list[list[tuple[str, tuple]]]) -> list[dict
             previous_bottom = bottom
 
             column_words = [(text, bbox) for text, bbox in row if bbox[0] >= column_left]
-            if len(column_words) < 3:
+            if len(column_words) < 2:
                 continue
             first_text, _first_bbox = column_words[0]
-            second_text, _second_bbox = column_words[1]
-            if not (_BARE_YEAR.match(first_text) and _BARE_YEAR.match(second_text)):
+            if (
+                len(column_words) >= 3
+                and _BARE_YEAR.match(first_text)
+                and _BARE_YEAR.match(column_words[1][0])
+            ):
+                remainder = column_words[2:]
+            elif _YEAR_RANGE_MERGED.match(first_text) and len(column_words) >= 3:
+                # "연도 - 연도"가 한 칸으로 통째로 검출된 경우. 뒤에 최소
+                # 두 칸은 더 있어야 한다 — 한 칸만 남았을 때 그 칸이 회사명이
+                # 아니라 다른 열(예: "경력"란의 업무 설명)일 위험이 있어서다
+                # (실측: 같은 문서의 다른 줄에서 회사명·소속 칸이 통째로
+                # OCR에서 빠지고 "경력"란 한 칸만 남았는데, 이 조건이 없으면
+                # 그 업무 설명을 회사명으로 잘못 잡는다).
+                remainder = column_words[1:]
+            else:
                 continue
 
-            remainder = column_words[2:]
+            # 표인데 열 헤더를 못 읽어 여기로 떨어진 경우, remainder에 다음 열
+            # (예: "소속")의 글자까지 섞여 들어올 수 있다(실측: "회사명"란
+            # "FauBct" 다음 "소속"란 "디자인터"가 176px 떨어져 있는데도 한
+            # 값으로 뭉쳐 잡혀, 마스킹 박스가 "경력"란까지 통째로 덮었다).
+            # 진짜 여러 단어짜리 회사명(실측: "디자인전략 매직 디자인 인수")은
+            # EasyOCR이 애초에 한 덩어리로 검출해 이 문제가 없다 — 칸 사이
+            # 가로 간격이 줄 높이의 몇 배를 넘으면 그 뒤는 다른 열로 보고 자른다.
+            row_height = bottom - top
+            trimmed = [remainder[0]]
+            for text, bbox in remainder[1:]:
+                if bbox[0] - trimmed[-1][1][2] > row_height * _CAREER_LIST_VALUE_GAP_RATIO:
+                    break
+                trimmed.append((text, bbox))
+            remainder = trimmed
+
             value = " ".join(text for text, _bbox in remainder)
             cell_bbox = remainder[0][1]
             for _text, bbox in remainder[1:]:
@@ -370,6 +410,50 @@ def _polygon_to_bbox(polygon) -> tuple[float, float, float, float]:
     return (min(xs), min(ys), max(xs), max(ys))
 
 
+# 실측(2026-09-18, 모바일로 노트북 화면을 세로로 세워 찍은 사진): 사진이 90도
+# 돌아간 채로 들어오면 EasyOCR이 거의 못 읽는다 — 잘못된 방향에서도 낱글자
+# 하나짜리 검출은 우연히 확신도가 높게 나올 수 있어("0" 0.99, "채" 0.89 등)
+# 확신도만으로는 "제대로 읽혔는지"를 가늠할 수 없다. 2글자 이상이면서 확신도가
+# 뚜렷이 높은(>0.6) 검출의 글자 수 합으로 점수를 매긴다 — 실제 단어가 읽혔을
+# 때만 이 점수가 커진다(같은 사진을 바로 세워 읽으면 "최태오의 발자쥐"(8자,
+# 0.97) 등으로 점수가 10을 훌쩍 넘지만, 잘못된 방향에서는 거의 0에 머문다).
+_ROTATION_RECOVERY_K_VALUES = (1, 2, 3)  # np.rot90 k: 반시계 90도 / 180도 / 시계 90도
+_ROTATION_RECOVERY_TRIGGER_SCORE = 10.0
+
+
+def _rotation_quality_score(results) -> float:
+    return sum(
+        len(text.strip())
+        for _polygon, text, confidence in results
+        if confidence > 0.6 and len(text.strip()) >= 2
+    )
+
+
+def _map_point_from_rotated(x: float, y: float, k: int, orig_w: float, orig_h: float) -> tuple[float, float]:
+    """`np.rot90(arr, k=k)`로 돌린 이미지 위의 점 (x, y)를 원본 이미지 좌표로
+    되돌린다. `_ROTATION_RECOVERY_K_VALUES`의 각 k에 대한 역변환이다."""
+    if k == 1:
+        return orig_w - y, x
+    if k == 2:
+        return orig_w - x, orig_h - y
+    if k == 3:
+        return y, orig_h - x
+    return x, y
+
+
+def _map_bbox_from_rotated(
+    bbox: tuple[float, float, float, float], k: int, orig_w: float, orig_h: float
+) -> tuple[float, float, float, float]:
+    if k == 0:
+        return bbox
+    left, top, right, bottom = bbox
+    corners = [(left, top), (right, top), (left, bottom), (right, bottom)]
+    mapped = [_map_point_from_rotated(x, y, k, orig_w, orig_h) for x, y in corners]
+    xs = [p[0] for p in mapped]
+    ys = [p[1] for p in mapped]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
 def _group_into_rows(
     detections: list[tuple[str, tuple]],
 ) -> list[list[tuple[str, tuple]]]:
@@ -420,8 +504,9 @@ def _ocr_lines(
     list[list[tuple[str, tuple[float, float, float, float]]]],
     list[bool],
     list[list[tuple[str, tuple[float, float, float, float]]]],
+    tuple[int, float, float] | None,
 ]:
-    """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, 원본 픽셀 bbox) 목록이다.
+    """이미지 1장을 OCR해서 줄 단위로 묶는다. 각 줄은 (글자, bbox) 목록이다.
 
     두 번째 반환값은 각 줄이 제목 크기(`_oversized_row_flags` 참고)였는지를 같은
     순서로 나열한 목록이다.
@@ -431,9 +516,45 @@ def _ocr_lines(
     `rows`에는 없는, 더 낮은 확신도의 글자까지 담는다. EasyOCR을 다시 부르지
     않는다(같은 `results`를 재사용) — 이미지 OCR은 비용이 커서 같은 이미지를
     두 번 돌리지 않는다.
+
+    네 번째 반환값(`rotation`)은 사진이 통째로 돌아간 것으로 판단해 회전
+    보정을 적용했으면 `(k, 원본 너비, 원본 높이)`, 아니면 `None`이다. 이 값이
+    있으면 `rows`/`weak_rows`의 bbox는 "바로 세운" 좌표계다 — 줄 묶기·표 인식
+    등 이후 모든 구조 판정이 가로쓰기를 가정하므로, 회전된 채로 넘기면 줄
+    묶기부터 깨진다. 마스킹은 원본 파일 위에 그리므로, 최종 bbox를 실제로
+    돌려주기 전에(`detect()` 끝에서) `_map_bbox_from_rotated`로 원본 좌표로
+    되돌려야 한다.
     """
     reader = _get_reader()
     results = reader.readtext(path)
+    rotation: tuple[int, float, float] | None = None
+
+    if _rotation_quality_score(results) < _ROTATION_RECOVERY_TRIGGER_SCORE:
+        # 실측(2026-09-18, 모바일로 노트북 화면을 세로로 세워 찍은 사진): 기본
+        # 방향에서 이 정도로 부실하게 읽힐 때만 — 흔한 정상 문서까지 매번 4배
+        # 비용을 물지 않으려고 — 90/180/270도로 돌려 다시 읽어보고 제일 잘
+        # 읽히는 각도를 고른다.
+        from PIL import Image
+        import numpy as np
+
+        with Image.open(path) as img:
+            arr = np.array(img.convert("RGB"))
+        orig_h, orig_w = float(arr.shape[0]), float(arr.shape[1])
+
+        best_score = _rotation_quality_score(results)
+        best_results = results
+        best_k = 0
+        for k in _ROTATION_RECOVERY_K_VALUES:
+            rotated_results = reader.readtext(np.rot90(arr, k=k))
+            score = _rotation_quality_score(rotated_results)
+            if score > best_score:
+                best_score = score
+                best_results = rotated_results
+                best_k = k
+
+        if best_k != 0 and best_score >= _ROTATION_RECOVERY_TRIGGER_SCORE:
+            results = best_results
+            rotation = (best_k, orig_w, orig_h)
 
     detections: list[tuple[str, tuple]] = []
     weak_detections: list[tuple[str, tuple]] = []
@@ -449,12 +570,12 @@ def _ocr_lines(
     rows = _group_into_rows(detections)
     flags = _oversized_row_flags(rows)
     weak_rows = _group_into_rows(weak_detections)
-    return rows, flags, weak_rows
+    return rows, flags, weak_rows, rotation
 
 
 def _ocr_words(path: str) -> tuple[str, list[_Word]]:
     """이미지 1장을 OCR해서 (다시 만든 raw_text, 단어별 offset+bbox 목록)을 돌려준다."""
-    lines, flags, _weak_lines = _ocr_lines(path)
+    lines, flags, _weak_lines, _rotation = _ocr_lines(path)
     text, words, _oversized_ranges = _words_from_lines(lines, flags)
     return text, words
 
@@ -894,6 +1015,57 @@ def _find_table_column_cells(
     return results
 
 
+def _find_weak_text_person_names(
+    weak_text: str, weak_words: list[_Word], existing_bboxes: list[tuple]
+) -> list[dict]:
+    """확신도 낮은 `weak_text`에서 사람 이름만 따로 찾는다.
+
+    실측(2026-09-18, 실제 지원서 사진): "지원동기" 자기소개서 문단이 줄 전체
+    확신도 0.21로 잡혀 본문 `text`(0.3 문턱)에서 통째로 빠졌다. 그 문단 안의
+    "홍길동"이라는 이름은 `_find_cross_referenced_values`로도 못 구한다 —
+    그 방식은 표에서 "이미 확정된 값"을 다른 자리에서 또 찾는 것인데, 이름은
+    애초에 표에서 확정된 적이 없어서(성명은 "직장명" 표가 아니라 문서 상단의
+    별도 칸에서 이미 확정된, 다른 값 "이예지"다) 대조할 원본이 없다.
+
+    그래서 `weak_text`에도 `scan.scan_text()`를 직접 돌리되, **person 판정만**
+    받아들인다. person 이외의 타입, 특히 injection은 절대 받지 않는다 — 확신도
+    낮은 텍스트는 OCR 잡음이 섞이기 쉽고, 그 잡음이 과거 실제로 인젝션
+    분류기를 오탐시킨 적이 있다(`_CROSS_REFERENCE_MIN_CONFIDENCE` 주석의
+    "ITQAAS AS — \\|" 사례). person 판정만 좁게 받으면 그 오탐 경로를 열지
+    않으면서 이름 누락만 메울 수 있다.
+    """
+    if not weak_text.strip():
+        return []
+
+    from backend.scanner import scan   # 지연 임포트 — scan.py가 이 모듈을 불러오므로 순환을 피한다
+
+    result = scan.scan_text(weak_text, meta={})
+    results: list[dict] = []
+    for finding in result.findings:
+        if finding.type != "person":
+            continue
+        bbox = _bbox_for_range(weak_words, finding.start, finding.end)
+        if bbox is None:
+            continue
+        if any(_bboxes_overlap(bbox, existing) for existing in existing_bboxes):
+            continue
+        results.append(
+            {
+                "field": "person",
+                "value": finding.text,
+                "start": 0,
+                "end": 0,
+                "confidence": finding.confidence,
+                "bbox": bbox,
+                "page": 1,
+                "reason": finding.reason,
+                "evidence": {**finding.evidence, "ocr": True, "weak_confidence_pass": True},
+                "source": finding.source,
+            }
+        )
+    return results
+
+
 def _find_cross_referenced_values(
     text: str, words: list[_Word], table_cells: list[dict]
 ) -> list[dict]:
@@ -922,9 +1094,10 @@ def _find_cross_referenced_values(
         confirmed.setdefault(value, cell["field"])
 
     existing_bboxes = [cell["bbox"] for cell in table_cells]
-    results: list[dict] = []
-    for value, field in confirmed.items():
-        for match in re.finditer(re.escape(value), text):
+
+    def _new_hits(pattern: str) -> list[tuple[re.Match, tuple]]:
+        hits = []
+        for match in re.finditer(pattern, text):
             bbox = _bbox_for_range(words, match.start(), match.end())
             if bbox is None:
                 continue
@@ -934,6 +1107,27 @@ def _find_cross_referenced_values(
             # bbox를 다시 합친) 사각형으로 덮어쓸 뿐이다.
             if any(_bboxes_overlap(bbox, existing) for existing in existing_bboxes):
                 continue
+            hits.append((match, bbox))
+        return hits
+
+    results: list[dict] = []
+    for value, field in confirmed.items():
+        hits = _new_hits(re.escape(value))
+        if not hits:
+            # 실측(2026-09-18, 지원서 사진): "C식품"의 "C"가 자유 서술문에서
+            # "("로 오독됐다("(식품 공장에서..."). 표 셀 자기 자신의 자리 말고는
+            # 정확히 일치하는 자리를 하나도 못 찾았을 때만 — "영문 한 글자 +
+            # 한글 단어" 모양인 값의 그 한 글자를 흔한 OCR 오독 기호(괄호·숫자)로
+            # 바꾼 형태도 찾아본다. 정확한 매칭이 이미 있는 값(A식품·B식품)까지
+            # 이 느슨한 패턴으로 다시 훑으면 서로 다른 값이 같은 자리에 겹쳐
+            # 잡힌다 — 표 셀 자기 자신의 자리만 걸렸던 값(exact match는 있지만
+            # 새 자리는 없는 경우)에도 마찬가지로 넘어가야 하므로, "새로 찾은
+            # 자리가 하나도 없을 때"를 기준으로 삼는다.
+            letter_confusable = re.match(r"^[A-Za-z](.+)$", value)
+            if letter_confusable:
+                pattern = r"[(0-9]" + re.escape(letter_confusable.group(1))
+                hits = _new_hits(pattern)
+        for _match, bbox in hits:
             results.append(
                 {
                     "field": field,
@@ -958,16 +1152,19 @@ def _bboxes_overlap(a: tuple, b: tuple) -> bool:
 def _merge_table_cells(findings: list[dict], table_cells: list[dict]) -> list[dict]:
     """표에서 뽑은 셀 값을 기존 findings에 합친다.
 
-    bbox가 겹치면(단순 사각형 교차 판정) 겹치는 기존 finding **전부**를
-    지우고 표에서 뽑은 값으로 교체한다(표 구조가 더 확실한 신호이므로 우선—
-    하나만 지우면 지저분한 finding이 같이 남는다). 안 겹치면 새 finding으로
-    그냥 추가한다 — NER이 아예 놓친 값("Fauget" 등)을 이렇게 새로 잡는다.
+    bbox가 겹치면(단순 사각형 교차 판정) 겹치는 기존 finding을 지우고 표에서
+    뽑은 값으로 교체한다(표 구조가 더 확실한 신호이므로 우선 — 하나만 지우면
+    지저분한 finding이 같이 남는다). 안 겹치면 새 finding으로 그냥 추가한다 —
+    NER이 아예 놓친 값("Fauget" 등)을 이렇게 새로 잡는다.
+
+    이 제거 판정은 `findings`(기존 NER/정규식 결과)에만 적용한다 — `table_cells`
+    끼리는 서로 지우지 않는다. 실측 버그(2026-09-18, 아르바이트 지원서): 자유
+    서술문에 이어 붙은 "A식품 B식품"처럼 인접한 두 값의 보간된 sub-word bbox가
+    서로 살짝 겹칠 수 있는데, 예전 코드는 셀을 순서대로 하나씩 append하며 겹침을
+    검사해서 뒤에 처리된 셀이 먼저 넣은 셀을 지워버렸다(B식품이 A식품을 밀어냄).
     """
-    merged = list(findings)
-    for cell in table_cells:
-        merged = [f for f in merged if not _bboxes_overlap(f["bbox"], cell["bbox"])]
-        merged.append(cell)
-    return merged
+    covered = [f for f in findings if not any(_bboxes_overlap(f["bbox"], cell["bbox"]) for cell in table_cells)]
+    return covered + list(table_cells)
 
 
 def detect(path: str) -> list[dict]:
@@ -991,7 +1188,7 @@ def detect(path: str) -> list[dict]:
     잡힌다.
     """
     try:
-        lines, oversized_flags, weak_lines = _ocr_lines(path)
+        lines, oversized_flags, weak_lines, rotation = _ocr_lines(path)
         text, words, oversized_ranges = _words_from_lines(lines, oversized_flags)
         weak_text, weak_words, _weak_oversized = _words_from_lines(weak_lines)
         # `_find_career_list_entries`는 NER이 아니라 "연도 - 연도" 뒤 글자를
@@ -1051,6 +1248,14 @@ def detect(path: str) -> list[dict]:
     # 그 문단 자체가 통째로 빠져 있어 못 찾는다.
     table_cells = table_cells + _find_cross_referenced_values(weak_text, weak_words, table_cells)
 
+    # 표에서 확정된 값이 아닌 사람 이름은 위 교차 대조로도 못 찾는다 — 대조할
+    # 원본 값이 없기 때문이다(`_find_weak_text_person_names` 참고). 그 문단
+    # 자체에서 이름을 직접 다시 찾되, person 판정만 받아들여 인젝션 오탐 경로를
+    # 막는다.
+    findings = findings + _find_weak_text_person_names(
+        weak_text, weak_words, [f["bbox"] for f in findings]
+    )
+
     # 표에서 뽑은 값은 scan_text()가 끝난 뒤에 합친다 — XLSX의 구조화 탐지
     # (`scan.py`의 `_find_structured_xlsx_values`)와 다르게, 이 값들은 오탐
     # 제거 분류기(`_apply_classifier_filters`)나 인젝션 문장 분리를 거치지
@@ -1058,4 +1263,13 @@ def detect(path: str) -> list[dict]:
     # 열의 의미를 확정해 준다), scan.py의 공유 파이프라인(PDF/DOCX/XLSX/TXT가
     # 다 같이 씀)을 건드리지 않고 이미지 전용으로 범위를 좁게 유지하려는
     # 목적도 있다 — 나중에 "왜 여기 분류기를 안 거치지?"하고 되돌리지 말 것.
-    return _merge_table_cells(findings, table_cells)
+    merged = _merge_table_cells(findings, table_cells)
+
+    if rotation is not None:
+        # 지금까지의 모든 bbox는 "바로 세운" 좌표계다 — 마스킹은 사용자가 올린
+        # 원본 파일 위에 그리므로, 돌려주기 직전에 원본 좌표로 되돌린다.
+        k, orig_w, orig_h = rotation
+        for finding in merged:
+            finding["bbox"] = _map_bbox_from_rotated(finding["bbox"], k, orig_w, orig_h)
+
+    return merged

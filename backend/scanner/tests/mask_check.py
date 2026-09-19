@@ -722,12 +722,15 @@ def case_scanned_pdf(tmp: str) -> None:
     page = masked[0]
     check(masked.page_count == 1, "페이지 수가 같다")
 
-    # 1) 화면에 보이는 결과: 그 자리가 검다
+    # 1) 화면에 보이는 결과: 그 자리가 채우는 색이다
     pixmap = page.get_pixmap(clip=target, dpi=72)
     samples = pixmap.samples
-    dark = sum(1 for i in range(0, len(samples), pixmap.n) if samples[i] < 16)
-    ratio = dark / (pixmap.width * pixmap.height)
-    check(ratio > 0.95, "그 자리가 검게 덮였다", f"{ratio:.0%}")
+    filled = sum(
+        1 for i in range(0, len(samples), pixmap.n)
+        if abs(samples[i] - mask._IMAGE_FILL_GRAYSCALE) < 16
+    )
+    ratio = filled / (pixmap.width * pixmap.height)
+    check(ratio > 0.95, "그 자리가 채우는 색으로 덮였다", f"{ratio:.0%}")
 
     # 2) 덮은 게 아니라 지웠는가 - 파일에 박힌 그림을 꺼내서 직접 본다.
     #    덮기만 했다면 여기서 원래 붉은색이 그대로 나온다.
@@ -892,17 +895,18 @@ def case_image(tmp: str) -> None:
 
         # CNN 박스 바로 아래로 글자 획이 삐져나오는 경우를 막기 위해 텍스트 박스는
         # 조금 넓혀 칠한다. 주민번호 원래 박스 아래 5px도 검정이어야 한다.
-        check(masked.getpixel((250, 84))[:3] == (0, 0, 0),
+        check(masked.getpixel((250, 84))[:3] == mask._IMAGE_FILL,
               "텍스트 박스 경계 밖의 글자 획도 가린다")
-        check(masked.getpixel((100, 220))[:3] == (0, 0, 0),
+        check(masked.getpixel((100, 220))[:3] == mask._IMAGE_FILL,
               "여러 줄 주소는 아래쪽 여백을 더 넓게 가린다")
 
         # 이미지 사본에는 라벨을 새기지 않고 검은 리댁션만 남긴다. 구체적인 유형은
         # API findings에서 확인한다.
         narrow = masked.crop((20, 20, 140, 160)).convert("L")
         wide = masked.crop((200, 40, 380, 80)).convert("L")
-        check(wide.getextrema() == (0, 0), "텍스트 필드는 검정만 남는다")
-        check(narrow.getextrema() == (0, 0), "얼굴도 검정만 남는다")
+        fill_extrema = (mask._IMAGE_FILL_GRAYSCALE, mask._IMAGE_FILL_GRAYSCALE)
+        check(wide.getextrema() == fill_extrema, "텍스트 필드는 채우는 색만 남는다")
+        check(narrow.getextrema() == fill_extrema, "얼굴도 채우는 색만 남는다")
 
     check(_digest(src) == before, "원본 파일이 변하지 않았다")
 
@@ -950,7 +954,9 @@ def case_image_modes(tmp: str) -> None:
         with Image.open(out) as masked:
             check(masked.mode == "L", "흑백 그대로 저장된다 (RGB로 부풀리지 않는다)",
                   masked.mode)
-            check(masked.crop((20, 20, 140, 160)).getextrema() == (0, 0), "자리가 검게 칠해졌다")
+            fill_extrema = (mask._IMAGE_FILL_GRAYSCALE, mask._IMAGE_FILL_GRAYSCALE)
+            check(masked.crop((20, 20, 140, 160)).getextrema() == fill_extrema,
+                  "자리가 채우는 색으로 칠해졌다")
 
     palette = os.path.join(tmp, "팔레트.png")
     image = Image.new("P", (200, 150))
@@ -963,7 +969,7 @@ def case_image_modes(tmp: str) -> None:
     check(bool(out), "팔레트 사본이 생성됐다")
     if out:
         with Image.open(out) as masked:
-            check(masked.crop((10, 10, 100, 100)).convert("L").getextrema()[0] == 0,
+            check(masked.crop((10, 10, 100, 100)).convert("L").getextrema()[0] == mask._IMAGE_FILL_GRAYSCALE,
                   "팔레트 이미지도 칠해진다")
 
 
