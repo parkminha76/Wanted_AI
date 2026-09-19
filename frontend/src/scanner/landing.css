@@ -160,6 +160,49 @@
   font-size: var(--font-size-xs);
 }
 
+/* 지표 카드에 마우스를 올리거나(키보드는 Tab) 포커스하면 뜨는 상세 설명. */
+.landing-metric {
+  position: relative;
+  outline: none;
+}
+
+.landing-metric__tooltip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: 260px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  letter-spacing: normal;
+  word-break: keep-all;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.landing-metric:hover .landing-metric__tooltip,
+.landing-metric:focus-visible .landing-metric__tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+  .landing-metric__tooltip {
+    max-width: 68vw;
+  }
+}
+
 /* "예시 장면" 안내. 결과 화면에서 진짜 결과와 헷갈리지 않게 카드 위에 먼저 읽히게 둔다. */
 .scan-mock__sample {
   position: relative;
@@ -830,15 +873,6 @@
   text-align: center;
 }
 
-/* 코드체 대문자 두 줄 — 장식 문구라 화면 읽기 프로그램에는 읽히지 않는다 */
-.landing-outro__stack {
-  color: var(--color-text-faint);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: 1.9;
-  letter-spacing: 0.18em;
-}
-
 .landing-outro__center {
   min-width: 0;
 }
@@ -889,6 +923,7 @@
 }
 
 .landing-pill span {
+  display: inline-flex;
   color: var(--color-primary);
 }
 
@@ -1079,21 +1114,6 @@
     justify-content: space-between;
   }
 
-  /* 왼쪽 장식 문구 | 가운데 문구·버튼 | 오른쪽 장식 문구 */
-  .landing-outro {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-7);
-    text-align: left;
-  }
-
-  .landing-outro__center {
-    text-align: center;
-  }
-
-  .landing-outro__stack--right {
-    text-align: right;
-  }
 }
 
 /* ---------- 움직임 ---------- */

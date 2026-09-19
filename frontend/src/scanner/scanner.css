@@ -204,7 +204,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding-top: var(--space-4);
+  margin-top: var(--space-3);
+  padding-top: var(--space-6);
   border-top: 1px solid var(--color-divider);
 }
 
@@ -212,6 +213,15 @@
   color: var(--color-risk-low);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+}
+
+/* "유형별 보기" 드롭다운과 위험 요약을 한 줄에 놓는다 — 드롭다운은 왼쪽, 요약은 오른쪽. */
+.text-scan__toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .text-scan__summary {
@@ -235,44 +245,103 @@
   font-family: var(--font-mono);
 }
 
-.text-scan__list {
+/* 표 위 "유형별 보기" 드롭다운 — 유형이 여러 번 겹쳐 나올 때 한 유형만 골라 볼 수 있다. */
+.text-scan__group-toolbar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
-  list-style: none;
 }
 
-.text-scan__list li {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
+.text-scan__group-toolbar-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.text-scan__group-empty {
+  padding: var(--space-4);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* 묶음 표 페이지 인디케이터 — 10건 넘게 쌓이면 아래에 뜬다(page-nav__item과 같은 알약 모양). */
+.text-scan__pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.text-scan__page-btn {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.text-scan__page-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-navy);
+}
+
+.text-scan__page-btn[aria-current='true'] {
+  border-color: transparent;
+  background: var(--color-navy);
+  color: var(--color-on-primary);
+}
+
+/* 공용 드롭다운 — 텍스트 입력칸(.text-scan__input)과 같은 톤을 쓴다. */
+.select {
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-muted);
-}
-
-.text-scan__type {
   color: var(--color-text);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
 }
 
-/* 탐지된 값 — 결과 화면의 하이라이트와 같은 색으로 보여준다 */
-.text-scan__value {
-  justify-self: start;
-  max-width: 100%;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-hit-bg);
-  color: var(--color-hit-text);
-  font-family: var(--font-mono);
+.select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* 같은 값이 여러 번 나오면 한 줄로 묶어 건수로 보여주는 표(groupDuplicateFindings). */
+.text-scan__group-table-wrap {
+  overflow-x: auto;
+}
+
+.text-scan__group-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: var(--font-size-sm);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
-.text-scan__meta {
+.text-scan__group-table th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.text-scan__group-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text);
+}
+
+.text-scan__group-table td:nth-child(2) {
+  color: var(--color-hit-text);
+  font-family: var(--font-mono);
 }
 
 .text-scan__filtered {
@@ -290,10 +359,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  text-align: center;
   gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
+}
+
+.text-scan__masked-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .text-scan__masked-body {
@@ -936,6 +1011,14 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
+}
+
+/* 마스킹 방식 전환처럼 좁은 자리에 들어가는 작은 탭 — 손가락 최소 크기(44px)는 지키지 않아도 되는
+   보조 토글이라 높이·글자를 줄인다. */
+.tabs--compact .tabs__tab {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
 }
 
 .tabs__tab[aria-selected='true'] {
