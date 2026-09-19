@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html style="background:#070707">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
-<body>
+<!-- 진짜 배경색을 여기 style 속성으로 둔다. 아래 <x-dc><helmet><style>의 background:#070707는
+     이 파일을 생성한 도구(클로드 디자인)가 자기 런타임(support.js)으로 <head>에 옮겨 적용하는데,
+     그 처리가 끝나기 전까지는 기본값(흰색)으로 그려진다 — 새로고침마다 흰 화면이 번쩍이던 이유.
+     <head>에 새 <style> 태그를 넣는 방식은 support.js의 리소스 로딩 순서(React CDN vs
+     로컬 _ds_bundle.js 실행 경쟁)를 흔들어 애니메이션 자체가 안 뜨는 부작용이 있었다 —
+     그래서 <head> 구조는 그대로 두고 body 태그의 속성으로만 배경을 준다. -->
+<body style="background:#070707">
 <x-dc>
 <helmet>
 <link rel="stylesheet" href="_ds/nocturne-2e053240-e9b2-413b-b045-9bda9272dca0/styles.css">
@@ -561,6 +567,41 @@ class Component extends DCLogic {
     };
   }
 }
+</script>
+<!-- 부모 페이지(랜딩)의 격자·빛 배경을 이 안쪽 배경에도 같은 자리에 그려서 iframe 경계가
+     안 보이게 한다. 격자 선만 맞추고 위쪽 은은한 빛(.landing__glow)을 안 그리면 그 밝기
+     차이만큼 경계가 도로 티가 나서, 빛까지 같은 위치·크기로 그린다. 위치는 부모가 계산해서
+     postMessage로 보내준다 — 이 스크립트는 <x-dc> 처리가 끝난 뒤 body 맨 끝에 있어서
+     support.js의 리소스 로딩 순서(React CDN 대기)에 영향을 주지 않는다. -->
+<script>
+(function () {
+  function requestOffset() {
+    if (window.parent !== window) window.parent.postMessage({ type: 'scan-grid:request' }, '*')
+  }
+  window.addEventListener('message', function (e) {
+    var d = e.data
+    if (!d || d.type !== 'scan-grid:offset') return
+    var alpha = (0.055 * (typeof d.opacity === 'number' ? d.opacity : 1)).toFixed(4)
+    var images = [
+      'linear-gradient(rgba(117,191,220,' + alpha + ') 1px, transparent 1px)',
+      'linear-gradient(90deg, rgba(117,191,220,' + alpha + ') 1px, transparent 1px)',
+    ]
+    var sizes = ['80px 80px', '80px 80px']
+    var positions = [(d.x || 0) + 'px ' + (d.y || 0) + 'px', (d.x || 0) + 'px ' + (d.y || 0) + 'px']
+    if (d.glow) {
+      images.push(
+        'radial-gradient(ellipse ' + d.glow.w + 'px ' + d.glow.h + 'px at ' +
+          d.glow.cx + 'px ' + d.glow.cy + 'px, rgba(117,191,220,0.16), transparent 68%)'
+      )
+      sizes.push('100% 100%')
+      positions.push('0 0')
+    }
+    document.body.style.backgroundImage = images.join(',')
+    document.body.style.backgroundSize = sizes.join(',')
+    document.body.style.backgroundPosition = positions.join(',')
+  })
+  requestOffset()
+})()
 </script>
 </body>
 </html>

@@ -60,15 +60,16 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* 훈련 모드 소개 카드(.feature-card__icon)와 크기·색을 맞춘다 — 아이콘이 글자에서 Lucide SVG로 바뀌어
+   font-weight는 더 필요 없다. */
 .guide-step__icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: var(--font-weight-heavy);
 }
 
 .guide-step__title {
