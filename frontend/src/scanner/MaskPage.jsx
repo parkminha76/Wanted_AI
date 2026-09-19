@@ -15,6 +15,19 @@ import './scanner.css'
 // 부분 마스킹은 탐지된 항목 전부에 표준 규칙(010-****)을 적용한다. 항목을 하나씩 고르는 단계는
 // 두지 않는다 — 파일이 10개면 고르는 일만 열 번이 된다.
 
+// 파일 하나를 내려받는다. 숨은 iframe을 쓰는 이유가 있다 — location.href도 <a>.click()도
+// 최상위 화면 이동이라, 다음 파일을 걸면 브라우저가 앞의 이동을 취소한다. 파일 4개를 이어서
+// 걸었더니 2개만 저장됐다(네트워크 기록에서 확인). iframe은 각자 따로라 서로를 취소하지 않는다.
+// 응답에 Content-Disposition: attachment가 붙어 있어서 iframe은 빈 채로 남고 파일만 저장된다.
+function saveFile(url) {
+  const frame = document.createElement('iframe')
+  frame.hidden = true
+  frame.src = url
+  document.body.appendChild(frame)
+  // 내려받기가 시작되고 나면 iframe은 할 일이 없다. 쌓이지 않게 치운다.
+  setTimeout(() => frame.remove(), 30000)
+}
+
 // 사본은 방식을 바꿀 때마다 만들지 않는다. 받기를 누를 때 필요한 것만 만든다 — 고르는 동안
 // 만들면 쓰지도 않을 사본이 서버에 쌓이고, 먼저 만든 것부터 30분 TTL이 돌기 시작한다.
 function needsCopy(row) {
@@ -78,14 +91,7 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
     } catch {
       // 서버에 닿지 못한 것은 만료가 아니다. 평소대로 브라우저에 맡긴다.
     }
-    // window.location.href로 걸면 안 된다 — 두 번째 파일을 걸 때 첫 번째 내려받기가
-    // 취소돼서 한 개만 저장된다(실제로 그랬다). <a>는 각자 따로 시작한다.
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.rel = 'noopener'
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
+    saveFile(url)
     return true
   }
 
