@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { FolderClock, Handshake, Paperclip, Send } from 'lucide-react'
+import { BookOpen, FolderClock, Handshake, MessageSquareText, Paperclip, ScanSearch, Send } from 'lucide-react'
 import { api, UPLOAD_LIMITS } from '../shared/api.js'
 import { AppFooter, Badge, Button, DecodeText, GlowCard, Modal, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from '../shared/findings.js'
@@ -40,10 +40,26 @@ const SECTIONS = [
 //   18종  backend/shared/schema.py의 RiskType 중 개인정보 유형
 //         (숨은 명령·숨은 텍스트와 이미지 전용 3종을 빼면 18개)
 //   8종   PDF·DOCX·XLSX·TXT·MD·CSV·LOG·이미지
+// detail은 카드에 마우스를 올리면(또는 키보드로 포커스하면) 뜨는 설명 — 18종은
+// backend/shared/schema.py TYPE_LABELS에서 위 18개만 그대로 옮겨 적은 것이라, 유형이 늘거나
+// 이름이 바뀌면 같이 고쳐야 한다.
 const HERO_METRICS = [
-  { value: '0초', label: '원본 보관 시간' },
-  { value: '18종', label: '찾아내는 개인정보 유형' },
-  { value: '8종', label: '지원 파일 형식' },
+  {
+    value: '0초',
+    label: '원본 보관 시간',
+    detail: '업로드한 원본은 검사가 끝나는 즉시 서버에서 삭제합니다. 마스킹 사본은 30분 동안만 내려받을 수 있고, 그 뒤 자동으로 삭제됩니다.',
+  },
+  {
+    value: '18종',
+    label: '찾아내는 개인정보 유형',
+    detail:
+      '주민등록번호 · 여권번호 · 운전면허번호 · 외국인등록번호 · 계좌번호 · 카드번호 · API 키 · DB 접속정보 · 이메일 · 전화번호 · 사업자등록번호 · 법인등록번호 · IP 주소 · 사번 · 생년월일 · 이름 · 주소 · 조직명',
+  },
+  {
+    value: '8종',
+    label: '지원 파일 형식',
+    detail: 'PDF · DOCX · XLSX · TXT · MD · CSV · LOG · 이미지(PNG/JPG/BMP/WEBP/TIFF)',
+  },
 ]
 
 // 숨은 위험 목록은 backend/scanner/parser/parse.py·detectors/hidden.py가 실제로 잡는 것만 적는다.
@@ -508,14 +524,20 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
             </Button>
           </div>
           <dl className="landing-metrics">
-            {HERO_METRICS.map((metric) => (
-              <div key={metric.label}>
-                <dt>{metric.label}</dt>
-                <dd>
-                  <DecodeText text={metric.value} />
-                </dd>
-              </div>
-            ))}
+            {HERO_METRICS.map((metric) => {
+              const tooltipId = `hero-metric-tip-${metric.label}`
+              return (
+                <div key={metric.label} className="landing-metric" tabIndex={0} aria-describedby={tooltipId}>
+                  <dt>{metric.label}</dt>
+                  <dd>
+                    <DecodeText text={metric.value} />
+                  </dd>
+                  <span id={tooltipId} role="tooltip" className="landing-metric__tooltip">
+                    {metric.detail}
+                  </span>
+                </div>
+              )
+            })}
           </dl>
           <p className="landing-metrics__note">
             원본은 검사가 끝나는 즉시 지웁니다. 마스킹 사본도 30분 뒤 자동 삭제됩니다.
@@ -1012,12 +1034,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       {/* 전환 띠 — 바닥글 바로 위에서 다음 행동 세 가지를 고르게 한다 */}
       <section className="landing-outro rv" aria-labelledby="outro-title">
-        <p className="landing-outro__stack" aria-hidden="true">
-          SAFER DOCUMENTS
-          <br />
-          BRIGHTER TOMORROW
-        </p>
-
         <div className="landing-outro__center">
           <h2 id="outro-title" className="landing-outro__title">
             <span className="landing-outro__accent">개인에서 조직으로,</span> 더 안전한 문서 환경을 만듭니다.
@@ -1027,25 +1043,25 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           </p>
           <div className="landing-outro__actions">
             <button type="button" className="landing-pill" onClick={() => scrollToSection('upload')}>
-              <span aria-hidden="true">▣</span>
+              <span aria-hidden="true">
+                <ScanSearch size={18} strokeWidth={2} />
+              </span>
               문서 보안 검사
             </button>
             <button type="button" className="landing-pill" onClick={() => navigate('training')}>
-              <span aria-hidden="true">◫</span>
+              <span aria-hidden="true">
+                <MessageSquareText size={18} strokeWidth={2} />
+              </span>
               사기 대응 훈련
             </button>
             <button type="button" className="landing-pill" onClick={() => navigate('guide')}>
-              <span aria-hidden="true">◍</span>
+              <span aria-hidden="true">
+                <BookOpen size={18} strokeWidth={2} />
+              </span>
               이용 가이드
             </button>
           </div>
         </div>
-
-        <p className="landing-outro__stack landing-outro__stack--right">
-          YOUR DOCUMENTS,
-          <br />
-          SAFER WITH AI
-        </p>
       </section>
 
       {/* 바닥글 — 링크는 이 앱 안에서 실제로 동작하는 것만 둔다(없는 페이지로 가는 링크는 누르면 바로 드러난다) */}
