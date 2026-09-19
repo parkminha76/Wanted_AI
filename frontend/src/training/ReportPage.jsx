@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../shared/api.js'
 import { Button, Card, DecodeText } from '../shared/components/index.js'
+import { displayMaskedText, getRecommendedResponse } from './trainingPrivacyGuidance.js'
 import './training.css'
 
 // 훈련 결과 리포트. 하단에 스캐너로 넘어가는 전환 버튼이 있다.
@@ -135,6 +136,46 @@ export default function ReportPage({ training, navigate }) {
               ) : <p>추가 개선 권고가 없습니다.</p>}
             </section>
           </div>
+
+          {report.conversation?.length > 0 && (
+            <section className="report-conversation" aria-labelledby="report-conversation-title">
+              <div className="report-conversation__heading">
+                <div>
+                  <p className="eyebrow">TRAINING REVIEW</p>
+                  <h2 id="report-conversation-title">AI와 나의 실전 대화 기록</h2>
+                </div>
+                <span className="report-conversation__scenario">
+                  LEVEL {String(report.level).padStart(2, '0')} · {report.scenario_title || '훈련 시나리오'}
+                </span>
+              </div>
+
+              <ol className="report-conversation__list">
+                {report.conversation.map((message, index) => {
+                  const isUser = message.role === 'user'
+                  const turn = Math.floor(index / 2) + 1
+                  const recommendation = isUser ? getRecommendedResponse(message.content) : null
+
+                  return (
+                    <li key={`${message.role}-${index}`} className="report-conversation__entry">
+                      <article className={`report-message report-message--${isUser ? 'user' : 'attacker'}`}>
+                        <span className="report-message__label">
+                          {isUser ? '나의 대응' : 'AI 사기범'} · TURN {String(turn).padStart(2, '0')}
+                        </span>
+                        <p>{displayMaskedText(message.content)}</p>
+                      </article>
+
+                      {recommendation && (
+                        <aside className="report-recommendation">
+                          <span>적절한 대응</span>
+                          <p>{recommendation}</p>
+                        </aside>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          )}
         </>
       )}
 

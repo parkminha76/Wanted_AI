@@ -55,12 +55,21 @@ export default function App() {
       // 검사가 성공했을 때만 바꾼다 — 실패했는데 바꾸면 이전 결과의 원본 File이 사라진다.
       setBatchSource(kind)
       setUploads(kind === 'files' ? files : [])
-      setFileIndex(0)
+      // 서버는 위험도 내림차순으로 돌려준다. 화면 기본값은 사용자가 처음 올린 파일이다 —
+      // 목록 순서는 그대로 두고 어느 것을 펴 놓을지만 바꾼다. 샘플 검사는 올린 순서가
+      // 없으므로 서버 순서 첫 번째(=가장 위험한 파일)를 그대로 쓴다.
+      const firstUploaded =
+        kind === 'files'
+          ? result.results.findIndex((r) => r.filename === files[0]?.name)
+          : -1
+      setFileIndex(firstUploaded < 0 ? 0 : firstUploaded)
       setFindingId(null)
-      navigate('results')
+      // replace — "검사 중" 화면을 뒤로가기 스택에 안 남긴다(안 그러면 결과에서 뒤로 갈 때
+      // 끝나 버린 검사 중 화면으로 떨어진다).
+      navigate('results', { replace: true })
     } catch (err) {
       setScanError(err.message)
-      navigate('')
+      navigate('', { replace: true })
     } finally {
       setScanJob(null)
     }
@@ -69,9 +78,11 @@ export default function App() {
   // "이 파일 취소" — 화면 목록에서만 뺀다.
   // TODO: 서버 배치에는 남아 있어서 "전체 사본 받기(.zip)"에는 아직 포함된다.
   function cancelFile(target) {
+    let remaining = 0
     setBatch((prev) => {
       if (!prev) return prev
       const results = prev.results.filter((result) => result !== target)
+      remaining = results.length
       return {
         ...prev,
         results,
@@ -79,6 +90,9 @@ export default function App() {
         total_findings: results.reduce((sum, result) => sum + result.findings.length, 0),
       }
     })
+    // 마지막 남은 파일까지 취소하면 보여줄 결과가 없다 — "검사 결과가 없습니다" 안내 화면으로
+    // 한 번 더 넘어가지 않고 바로 첫 화면으로 돌아간다(검사 완료 후 뒤로가기와 같은 이유).
+    if (remaining === 0) navigate('', { replace: true })
     setFileIndex(0)
     setFindingId(null)
   }
@@ -88,6 +102,13 @@ export default function App() {
     batch,
     file: results[fileIndex] ?? results[0] ?? null,
     fileIndex,
+    // 직접 올린 이미지 원본은 마스킹 사본 생성에도 이미 브라우저 메모리에서만 보관한다.
+    // 상세 미리보기는 이 File 객체를 재사용하므로 서버에 원본을 추가 저장하지 않는다.
+    sourceFile: uploads.find((uploaded) => uploaded.name === (results[fileIndex]?.filename ?? results[0]?.filename)) ?? null,
+    // 합성 샘플은 서버 저장소의 원본을 미리보기로만 가져온다. 실제 업로드 원본에는 이 주소를 만들지 않는다.
+    sourceUrl: batchSource === 'samples' && results[fileIndex]
+      ? api.sampleOriginalUrl(results[fileIndex].filename)
+      : null,
     onSelectFile: (index) => {
       setFileIndex(index)
       setFindingId(null)

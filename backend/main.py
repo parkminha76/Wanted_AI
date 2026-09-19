@@ -310,6 +310,9 @@ class _MaskedFile:
     path: str
     download_name: str
     created_at: float
+    # 어느 검사(배치)에서 나온 사본인가. /download/all이 "이 배치의 것만 묶는다"를
+    # 지킬 때 쓴다. 나중에 만든 부분 마스킹 사본도 원본과 같은 배치를 물려받는다.
+    batch_id: str | None = None
 
 
 _masked_files: dict[str, _MaskedFile] = {}
@@ -369,7 +372,7 @@ def _remove_quietly(path: str) -> None:
             pass
 
 
-def _register_masked(result: schema.ScanResult) -> None:
+def _register_masked(result: schema.ScanResult, batch_id: str | None = None) -> None:
     """ScanResult.masked_path를 다운로드 가능한 file_id로 바꿔 등록한다."""
     if not result.masked_path or not os.path.exists(result.masked_path):
         return
@@ -378,8 +381,15 @@ def _register_masked(result: schema.ScanResult) -> None:
         path=result.masked_path,
         download_name=os.path.basename(result.masked_path),
         created_at=time.time(),
+        batch_id=batch_id,
     )
     result.file_id = file_id
+
+
+def _batch_of(file_id: str | None) -> str | None:
+    """그 사본이 속한 배치. 부분 마스킹 사본은 대체한 사본의 배치를 그대로 물려받는다."""
+    entry = _masked_files.get(file_id) if file_id else None
+    return entry.batch_id if entry else None
 
 
 # ---------------------------------------------------------------------------
@@ -544,7 +554,7 @@ async def scan_upload(
 
     batch.batch_id = uuid.uuid4().hex
     for result in batch.results:
-        _register_masked(result)
+        _register_masked(result, batch_id=batch.batch_id)
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
     _persist_scan_results(batch.results)
 
@@ -582,6 +592,7 @@ async def scan_upload(
 async def mask_selected_findings(
     file: UploadFile,
     masking_selection_json: str = Form(alias="masking_selection"),
+    replaces: str | None = Form(default=None),
 ) -> dict:
     """Re-scan one file and create a copy from the user's finding selections.
 
@@ -613,7 +624,8 @@ async def mask_selected_findings(
     if not result.masked_path or not os.path.exists(result.masked_path):
         raise HTTPException(status_code=500, detail="마스킹 사본을 만들지 못했습니다")
 
-    _register_masked(result)
+    # 새 사본은 대체한 사본과 같은 배치에 속한다. 배치 목록 자체는 건드리지 않는다.
+    _register_masked(result, batch_id=_batch_of(replaces))
     log_event(
         logger,
         logging.INFO,
@@ -728,16 +740,25 @@ def update_hidden_command_status(
 
 
 @app.get("/download/all")
-def download_all(batch_id: str) -> FileResponse:
-    """배치의 사본 전체를 .zip으로 내려준다.
+def download_all(batch_id: str, files: str | None = None) -> FileResponse:
+    """배치의 사본을 .zip으로 내려준다. files를 주면 그중 고른 것만 묶는다.
 
     zip은 요청할 때 만들고 응답을 보낸 뒤 지운다(BackgroundTask). 미리 만들어 두면
     내려받지 않은 zip이 디스크에 남는다.
+
+    files는 배치 안으로만 좁히는 거르개다 — 배치에 없는 id는 조용히 버린다. 이렇게 해야
+    "이 배치의 사본만 내려간다"는 성질이 유지된다. id 목록만 받고 배치를 안 보면 다른
+    배치의 사본을 섞어 달라고 요청할 수 있다.
     """
     _sweep_expired()
     file_ids = _batches.get(batch_id)
     if not file_ids:
         raise HTTPException(status_code=404, detail="배치가 없거나 보관 기간이 지났습니다")
+
+    if files is not None:
+        # 배치 목록(file_ids)이 아니라 사본에 붙은 배치 표시로 거른다. 부분 마스킹 사본은
+        # 검사 뒤에 만들어져 목록에는 없지만 같은 배치의 것이다.
+        file_ids = [fid for fid in files.split(",") if _batch_of(fid) == batch_id]
 
     entries = [_masked_files[fid] for fid in file_ids if fid in _masked_files]
     if not entries:
@@ -857,6 +878,24 @@ def sample_list() -> dict:
     }
 
 
+@app.get("/samples/original/{filename}")
+def sample_original(filename: str) -> FileResponse:
+    """합성 샘플의 원본을 상세 미리보기 전용으로 돌려준다.
+
+    실제 업로드 문서는 서버에서 즉시 삭제하지만, 이 경로는 저장소에 함께 배포되는
+    합성 데모 파일만 _sample_paths() 허용 목록에서 찾아 전달한다. 사용자 입력을
+    경로로 조합하지 않아 디렉터리 이탈은 불가능하다.
+    """
+    path = {os.path.basename(item): item for item in _sample_paths()}.get(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="샘플 문서를 찾을 수 없습니다")
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 def _sample_subset(names: str | None) -> dict:
     """고른 샘플만 남긴 결과. 고르지 않았거나 하나도 못 찾으면 전체를 그대로 돌려준다.
 
@@ -909,7 +948,7 @@ def samples(files: str | None = None) -> dict:
         result.filename = os.path.basename(result.filename)
     batch.batch_id = uuid.uuid4().hex
     for result in batch.results:
-        _register_masked(result)
+        _register_masked(result, batch_id=batch.batch_id)
     _batches[batch.batch_id] = [r.file_id for r in batch.results if r.file_id]
 
     _sample_cache = batch.to_dict()
@@ -928,6 +967,8 @@ def samples(files: str | None = None) -> dict:
 class SampleMaskRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     selections: list[dict] = Field(min_length=1)
+    # 화면이 들고 있던 이전 사본의 file_id. 배치 .zip에서 이 자리를 새 사본으로 바꾼다.
+    replaces: str | None = Field(default=None, max_length=64)
 
 
 @app.post("/samples/mask")
@@ -962,7 +1003,7 @@ def mask_selected_sample(request: SampleMaskRequest) -> dict:
     if not result.masked_path or not os.path.exists(result.masked_path):
         raise HTTPException(status_code=500, detail="마스킹 사본을 만들지 못했습니다")
 
-    _register_masked(result)
+    _register_masked(result, batch_id=_batch_of(request.replaces))
     log_event(
         logger,
         logging.INFO,

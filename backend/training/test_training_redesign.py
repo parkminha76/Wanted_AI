@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from backend.training.sanitizer import sanitize_training_text
+from backend.training.prompts import build_attacker_prompt
 from backend.training.scenarios import SCENARIOS
 from backend.training.training_flow import (
     MAX_USER_TURNS,
@@ -13,6 +14,7 @@ from backend.training.training_service import (
     calculate_training_score,
     grade_training_score,
 )
+from backend.training.router import _complete_training
 
 
 class TrainingRedesignTests(unittest.TestCase):
@@ -54,6 +56,16 @@ class TrainingRedesignTests(unittest.TestCase):
             "제 번호는 [PHONE]입니다.",
         )
         self.assertNotIn("010-1234-5678", repr(session))
+
+    def test_attacker_prompt_hides_internal_privacy_tokens_from_user(self):
+        prompt = build_attacker_prompt(
+            state="S2_INFO_REQUEST",
+            level=1,
+            scenario=SCENARIOS[1][0],
+        )
+        self.assertIn("대괄호 표시를 그대로 출력하지 말고", prompt)
+        self.assertIn("휴대전화 번호", prompt)
+        self.assertIn("카드 번호", prompt)
 
     def test_max_turn_finishes_without_calling_attacker(self):
         session = create_training_session(2, SCENARIOS[2][0])
@@ -114,6 +126,50 @@ class TrainingRedesignTests(unittest.TestCase):
         }
         self.assertEqual(calculate_training_score(no_process_but_no_harm), 90)
         self.assertEqual(grade_training_score(90), "안전")
+
+    def test_completed_report_keeps_sanitized_conversation_and_scenario(self):
+        scenario = SCENARIOS[1][0]
+        session = create_training_session(1, scenario)
+        session["history"].append(
+            {"role": "assistant", "content": "연락처를 알려주세요."}
+        )
+        process_user_reply(
+            session=session,
+            user_reply="제 번호는 010-1234-5678입니다.",
+        )
+        defender_report = {
+            "risky_actions": [],
+            "good_actions": ["공식 채널을 확인했습니다."],
+            "improvements": [],
+            "summary": "안전하게 대응했습니다.",
+        }
+
+        with patch(
+            "backend.training.router.generate_defender_report",
+            return_value=defender_report,
+        ), patch(
+            "backend.training.router.calculate_training_score",
+            return_value=100,
+        ), patch(
+            "backend.training.router.grade_training_score",
+            return_value="안전",
+        ), patch("backend.training.router.finish_training"):
+            report = _complete_training(
+                db=object(),
+                training_progress_id=987654,
+                session=session,
+            )
+
+        self.assertEqual(report["scenario_id"], scenario["id"])
+        self.assertEqual(report["scenario_title"], scenario["name"])
+        self.assertEqual(
+            report["conversation"],
+            [
+                {"role": "assistant", "content": "연락처를 알려주세요."},
+                {"role": "user", "content": "제 번호는 [PHONE]입니다."},
+            ],
+        )
+        self.assertNotIn("010-1234-5678", repr(report))
 
 
 if __name__ == "__main__":

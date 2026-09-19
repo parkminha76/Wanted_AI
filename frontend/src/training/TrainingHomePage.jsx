@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FileChartColumn, MessageSquareText, ShieldCheck } from 'lucide-react'
 import { api } from '../shared/api.js'
-import { Badge, Button, SectionRail } from '../shared/components/index.js'
+import { Badge, Button, GlowCard, SectionRail } from '../shared/components/index.js'
 import TypingChatMock from './TypingChatMock.jsx'
 import './training.css'
 
@@ -96,19 +96,19 @@ export default function TrainingHomePage({ onStarted }) {
 
       <ul id="features" className="feature-cards stagger">
         {FEATURES.map((feature) => (
-          <li key={feature.title} className="feature-card rv">
+          <GlowCard as="li" key={feature.title} className="feature-card rv">
             <span className="feature-card__icon" aria-hidden="true">
               <feature.Icon size={22} strokeWidth={1.8} />
             </span>
             <h2 className="feature-card__title">{feature.title}</h2>
             <p className="feature-card__copy">{feature.copy}</p>
-          </li>
+          </GlowCard>
         ))}
       </ul>
 
       <section id="training-levels" className="stack" aria-labelledby="levels-title">
         <h2 id="levels-title" className="section-title">
-          레벨을 골라 시작하세요
+          상황을 골라 시작하세요
         </h2>
         {unavailable && (
           <p className="alert alert--info">지금은 훈련 서버가 연결되지 않아 훈련을 시작할 수 없습니다. 문서 검사는 그대로 쓸 수 있어요.</p>
@@ -120,14 +120,15 @@ export default function TrainingHomePage({ onStarted }) {
         )}
         <div className="level-grid stagger">
           {LEVELS.map((item) => (
-            <button
+            <GlowCard
+              as="button"
               key={item.level}
               type="button"
               className="level-card rv"
               onClick={() => start(item.level)}
               disabled={startingLevel !== null || unavailable}
             >
-              <span className="level-card__level">Level {item.level}</span>
+              <span className="level-card__level">CASE {item.level}</span>
               <span className="level-card__title">{item.title}</span>
               <span className="level-card__desc">{item.description}</span>
               {startingLevel === item.level && (
@@ -135,7 +136,7 @@ export default function TrainingHomePage({ onStarted }) {
                   <span className="spinner" aria-hidden="true" /> 시작하는 중…
                 </span>
               )}
-            </button>
+            </GlowCard>
           ))}
         </div>
       </section>

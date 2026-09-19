@@ -91,11 +91,6 @@ export default function AppFooter({ navigate, onScan, busy = false, standalone =
                 숨은 위험 탐지
               </button>
             </li>
-            <li>
-              <button type="button" className="landing-footer__link" onClick={() => goToSection('proof')}>
-                성능 측정 결과
-              </button>
-            </li>
           </ul>
         </nav>
 
