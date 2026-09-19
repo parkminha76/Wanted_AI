@@ -115,7 +115,7 @@ export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, 
 
       <div className="page-head rv">
         <div>
-          <h1 className="page-title">어디가, 왜 문제인가</h1>
+          <h1 className="page-title">검사 결과 상세보기</h1>
           <p className="page-desc break-anywhere">
             {file.filename || '텍스트'}
             {finding ? ` · 문제 ${list.length}건 중 ${index + 1}번째` : ''}
