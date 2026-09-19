@@ -160,16 +160,6 @@
   font-size: var(--font-size-xs);
 }
 
-/* ---------- 스캔 장면(LandingScanMock) ---------- */
-/* 초록 선이 문서를 훑고 지나가면 가림칸이 하나씩 켜지고, 누르면 아래 칸에 상세가 열린다.
-   훑는 중은 .is-running, 다 끝난 상태는 .is-done으로 표시한다(둘 다 컴포넌트가 붙인다). */
-.scan-mock {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 /* "예시 장면" 안내. 결과 화면에서 진짜 결과와 헷갈리지 않게 카드 위에 먼저 읽히게 둔다. */
 .scan-mock__sample {
   position: relative;
@@ -232,15 +222,6 @@
   border-radius: 50%;
   background: var(--color-primary);
   box-shadow: 0 0 10px var(--color-primary-glow);
-}
-
-.scan-mock[data-done] .scan-mock__status {
-  color: var(--color-text-muted);
-}
-
-.scan-mock[data-done] .scan-mock__dot {
-  background: var(--color-text-muted);
-  box-shadow: none;
 }
 
 /* 문서 미리보기 */
@@ -549,10 +530,6 @@
   box-shadow: 0 0 10px var(--color-primary-glow);
 }
 
-.scan-mock[data-done] .scan-mock__progress i {
-  width: 100%;
-}
-
 .scan-mock__count {
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -565,10 +542,6 @@
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.3s var(--ease);
-}
-
-.scan-mock[data-done] .scan-mock__risk {
-  opacity: 1;
 }
 
 .scan-mock__replay {
@@ -585,11 +558,6 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
-}
-
-.scan-mock[data-done] .scan-mock__replay {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .scan-mock__replay:hover:not(:disabled) {

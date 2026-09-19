@@ -519,19 +519,6 @@
   min-width: 0;
 }
 
-/* 이 자리의 위험도 카드는 좌우 두 칸이다 — 왼쪽은 점수, 오른쪽은 항목별 건수.
-   점수 쪽을 좁게 잡아 건수 목록에 더 많은 자리를 준다.
-   선택자가 .risk-card 단독 규칙보다 구체적이라 아래 768px 규칙보다 우선한다. */
-.results-head__main .risk-card {
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  /* 남은 높이를 채우되, 장면 상자보다 아래로 더 내려가지 않게 버튼 자리만큼 뺀다. */
-  flex: 1;
-  margin-bottom: var(--mock-replay-space);
-  /* 위 제목 블록은 칸 전체를 쓰지만 버튼이 그 끝까지 차지하지 않아, 카드가 더 넓어 보인다.
-     눈에 보이는 제목 블록의 끝선에 맞춰 폭을 줄인다. */
-  max-width: 39rem;
-}
-
 .results-head__main .risk-card__list {
   border-top: 0;
   border-left: 1px solid var(--risk-border);
@@ -651,18 +638,6 @@
   overflow-wrap: anywhere;
 }
 
-/* ---------- 위험도 요약 ---------- */
-.risk-card {
-  --risk-color: var(--color-risk-low);
-  --risk-soft: var(--color-risk-low-soft);
-  --risk-border: var(--color-risk-low-border);
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--risk-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
 .risk-card--high {
   --risk-color: var(--color-risk-high);
   --risk-soft: var(--color-risk-high-soft);
@@ -778,9 +753,6 @@
 }
 
 @media (min-width: 768px) {
-  .risk-card {
-    grid-template-columns: 1fr 1fr;
-  }
 
   .risk-card__score {
     padding: var(--space-6) var(--space-7);
@@ -813,21 +785,6 @@
 .tabs__tab[aria-selected='true'] {
   background: var(--color-navy);
   color: var(--color-on-primary);
-}
-
-/* ---------- 문서 미리보기 + 탐지 항목 ---------- */
-.analysis-grid,
-.mask-grid {
-  display: grid;
-  gap: var(--space-4);
-}
-
-@media (min-width: 960px) {
-  .analysis-grid,
-  .mask-grid {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr);
-    align-items: start;
-  }
 }
 
 .paper-wrap {
@@ -948,40 +905,6 @@
   }
 }
 
-.issues {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.issues__list {
-  display: flex;
-  flex-direction: column;
-  max-height: 60vh;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.issue {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: var(--touch-target);
-  padding: var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--color-divider);
-  text-align: left;
-}
-
-.issue:hover,
-.issue.is-selected {
-  background: var(--color-risk-high-soft);
-}
-
-.issue.is-selected {
-  box-shadow: inset 3px 0 0 var(--color-risk-high);
-}
-
 .issue__dot {
   flex: none;
   width: 10px;
@@ -1035,12 +958,6 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   text-align: center;
-}
-
-.filtered-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .filtered-panel__desc {
@@ -1098,37 +1015,6 @@
 }
 
 /* ---------- 탐지 결과 상세 ---------- */
-.detail-page {
-  max-width: 760px;
-}
-
-.detail-card__title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.detail-card__confidence {
-  margin-left: auto;
-}
-
-.detail-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.group-icon {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--color-risk-high-soft);
-  color: var(--color-risk-high);
-}
-
 .group-icon--sensitive {
   background: var(--color-risk-medium-soft);
   color: var(--color-risk-medium);
@@ -1155,44 +1041,6 @@
 .detail-list__row dd {
   font-weight: var(--font-weight-bold);
   overflow-wrap: anywhere;
-}
-
-.detail-card__value {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-medium);
-}
-
-.detail-card__divider {
-  margin-block: var(--space-5);
-}
-
-.detail-card__heading {
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-md);
-}
-
-.detail-card__text {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-}
-
-.basis-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-left: 1.2em;
-  list-style: disc;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-
-.detail-page__nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
 }
 
 @media (min-width: 600px) {
@@ -1499,4 +1347,400 @@
   background: var(--color-surface);
   color: var(--color-navy);
   box-shadow: var(--shadow-sm);
+}
+
+/* ---------- 검사 결과지 ---------- */
+/* 답하는 순서가 곧 화면 순서다: ①판정 → ②무엇을 검사했나 → ③어디가 문제인가.
+   ④왜 ⑤어떻게는 상세 화면(FindingDetailPage)이 맡는다. */
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--color-risk-high-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-risk-high-soft);
+}
+
+.verdict--medium {
+  border-color: var(--color-risk-medium-border);
+  background: var(--color-risk-medium-soft);
+}
+
+.verdict--low {
+  border-color: var(--color-risk-low-border);
+  background: var(--color-risk-low-soft);
+}
+
+.verdict__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(232, 128, 111, 0.16);
+  color: var(--color-risk-high);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.verdict--medium .verdict__mark {
+  background: rgba(217, 149, 90, 0.16);
+  color: var(--color-risk-medium);
+}
+
+.verdict--low .verdict__mark {
+  background: rgba(127, 188, 147, 0.16);
+  color: var(--color-risk-low);
+}
+
+.verdict__say {
+  min-width: 0;
+}
+
+.verdict__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.verdict__desc {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+/* 숫자 요약 — 건수가 아니라 검사 항목 수를 센다. "6개 중 1개가 위험"이 읽혀야 한다. */
+.tally {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-border);
+}
+
+.tally > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+}
+
+.tally dt {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+.tally dd {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+}
+
+.tally--high dd { color: var(--color-risk-high); }
+.tally--mid dd { color: var(--color-risk-medium); }
+.tally--ok dd { color: var(--color-risk-low); }
+
+.block__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.block__desc {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+/* 검사 항목 — 0건인 항목도 지우지 않는다. "확인했는데 없었다"가 보여야 검사받은 것이다. */
+.checks {
+  margin-top: var(--space-4);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  list-style: none;
+}
+
+.checks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.checks li:last-child { border-bottom: 0; }
+.checks li.is-clean { opacity: 0.55; }
+
+.checks__name {
+  flex: none;
+  min-width: 9rem;
+  font-size: var(--font-size-sm);
+}
+
+/* 항목 이름 바로 옆에 붙인다. 오른쪽 끝으로 밀면 넓은 화면에서 이름과 설명이 따로 논다. */
+.checks__covers {
+  flex: 1 1 12rem;
+  min-width: 0;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+.checks__aside {
+  margin-top: var(--space-3);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.state {
+  flex: none;
+  margin-left: auto;
+  padding: 3px 11px;
+  border: 1px solid var(--color-risk-high-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-risk-high-soft);
+  color: var(--color-risk-high);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.state--medium {
+  border-color: var(--color-risk-medium-border);
+  background: var(--color-risk-medium-soft);
+  color: var(--color-risk-medium);
+}
+
+.state--ok {
+  border-color: var(--color-risk-low-border);
+  background: var(--color-risk-low-soft);
+  color: var(--color-risk-low);
+}
+
+/* 문제 카드 — 건별이 아니라 검사 항목별로 묶는다. 전화번호 4건이 네 줄을 차지하지 않게. */
+.problems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  list-style: none;
+}
+
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-risk-high);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.problem--medium { border-left-color: var(--color-risk-medium); }
+.problem:hover { border-color: var(--color-border-strong); }
+
+.problem__no {
+  flex: none;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.problem__main {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.problem__main b {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.problem__kinds {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.problem__where {
+  flex: none;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.problem__go {
+  flex: none;
+  color: var(--color-text-faint);
+}
+
+/* ---------- 상세 — 원문과 나란히 ---------- */
+.detail-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-filters__label {
+  margin-right: var(--space-1);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+.chipbtn {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.chipbtn[aria-pressed="true"] {
+  border-color: var(--color-primary-line-strong);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.detail-split {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 900px) {
+  .detail-split {
+    grid-template-columns: minmax(0, 1fr) 26rem;
+    align-items: start;
+  }
+}
+
+.detail-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-md);
+}
+
+.detail-card__top .state { margin-left: 0; }
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.facts > div {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.facts dt { color: var(--color-text-faint); }
+.facts dd { color: var(--color-text-muted); line-height: 1.6; }
+
+.facts__value {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.why h2 {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.why p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.75;
+}
+
+.why--fix {
+  border-color: var(--color-primary-line);
+  background: var(--color-primary-wash);
+}
+
+.why--fix h2 { color: var(--color-primary); }
+
+.beforeafter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.beforeafter span {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.beforeafter__before {
+  background: var(--color-risk-high-soft);
+  color: var(--color-text-muted);
+}
+
+.beforeafter__after {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.detail-card__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.detail-card__nav span {
+  margin-right: auto;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
 }
