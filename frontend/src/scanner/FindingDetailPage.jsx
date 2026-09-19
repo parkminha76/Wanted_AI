@@ -33,7 +33,17 @@ const SEARCH_PAGE_GROUP_SIZE = 10
 
 const toneOf = (finding) => CHECKS[checkOf(finding.type)].tone
 
-export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, sourceUrl, onSelectFile, findingId, onSelectFinding, navigate }) {
+export default function FindingDetailPage({
+  batch,
+  file,
+  fileIndex,
+  sourceFile,
+  batchSource,
+  onSelectFile,
+  findingId,
+  onSelectFinding,
+  navigate,
+}) {
   // 결과지에서 "계좌·카드 정보" 카드를 눌러 왔는데 "132건 중 124번째"가 뜨면 내가 뭘 눌렀는지
   // 알 수 없다. 들어올 때 고른 항목의 심각도로 먼저 걸러 두고, 거르개는 사용자가 다시 바꾼다.
   const [filter, setFilter] = useState(() => {
@@ -254,7 +264,10 @@ export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, 
             pages={file.pages}
             fileType={file.file_type}
             sourceFile={sourceFile}
-            sourceUrl={sourceUrl}
+            // 샘플 문서는 브라우저에 File이 없다 — 파일 이름만 넘기면 DocumentPreview가
+            // /samples/original로 원본을 받아 와서 PDF/DOCX를 실제 문서처럼 그린다. 마스킹 보기에서도
+            // 같은 원본을 그대로 쓰고, 화면에서 탐지 텍스트만 [유형]으로 바꿔치기한다(원문 보기와 같은 형식).
+            sampleFilename={batchSource === 'samples' ? file.filename : null}
           />
         </div>
 

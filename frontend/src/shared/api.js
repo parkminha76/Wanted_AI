@@ -107,6 +107,12 @@ export const api = {
 
   /** 마스킹 사본 다운로드 주소. 링크(href)로 쓴다. 사본은 서버에서 30분 뒤 지워진다. */
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
+  /**
+   * GET /samples/original/{filename} — 상세 미리보기 전용, 샘플 문서 원본 그대로.
+   * 샘플 검사는 브라우저에 File이 없어서(서버가 이미 갖고 있는 파일이라 안 올린다), PDF/DOCX를
+   * 실제 문서처럼 그리려면(DocumentPreview의 PdfPreview/DocxPreview) 이 주소로 원본을 받아 와야 한다.
+   */
+  sampleOriginalUrl: (filename) => `${BASE_URL}/samples/original/${encodeURIComponent(filename)}`,
   /** fileIds를 주면 그 배치 안에서 고른 사본만 묶는다. 안 주면 배치 전체다. */
   downloadAllUrl: (batchId, fileIds = null) => {
     const base = `${BASE_URL}/download/all?batch_id=${encodeURIComponent(batchId)}`
