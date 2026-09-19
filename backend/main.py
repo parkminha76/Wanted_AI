@@ -921,6 +921,15 @@ def _sample_subset(names: str | None) -> dict:
 
     batch_id를 새로 만드는 이유: "사본 전체 받기(.zip)"는 batch_id로 묶인 파일을 담는다.
     전체 batch_id를 그대로 주면 두 개만 골랐는데 zip에는 네 개가 들어간다.
+
+    실측 버그(2026-09-19): 새 batch_id를 `_batches`(배치 -> 파일 목록)에는 등록해
+    놓고, 정작 각 파일의 `_masked_files[fid].batch_id`(파일 -> 배치 역방향 조회,
+    `_batch_of`가 쓰는 값)는 예전 배치를 그대로 가리키고 있었다. `/download/all`이
+    파일마다 `_batch_of(fid) != batch_id`로 소속을 확인하는데, 골라 받은 파일은
+    전부 이 새 batch_id와 맞지 않아 하나도 못 넘어가서 zip이 매번 404였다("선택
+    파일 다운받기"는 파일 하나씩 `/download/{id}`만 확인해서 같은 상황에서도 잘
+    됐다 — 증상이 갈렸던 이유). 골라 받은 파일들의 등록도 이 새 batch_id로
+    같이 옮겨야 한다.
     """
     if not names or _sample_batch is None:
         return _sample_cache
@@ -929,7 +938,12 @@ def _sample_subset(names: str | None) -> dict:
     if not picked:
         return _sample_cache
     subset = schema.ScanBatch(results=picked, batch_id=uuid.uuid4().hex)
-    _batches[subset.batch_id] = [r.file_id for r in picked if r.file_id]
+    file_ids = [r.file_id for r in picked if r.file_id]
+    _batches[subset.batch_id] = file_ids
+    for file_id in file_ids:
+        entry = _masked_files.get(file_id)
+        if entry is not None:
+            entry.batch_id = subset.batch_id
     return subset.to_dict()
 
 
