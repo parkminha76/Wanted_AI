@@ -64,6 +64,7 @@ export default function MaskPage({
   const picked = rows.filter((row) => row.checked)
   const skipped = batch.results.length - rows.length
   const blocked = picked.filter((row) => row.mode === 'partial' && !row.canPartial)
+  const allBlocked = rows.filter((row) => row.mode === 'partial' && !row.canPartial)
   // 머리 칸 체크는 "하나라도 골랐나"다. 누르면 고른 게 있을 때는 전부 끄고, 없을 때는 전부 켠다.
   const anyPicked = picked.length > 0
 
@@ -108,7 +109,9 @@ export default function MaskPage({
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+      // Chrome은 클릭 이벤트가 끝난 뒤 실제 파일 저장을 시작할 수 있다. 즉시 revoke하면
+      // 저장이 시작되기 전에 Blob URL이 사라져 버튼을 눌러도 아무 반응이 없는 경우가 있다.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000)
       return true
     } catch (err) {
       setError(err.message || '파일을 다운로드하지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -134,10 +137,10 @@ export default function MaskPage({
     return made.file_id
   }
 
-  // 고른 파일 중 부분 마스킹으로 바꾼 것의 사본을 먼저 만든다. 받을 사본의 id 목록을 돌려준다.
+  // 받을 파일 중 부분 마스킹으로 바꾼 것의 사본을 먼저 만든다. 받을 사본의 id 목록을 돌려준다.
   // 부분 마스킹 사본은 새 id를 받으므로 원래 id를 그대로 쓰면 전체 마스킹본이 내려간다.
-  async function prepare() {
-    const pending = picked.filter(needsCopy)
+  async function prepare(targetRows) {
+    const pending = targetRows.filter(needsCopy)
     const made = {}
     try {
       for (const [index, row] of pending.entries()) {
@@ -150,36 +153,38 @@ export default function MaskPage({
     } finally {
       setBusy('')
     }
-    return picked.map((row) => {
+    return targetRows.map((row) => {
       const partial = made[row.id] ?? row.partialFileId
       return row.mode === 'partial' && partial ? partial : row.id
     })
   }
 
   // 받기는 한 번에 하나만. 두 번 눌러도 앞의 것이 끝날 때까지 두 번째는 그냥 버린다.
-  async function once(work) {
+  async function once(targetRows, work) {
     if (running.current) return
     running.current = true
     setError('')
     try {
-      const ids = await prepare()
+      const ids = await prepare(targetRows)
       if (ids) await work(ids)
     } finally {
       running.current = false
     }
   }
 
-  // 여러 개의 <a download>를 비동기로 연달아 누르면 브라우저가 두 번째부터 막을 수 있다.
-  // 하나는 원래 이름으로, 둘 이상은 서버에서 zip 한 건으로 받아 선택 누락을 막는다.
-  const downloadEach = () =>
-    once(async (ids) => {
-      if (ids.length === 1) {
-        const row = picked[0]
-        await downloadCopy(api.downloadUrl(ids[0]), row?.result.filename || 'masked_file')
-        return
+  // 체크한 파일은 각각의 원래 형식으로 받는다. ZIP 버튼과 역할을 섞지 않는다.
+  const downloadSelected = () =>
+    once(picked, async (ids) => {
+      for (const [index, id] of ids.entries()) {
+        const filename = picked[index]?.result.filename || `masked_file_${index + 1}`
+        if (!(await downloadCopy(api.downloadUrl(id), `masked_${filename}`))) return
       }
-      await downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'infoguard_masked.zip')
     })
+
+  // ZIP은 체크 상태와 무관하게 현재 목록 전체를 한 파일로 받는다. 각 행에서 고른
+  // 전체/부분 마스킹 방식은 그대로 반영한다.
+  const downloadZip = () =>
+    once(rows, (ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'infoguard_masked.zip'))
 
   const busyLabel = (
     <>
@@ -187,6 +192,7 @@ export default function MaskPage({
     </>
   )
   const stopped = picked.length === 0 || blocked.length > 0 || Boolean(busy)
+  const zipStopped = rows.length === 0 || allBlocked.length > 0 || Boolean(busy)
 
   return (
     <div className="container mask-page">
@@ -205,18 +211,17 @@ export default function MaskPage({
           </p>
         </div>
         <div className="page-head__actions">
-          <Button
-            disabled={expired ? false : stopped}
-            onClick={expired ? (onRetryExpired ?? (() => navigate('', { replace: true }))) : downloadEach}
-          >
-            {expired
-              ? '↻ 사본 다시 만들기'
-              : busy
-                ? busyLabel
-                : picked.length > 1
-                  ? `↓ 선택 파일 다운받기 (${picked.length}개 · ZIP)`
-                  : '↓ 선택 파일 다운받기'}
+          <Button disabled={expired || stopped} onClick={downloadSelected}>
+            {busy ? busyLabel : `↓ 선택 파일 다운받기${picked.length > 1 ? ` (${picked.length}개)` : ''}`}
           </Button>
+          <Button variant="secondary" disabled={expired || zipStopped} onClick={downloadZip}>
+            전체 파일 ZIP 받기
+          </Button>
+          {expired && (
+            <Button onClick={onRetryExpired ?? (() => navigate('', { replace: true }))}>
+              ↻ 사본 다시 만들기
+            </Button>
+          )}
         </div>
       </div>
 
