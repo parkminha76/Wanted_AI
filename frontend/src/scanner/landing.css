@@ -171,16 +171,6 @@
   font-size: var(--font-size-xs);
 }
 
-/* ---------- 스캔 장면(LandingScanMock) ---------- */
-/* 초록 선이 문서를 훑고 지나가면 가림칸이 하나씩 켜지고, 누르면 아래 칸에 상세가 열린다.
-   훑는 중은 .is-running, 다 끝난 상태는 .is-done으로 표시한다(둘 다 컴포넌트가 붙인다). */
-.scan-mock {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 /* "예시 장면" 안내. 결과 화면에서 진짜 결과와 헷갈리지 않게 카드 위에 먼저 읽히게 둔다. */
 .scan-mock__sample {
   position: relative;
@@ -243,15 +233,6 @@
   border-radius: 50%;
   background: var(--color-primary);
   box-shadow: 0 0 10px var(--color-primary-glow);
-}
-
-.scan-mock[data-done] .scan-mock__status {
-  color: var(--color-text-muted);
-}
-
-.scan-mock[data-done] .scan-mock__dot {
-  background: var(--color-text-muted);
-  box-shadow: none;
 }
 
 /* 문서 미리보기 */
@@ -560,10 +541,6 @@
   box-shadow: 0 0 10px var(--color-primary-glow);
 }
 
-.scan-mock[data-done] .scan-mock__progress i {
-  width: 100%;
-}
-
 .scan-mock__count {
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -576,10 +553,6 @@
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.3s var(--ease);
-}
-
-.scan-mock[data-done] .scan-mock__risk {
-  opacity: 1;
 }
 
 .scan-mock__replay {
@@ -596,11 +569,6 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
-}
-
-.scan-mock[data-done] .scan-mock__replay {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .scan-mock__replay:hover:not(:disabled) {
@@ -1356,8 +1324,11 @@
   min-width: 0;
   aspect-ratio: 5 / 4;
   border: 0;
-  /* 원본 문서의 배경색과 같은 값. 투명으로 두면 불러오는 동안 흰 사각형이 번쩍인다. */
-  background: #0a0b12;
+  /* 불러오는 동안만 쓰는 바탕이다. 실제 바탕색은 애니메이션 문서 안에 있다
+     (public/scan-animation/index.html의 html,body — fit:animation 스크립트가 넣는다).
+     여기 색만으로는 부족하다: iframe 안의 문서가 자기 바탕을 이 위에 다시 그리기 때문에,
+     문서가 투명하면 크롬이 그 자리를 흰색으로 칠하고 이 값은 가려진다(실측). */
+  background: var(--color-bg);
 }
 
 /* 휴대폰에서는 빼둔다. 폭 343px에서는 인젝션 영문 문장이 열 줄 넘게 접혀 패널이 칸(275px)의

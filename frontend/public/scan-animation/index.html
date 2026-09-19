@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;padding:0;background:#0a0b12}
+  html,body{margin:0;padding:0;background:#070707}
   a{color:#75BFDC;text-decoration:none}
   a:hover{color:#9ad4ea}
   @keyframes pScan{0%{top:-16%}100%{top:100%}}
@@ -23,7 +23,7 @@
   @keyframes pBlink{0%,100%{opacity:1}50%{opacity:.25}}
 </style>
 </helmet>
-<div style="min-height:100vh;background:radial-gradient(120% 90% at 50% 0%,#10121f 0%,#07080d 62%);display:flex;align-items:center;justify-content:center;padding:clamp(14px,2.4vw,36px);font-family:Inter,'Noto Sans KR',sans-serif">
+<div style="min-height:100vh;background:transparent;display:flex;align-items:center;justify-content:center;padding:clamp(14px,2.4vw,36px);font-family:Inter,'Noto Sans KR',sans-serif">
   <div ref="{{ stageRef }}" style="--pii:#75BFDC;position:relative;width:min(100%,1320px,calc((100vh - 72px) * 1.62));aspect-ratio:17/10;display:flex;flex-direction:column;gap:10px">
 
     <div style="display:flex;align-items:center;gap:10px;height:18px;flex:none">
@@ -468,10 +468,7 @@ class Component extends DCLogic {
             });
           });
           const total = t;
-          this.after(g, total + 800, () => {
-            this.setState({ activeIdx:-1 });
-            this.after(g, 700, () => this.playDoc((idx + 1) % DOCS.length, false));
-          });
+          this.after(g, total, () => this.playDoc((idx + 1) % DOCS.length, false));
         });
       });
     };
