@@ -869,6 +869,23 @@
   overflow-wrap: anywhere;
 }
 
+/* 상세 원문 안에서 바로 가려 보기: 안전한 사본 받기 버튼과 같은 하늘색 계열. */
+.btn.btn--secondary.detail-mask-toggle {
+  margin-left: auto;
+  border-color: #9bdcf4 !important;
+  background: #9bdcf4 !important;
+  color: #06233a !important;
+  box-shadow: 0 0 18px rgb(121 200 232 / 28%);
+  font-weight: var(--font-weight-bold);
+}
+
+.btn.btn--secondary.detail-mask-toggle:hover:not(:disabled),
+.btn.btn--secondary.detail-mask-toggle[aria-pressed='true'] {
+  border-color: #9bdcf4 !important;
+  background: #9bdcf4 !important;
+  color: #06233a !important;
+}
+
 .risk-card--high {
   --risk-color: var(--color-risk-high);
   --risk-soft: var(--color-risk-high-soft);
@@ -1065,6 +1082,122 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   text-align: center;
+}
+
+/* JPG·PNG 등 원본 이미지 위에 서버 OCR/CNN이 돌려준 픽셀 bbox를 올린다. */
+.image-preview-wrap {
+  padding: var(--space-3);
+}
+
+.image-preview {
+  padding: var(--space-4);
+}
+
+.image-preview__stage {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.image-preview__stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+}
+
+.image-hit {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+  min-width: 3px;
+  min-height: 3px;
+  padding: 0;
+  border: 2px solid var(--color-risk-high);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-risk-high) 20%, transparent);
+  pointer-events: none;
+}
+
+.image-hit--sensitive {
+  border-color: var(--color-risk-medium);
+  background: color-mix(in srgb, var(--color-risk-medium) 20%, transparent);
+}
+
+.image-hit--other {
+  border-color: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-border-strong) 20%, transparent);
+}
+
+.image-hit.is-selected {
+  z-index: 1;
+  border-width: 3px;
+  outline: 2px solid var(--color-on-primary);
+  outline-offset: 1px;
+}
+
+.image-preview__note {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+/* PDF와 DOCX는 원본 레이아웃을 브라우저에서 그린 뒤 탐지 위치만 덧씌운다. */
+.rendered-preview-wrap,
+.docx-preview-wrap {
+  padding: var(--space-3);
+}
+
+.rendered-preview,
+.docx-preview-paper {
+  padding: var(--space-4);
+}
+
+.rendered-page {
+  margin: 0 auto var(--space-5);
+  max-width: 58rem;
+}
+
+.rendered-page__stage {
+  position: relative;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+}
+
+.rendered-page__stage img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.docx-preview-host {
+  overflow: auto;
+  max-height: 68vh;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #525252;
+}
+
+.docx-preview-host .docx-wrapper {
+  padding: 0;
+  background: transparent;
+}
+
+.docx-preview-host .docx {
+  margin: 0 auto var(--space-4);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+}
+
+.docx-preview-host .hit {
+  color: inherit;
 }
 
 /* 쪽 나누기 — 서버 ScanResult.pages가 2개 이상일 때 */

@@ -878,6 +878,24 @@ def sample_list() -> dict:
     }
 
 
+@app.get("/samples/original/{filename}")
+def sample_original(filename: str) -> FileResponse:
+    """합성 샘플의 원본을 상세 미리보기 전용으로 돌려준다.
+
+    실제 업로드 문서는 서버에서 즉시 삭제하지만, 이 경로는 저장소에 함께 배포되는
+    합성 데모 파일만 _sample_paths() 허용 목록에서 찾아 전달한다. 사용자 입력을
+    경로로 조합하지 않아 디렉터리 이탈은 불가능하다.
+    """
+    path = {os.path.basename(item): item for item in _sample_paths()}.get(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="샘플 문서를 찾을 수 없습니다")
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 def _sample_subset(names: str | None) -> dict:
     """고른 샘플만 남긴 결과. 고르지 않았거나 하나도 못 찾으면 전체를 그대로 돌려준다.
 

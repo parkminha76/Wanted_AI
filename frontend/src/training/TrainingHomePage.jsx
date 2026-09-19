@@ -108,7 +108,7 @@ export default function TrainingHomePage({ onStarted }) {
 
       <section id="training-levels" className="stack" aria-labelledby="levels-title">
         <h2 id="levels-title" className="section-title">
-          레벨을 골라 시작하세요
+          상황을 골라 시작하세요
         </h2>
         {unavailable && (
           <p className="alert alert--info">지금은 훈련 서버가 연결되지 않아 훈련을 시작할 수 없습니다. 문서 검사는 그대로 쓸 수 있어요.</p>
@@ -128,7 +128,7 @@ export default function TrainingHomePage({ onStarted }) {
               onClick={() => start(item.level)}
               disabled={startingLevel !== null || unavailable}
             >
-              <span className="level-card__level">Level {item.level}</span>
+              <span className="level-card__level">CASE {item.level}</span>
               <span className="level-card__title">{item.title}</span>
               <span className="level-card__desc">{item.description}</span>
               {startingLevel === item.level && (
