@@ -227,6 +227,32 @@
   }
 }
 
+/* ---------- Toast ---------- */
+/* 화면 아래 가운데 잠깐 떴다 사라지는 알림. 내용이 없을 땐 렌더는 하되 안 보이게만 해서
+   나타날 때 포커스가 튀지 않게 한다(showToast가 setTimeout으로 다시 비운다). */
+.toast {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  z-index: var(--z-toast);
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-xl);
+  color: var(--color-text);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* ---------- RiskBadge / Chip ---------- */
 /* 색만으로 구분하지 않는다 — 항상 "높은 위험/주의/낮은 위험" 글자를 함께 쓴다. */
 .badge {
