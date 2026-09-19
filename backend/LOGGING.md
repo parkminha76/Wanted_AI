@@ -1,6 +1,6 @@
 # 백엔드 운영 로그
 
-InfoGuard는 표준 출력에 JSON Lines 형식으로 로그를 남긴다. Railway 등 배포
+docXray는 표준 출력에 JSON Lines 형식으로 로그를 남긴다. Railway 등 배포
 플랫폼에서는 별도 파일 설정 없이 각 줄을 수집할 수 있다.
 
 ## 실행
