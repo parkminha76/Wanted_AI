@@ -21,7 +21,14 @@ function needsCopy(row) {
   return row.mode === 'partial' && !row.partialFileId
 }
 
-export default function MaskPage({ batch, file, navigate, uploads = [], batchSource = null }) {
+export default function MaskPage({
+  batch,
+  file,
+  navigate,
+  uploads = [],
+  batchSource = null,
+  onRetryExpired,
+}) {
   // { [file_id]: { mode: 'full' | 'partial', checked, partialFileId } }
   const [picks, setPicks] = useState({})
   const [busy, setBusy] = useState('')
@@ -65,28 +72,48 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
       Object.fromEntries(rows.map((row) => [row.id, { ...prev[row.id], checked: !anyPicked }])),
     )
 
-  // 보관 기간이 지났을 때 FastAPI가 돌려준 404 JSON이 화면에 그대로 뜨지 않게, 먼저 상태
-  // 코드만 확인하고 살아 있을 때만 브라우저에 넘긴다.
-  async function downloadCopy(url) {
+  // 응답을 확인하려고 같은 URL을 두 번 호출하면 안 된다. /download/all은 요청마다 임시 zip을
+  // 만들고 응답 뒤 지우며, 배포 환경에서는 두 요청이 서로 다른 인스턴스로 갈 수도 있다.
+  // 한 번 받은 응답을 Blob URL로 바꿔 그대로 저장한다.
+  async function downloadCopy(url, fallbackName) {
     try {
       const response = await fetch(url)
-      response.body?.cancel()
       if (response.status === 404) {
         setExpired(true)
         return false
       }
-    } catch {
-      // 서버에 닿지 못한 것은 만료가 아니다. 평소대로 브라우저에 맡긴다.
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(
+          typeof data?.detail === 'string' ? data.detail : `다운로드에 실패했습니다. (${response.status})`,
+        )
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const disposition = response.headers.get('content-disposition') || ''
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+      const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+      let filename = fallbackName
+      try {
+        filename = encodedName ? decodeURIComponent(encodedName) : plainName || fallbackName
+      } catch {
+        filename = fallbackName
+      }
+
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+      return true
+    } catch (err) {
+      setError(err.message || '파일을 다운로드하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      return false
     }
-    // window.location.href로 걸면 안 된다 — 두 번째 파일을 걸 때 첫 번째 내려받기가
-    // 취소돼서 한 개만 저장된다(실제로 그랬다). <a>는 각자 따로 시작한다.
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.rel = 'noopener'
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-    return true
   }
 
   // 부분 마스킹 사본을 만든다. replaces로 어느 사본을 대신하는지 알려 주면, 서버가 새 사본을
@@ -142,15 +169,17 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
     }
   }
 
-  // 고른 파일을 하나씩 받는다. 사본마다 이름이 따로 붙어서, 몇 개 안 될 때는 zip을 푸는 것보다 빠르다.
+  // 여러 개의 <a download>를 비동기로 연달아 누르면 브라우저가 두 번째부터 막을 수 있다.
+  // 하나는 원래 이름으로, 둘 이상은 서버에서 zip 한 건으로 받아 선택 누락을 막는다.
   const downloadEach = () =>
     once(async (ids) => {
-      for (const id of ids) {
-        if (!(await downloadCopy(api.downloadUrl(id)))) return
+      if (ids.length === 1) {
+        const row = picked[0]
+        await downloadCopy(api.downloadUrl(ids[0]), row?.result.filename || 'masked_file')
+        return
       }
+      await downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'infoguard_masked.zip')
     })
-
-  const downloadZip = () => once((ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids)))
 
   const busyLabel = (
     <>
@@ -178,14 +207,12 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
         {!expired && (
           <div className="page-head__actions">
             <Button disabled={stopped} onClick={downloadEach}>
-              {busy ? busyLabel : '↓ 선택 파일 다운받기'}
+              {busy
+                ? busyLabel
+                : picked.length > 1
+                  ? `↓ 선택한 ${picked.length}개 한번에 받기 (.zip)`
+                  : '↓ 선택 파일 다운받기'}
             </Button>
-            {/* 하나만 골랐을 때 .zip은 푸는 수고만 는다. 둘 이상일 때만 둔다. */}
-            {picked.length > 1 && (
-              <Button variant="secondary" disabled={stopped} onClick={downloadZip}>
-                선택 파일 한번에 받기 (.zip)
-              </Button>
-            )}
           </div>
         )}
       </div>
@@ -193,9 +220,11 @@ export default function MaskPage({ batch, file, navigate, uploads = [], batchSou
       {expired ? (
         <div className="stack stack--tight">
           <p className="alert alert--error" role="alert">
-            사본이 만료되었습니다. 다시 시도하세요.
+            서버가 업데이트되었거나 사본 보관 시간이 지났습니다. 사본을 다시 만들어 주세요.
           </p>
-          <Button onClick={() => navigate('')}>다시 시도하기</Button>
+          <Button onClick={onRetryExpired ?? (() => navigate('', { replace: true }))}>
+            사본 다시 만들기
+          </Button>
         </div>
       ) : (
         <>

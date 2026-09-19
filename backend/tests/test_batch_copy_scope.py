@@ -5,8 +5,12 @@
 없지만 같은 배치의 것이므로 받아야 하고, 다른 배치의 사본은 끼워 넣을 수 없어야 한다.
 """
 
+import tempfile
 import time
 import unittest
+from pathlib import Path
+
+from fastapi import HTTPException
 
 from backend import main
 
@@ -51,6 +55,47 @@ class BatchTagTest(unittest.TestCase):
     def test_unknown_id_has_no_batch(self) -> None:
         self.assertIsNone(main._batch_of("nope"))
         self.assertIsNone(main._batch_of(None))
+
+    def test_zip_rejects_partial_result_when_one_selected_copy_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "available.pdf"
+            path.write_bytes(b"available")
+            main._masked_files["available"] = main._MaskedFile(
+                path=str(path),
+                download_name="available.pdf",
+                created_at=time.time(),
+                batch_id="b1",
+            )
+            main._batches["b1"] = ["available", "missing"]
+
+            with self.assertRaises(HTTPException) as raised:
+                main.download_all("b1", "available,missing")
+
+        self.assertEqual(raised.exception.status_code, 404)
+        self.assertIn("일부가 없거나", raised.exception.detail)
+
+    def test_zip_rejects_copy_from_another_batch_instead_of_omitting_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / "first.pdf"
+            other = Path(directory) / "other.pdf"
+            first.write_bytes(b"first")
+            other.write_bytes(b"other")
+            for file_id, path, batch_id in (
+                ("first", first, "b1"),
+                ("other", other, "b2"),
+            ):
+                main._masked_files[file_id] = main._MaskedFile(
+                    path=str(path),
+                    download_name=path.name,
+                    created_at=time.time(),
+                    batch_id=batch_id,
+                )
+            main._batches["b1"] = ["first"]
+
+            with self.assertRaises(HTTPException) as raised:
+                main.download_all("b1", "first,other")
+
+        self.assertEqual(raised.exception.status_code, 404)
 
 
 if __name__ == "__main__":

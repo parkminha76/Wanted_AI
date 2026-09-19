@@ -99,12 +99,21 @@ def _complete_training(
     report = {
         "training_progress_id": training_progress_id,
         "level": session["level"],
+        "scenario_id": session["scenario_id"],
+        "scenario_title": session["scenario"]["name"] if session.get("scenario") else None,
         "score": score,
         "grade": grade,
         "risky_actions": defender_report["risky_actions"],
         "good_actions": defender_report["good_actions"],
         "improvements": defender_report["improvements"],
         "summary": defender_report["summary"],
+        # training_flow stores only sanitized user text in history.  Copy the
+        # records into the report before the short-lived session is removed so
+        # the PDF can show the real exchange without exposing the raw input.
+        "conversation": [
+            {"role": message["role"], "content": message["content"]}
+            for message in session["history"]
+        ],
     }
     _training_reports[training_progress_id] = report
     # 세션에는 치환된 대화만 있지만 완료 후 즉시 제거한다.

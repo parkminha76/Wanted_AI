@@ -139,6 +139,132 @@ class TiltedImageOcrTest(unittest.TestCase):
             self.assertTrue(0 <= top < bottom <= height)
 
 
+class MapBboxFromRotatedTest(unittest.TestCase):
+    """`_map_point_from_rotated`/`_map_bbox_from_rotated`가 `np.rot90`의
+    실제 회전과 맞는 역변환인지 확인한다. EasyOCR 없이 빠르게 도는 순수
+    기하 테스트다 — `RotationRecoveryTest`(실제 OCR)가 확인하는 "회전 복구가
+    실제로 작동하는가"와는 별개로, 여기서는 좌표 변환 공식 자체가 맞는지만
+    본다."""
+
+    def test_k_zero_is_identity(self):
+        from backend.scanner.detectors import text_ocr
+
+        bbox = (10.0, 20.0, 30.0, 40.0)
+        self.assertEqual(text_ocr._map_bbox_from_rotated(bbox, 0, 100.0, 200.0), bbox)
+
+    def test_inverse_matches_numpy_rot90_for_each_k(self):
+        """공식을 손으로 베껴 대조하지 않고, `np.rot90` 자체에 점 하나를 찍어
+        실제로 어디로 이동하는지 보고 그 결과를 되돌리는지 확인한다."""
+        import numpy as np
+
+        from backend.scanner.detectors import text_ocr
+
+        h, w = 7, 11
+        for k in (1, 2, 3):
+            arr = np.zeros((h, w), dtype=int)
+            x, y = 8, 2  # 원본에서 찍을 점 (x=열, y=행)
+            arr[y, x] = 1
+            rotated = np.rot90(arr, k=k)
+            ry, rx = (int(v) for v in np.argwhere(rotated == 1)[0])
+            mapped_x, mapped_y = text_ocr._map_point_from_rotated(
+                float(rx), float(ry), k, float(w), float(h)
+            )
+            # np.rot90은 이산(정수 인덱스) 좌표라 연속 좌표 공식과 최대 1픽셀
+            # 차이 날 수 있다 — bbox 용도로는 무의미한 오차다.
+            self.assertLess(abs(mapped_x - x), 1.5)
+            self.assertLess(abs(mapped_y - y), 1.5)
+
+
+@unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
+@unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
+class RotationRecoveryTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 모바일로 노트북 화면을 세로로 세워 찍은 사진):
+    문서가 90도 돌아간 채로 찍히면 EasyOCR이 거의 못 읽어 마스킹이 통째로
+    빠졌다(이름 3곳 중 0곳, 주소·전화 전부 노출 — 낱글자 단위로는 확신도가
+    높게 나올 수 있어도 실제 단어는 하나도 안 읽힌다). 기본 방향에서 읽히는
+    게 거의 없을 때만 90/180/270도로 다시 읽어보고, 되돌린 bbox가 실제로
+    마스킹이 그려질 이 파일(회전된 그 파일 자체) 위의 올바른 자리를
+    가리키는지 확인한다."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from PIL import Image, ImageDraw, ImageFont
+        import numpy as np
+
+        cls.tmpdir = tempfile.mkdtemp(prefix="infoguard_ocr_rotation_test_")
+        cls.image_path = os.path.join(cls.tmpdir, "sideways_photo.png")
+
+        upright = Image.new("RGB", (900, 500), "white")
+        draw = ImageDraw.Draw(upright)
+        font = ImageFont.truetype(FONT_PATH, 36)
+        draw.text((60, 80), "성명: 김하늘", font=font, fill="black")
+        draw.text((60, 160), "생년월일: 1993.05.24", font=font, fill="black")
+        draw.text((60, 240), "연락처: 010-2847-3915", font=font, fill="black")
+        draw.text((60, 320), "주소: 서울특별시 강남구 테헤란로 152", font=font, fill="black")
+
+        # 카메라를 가로로 들고 찍은 것처럼 이미지 전체를 90도 돌린다
+        # (np.rot90 k=3) — `_ocr_lines`의 회전 복구가 시도하는 방향 중 하나다.
+        rotated = np.rot90(np.array(upright), k=3)
+        Image.fromarray(rotated).save(cls.image_path)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.tmpdir, ignore_errors=True)
+
+    def test_rotation_recovery_is_triggered_and_recorded(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        _lines, _flags, _weak_lines, rotation = text_ocr._ocr_lines(self.image_path)
+        self.assertIsNotNone(rotation)
+        k, _orig_w, _orig_h = rotation
+        self.assertIn(k, (1, 2, 3))
+
+    def test_sideways_photo_still_finds_the_phone_number(self) -> None:
+        from backend.scanner.detectors import text_ocr
+
+        findings = text_ocr.detect(self.image_path)
+        by_field = {f["field"]: f for f in findings}
+        self.assertIn("phone", by_field)
+
+    def test_bbox_stays_within_the_actual_rotated_file_bounds(self) -> None:
+        """뒤집기 전(바로 세운) 좌표계가 아니라, 실제로 마스킹이 그려질 이
+        회전된 파일 자체의 좌표계를 가리켜야 한다."""
+        from PIL import Image
+
+        from backend.scanner.detectors import text_ocr
+
+        with Image.open(self.image_path) as img:
+            width, height = img.size
+
+        findings = text_ocr.detect(self.image_path)
+        self.assertTrue(findings)
+        for finding in findings:
+            left, top, right, bottom = finding["bbox"]
+            self.assertTrue(0 <= left < right <= width)
+            self.assertTrue(0 <= top < bottom <= height)
+
+    def test_bbox_actually_overlaps_real_content_not_blank_background(self) -> None:
+        """좌표 변환이 방향을 잘못 잡으면 bbox가 범위 안에는 있어도 엉뚱한
+        빈 배경을 가리킬 수 있다 — 이 파일(회전된 그 파일) 자체에서 bbox
+        영역을 잘라내 실제 글자(흰 배경 위 검은 획)가 있는지 픽셀 분산으로
+        확인한다. 공식을 다시 베끼지 않는 독립적인 검증이다."""
+        import numpy as np
+        from PIL import Image
+
+        from backend.scanner.detectors import text_ocr
+
+        findings = text_ocr.detect(self.image_path)
+        by_field = {f["field"]: f for f in findings}
+        self.assertIn("phone", by_field)
+        left, top, right, bottom = by_field["phone"]["bbox"]
+
+        with Image.open(self.image_path) as img:
+            arr = np.array(img.convert("L"))
+        crop = arr[int(top) : int(bottom), int(left) : int(right)]
+        self.assertGreater(crop.size, 0)
+        self.assertGreater(crop.std(), 20.0)
+
+
 @unittest.skipUnless(_easyocr_available(), "EasyOCR을 불러올 수 없는 환경")
 @unittest.skipUnless(os.path.isfile(FONT_PATH), "테스트용 한글 폰트가 없다")
 class TableRowGapRecoveryTest(unittest.TestCase):
@@ -387,7 +513,7 @@ class DropOversizedTest(unittest.TestCase):
                 ],
             )
 
-        with patch.object(text_ocr, "_ocr_lines", return_value=(lines, oversized_flags, lines)), \
+        with patch.object(text_ocr, "_ocr_lines", return_value=(lines, oversized_flags, lines, None)), \
              patch.object(scan, "scan_text", side_effect=fake_scan_text):
             findings = text_ocr.detect("fake.png")
 
@@ -804,6 +930,200 @@ class FindCareerListEntriesTest(unittest.TestCase):
         lines = [career_title, real_table_header, data_row]
         self.assertEqual(text_ocr._find_career_list_entries(lines), [])
 
+    def test_year_range_merged_into_a_single_cell_is_still_caught(self) -> None:
+        """실측 재현(2026-09-18, 저해상도 이력서 사진 865f267df9c220bf.jpg): 같은
+        표 안에서도 "연도 - 연도"가 줄마다 다르게 검출된다 — "2022"/"2023"처럼
+        따로 잡히는 줄도 있고, "2024 * 2025"처럼(저해상도라 "-"가 "*"로
+        오독된) 한 칸으로 통째로 잡히는 줄도 있다. 이 문서는 표 헤더
+        ("회사명"/"경력"/"소속")도 저해상도 탓에 "기간" 한 칸만 읽혀서
+        `_match_header_labels`가 표로 인식하지 못한다 — 그래도 회사명("Fauget"이
+        "FauBct"로 오독)은 놓치면 안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        career_title = [("경력사항", (25.0, 337.0, 71.0, 353.0))]
+        weak_header_row = [("기간", (63.0, 367.0, 85.0, 381.0))]
+        merged_year_row = [
+            ("2024 * 2025", (47.0, 397.0, 101.0, 411.0)),
+            ("FauBct", (137.0, 397.0, 171.0, 411.0)),
+            ("디자인터", (347.0, 397.0, 385.0, 411.0)),
+        ]
+        lines = [career_title, weak_header_row, merged_year_row]
+        results = text_ocr._find_career_list_entries(lines)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["field"], "org")
+        self.assertIn("FauBct", results[0]["value"])
+
+    def test_year_range_merged_cell_with_only_one_trailing_word_produces_nothing(self) -> None:
+        """실측 재현(같은 문서): 회사명·소속 칸이 통째로 OCR에서 빠지고 "경력"란
+        (업무 설명, 예: "프로모신 디자인")만 한 칸 남는 줄도 있다. 남은 칸이
+        하나뿐이면 그게 회사명인지 업무 설명인지 구별할 수 없으므로, 최소
+        두 칸은 남아야 회사명으로 잡는다 — 안 그러면 업무 설명을 회사명으로
+        잘못 가린다."""
+        from backend.scanner.detectors import text_ocr
+
+        career_title = [("경력사항", (25.0, 337.0, 71.0, 353.0))]
+        weak_header_row = [("기간", (63.0, 367.0, 85.0, 381.0))]
+        only_role_column_row = [
+            ("2020 - 2021", (47.0, 455.0, 101.0, 469.0)),
+            ("프로모신 디자인", (229.0, 455.0, 295.0, 469.0)),
+        ]
+        lines = [career_title, weak_header_row, only_role_column_row]
+        self.assertEqual(text_ocr._find_career_list_entries(lines), [])
+
+    def test_value_stops_at_a_column_sized_gap_instead_of_gluing_the_next_column(self) -> None:
+        """실측 재현(같은 문서, 2026-09-18): 표 헤더를 못 읽어 이 함수로 떨어진
+        줄에서, "회사명"란 값("FauBct") 뒤에 "경력"란을 건너뛰고 "소속"란
+        ("디자인터")까지 한 값으로 뭉쳐 잡혔다 — 마스킹 박스가 "경력"란까지
+        통째로 덮었다. "회사명"과 "소속" 사이 가로 간격(176px)이 줄 높이의
+        몇 배나 되면 그 뒤는 다른 열로 보고 잘라야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        career_title = [("경력사항", (25.0, 337.0, 71.0, 353.0))]
+        weak_header_row = [("기간", (63.0, 367.0, 85.0, 381.0))]
+        merged_year_row = [
+            ("2024 * 2025", (47.0, 397.0, 101.0, 411.0)),
+            ("FauBct", (137.0, 397.0, 171.0, 411.0)),
+            ("디자인터", (347.0, 397.0, 385.0, 411.0)),
+        ]
+        lines = [career_title, weak_header_row, merged_year_row]
+        results = text_ocr._find_career_list_entries(lines)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["value"], "FauBct")
+        self.assertEqual(results[0]["bbox"], (137.0, 397.0, 171.0, 411.0))
+
+    def test_multi_word_org_name_detected_as_one_close_cluster_is_not_trimmed(self) -> None:
+        """회귀 방지: 진짜 여러 단어짜리 회사명(실측: "디자인전략 매직 디자인
+        인수")은 EasyOCR이 한 덩어리로 검출해서 칸 사이 간격이랄 게 없다 —
+        새 간격 컷오프가 이런 정상 사례를 자르면 안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        lines = [
+            self.HEADER_ROW,
+            self.ENTRY_1,
+        ]
+        results = text_ocr._find_career_list_entries(lines)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["value"], "디자인전락 매직 디자인 인수")
+
+
+class FindWeakTextPersonNamesTest(unittest.TestCase):
+    """실측 재현(2026-09-18, 실제 지원서 사진): "지원동기" 문단 전체가 확신도
+    0.21로 잡혀 본문 `text`(0.3 문턱)에서 빠졌다. 그 문단 속 이름 "홍길동"은
+    표에서 확정된 값이 아니라서(성명 칸의 값은 다른 이름 "이예지") 표 교차
+    대조로도 못 찾는다 — weak_text에 직접 NER을 돌리되 person 판정만 받아야
+    한다."""
+
+    def test_person_in_weak_text_is_found(self) -> None:
+        from unittest.mock import patch
+
+        from backend.scanner import scan
+        from backend.scanner.detectors import text_ocr
+        from backend.shared.schema import Finding
+
+        weak_text = "저는 식품 공장에서 근무한 홍길동입니다."
+        _t, weak_words, _o = text_ocr._words_from_lines(
+            [[(weak_text, (0.0, 0.0, 500.0, 20.0))]]
+        )
+        person_start = weak_text.index("홍길동")
+
+        def fake_scan_text(text, meta=None):
+            return scan.ScanResult(
+                raw_text=text,
+                findings=[
+                    Finding(
+                        id="f_1",
+                        type="person",
+                        text="홍길동",
+                        start=person_start,
+                        end=person_start + len("홍길동"),
+                        confidence=0.5,
+                        reason="test",
+                        source="ner",
+                        evidence={},
+                    )
+                ],
+            )
+
+        with patch.object(scan, "scan_text", side_effect=fake_scan_text):
+            found = text_ocr._find_weak_text_person_names(weak_text, weak_words, [])
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["field"], "person")
+        self.assertEqual(found[0]["value"], "홍길동")
+
+    def test_non_person_findings_are_ignored(self) -> None:
+        """injection·org 같은 다른 타입은 확신도 낮은 텍스트에서 받으면 안 된다
+        — OCR 잡음이 인젝션 분류기를 오탐시킨 전례가 있다(`_CROSS_REFERENCE_MIN_CONFIDENCE`
+        주석 참고). person만 좁게 받아야 그 오탐 경로가 안 열린다."""
+        from unittest.mock import patch
+
+        from backend.scanner import scan
+        from backend.scanner.detectors import text_ocr
+        from backend.shared.schema import Finding
+
+        weak_text = "ITQAAS AS 어쩌구"
+        _t, weak_words, _o = text_ocr._words_from_lines(
+            [[(weak_text, (0.0, 0.0, 500.0, 20.0))]]
+        )
+
+        def fake_scan_text(text, meta=None):
+            return scan.ScanResult(
+                raw_text=text,
+                findings=[
+                    Finding(
+                        id="f_1",
+                        type="injection",
+                        text=weak_text,
+                        start=0,
+                        end=len(weak_text),
+                        confidence=0.77,
+                        reason="test",
+                        source="classifier",
+                        evidence={},
+                    )
+                ],
+            )
+
+        with patch.object(scan, "scan_text", side_effect=fake_scan_text):
+            found = text_ocr._find_weak_text_person_names(weak_text, weak_words, [])
+        self.assertEqual(found, [])
+
+    def test_position_already_covered_by_an_existing_finding_is_skipped(self) -> None:
+        from unittest.mock import patch
+
+        from backend.scanner import scan
+        from backend.scanner.detectors import text_ocr
+        from backend.shared.schema import Finding
+
+        weak_text = "홍길동"
+        _t, weak_words, _o = text_ocr._words_from_lines(
+            [[(weak_text, (0.0, 0.0, 100.0, 20.0))]]
+        )
+
+        def fake_scan_text(text, meta=None):
+            return scan.ScanResult(
+                raw_text=text,
+                findings=[
+                    Finding(
+                        id="f_1",
+                        type="person",
+                        text="홍길동",
+                        start=0,
+                        end=3,
+                        confidence=0.5,
+                        reason="test",
+                        source="ner",
+                        evidence={},
+                    )
+                ],
+            )
+
+        with patch.object(scan, "scan_text", side_effect=fake_scan_text):
+            found = text_ocr._find_weak_text_person_names(
+                weak_text, weak_words, [(0.0, 0.0, 100.0, 20.0)]
+            )
+        self.assertEqual(found, [])
+
 
 class FindCrossReferencedValuesTest(unittest.TestCase):
     """실측 재현(2026-09-18, 실제 지원서 사진): "직장명" 표에서 "A식품"/"B식품"이
@@ -864,6 +1184,40 @@ class FindCrossReferencedValuesTest(unittest.TestCase):
         found = text_ocr._find_cross_referenced_values(text, words, table_cells)
         self.assertEqual(found, [])
 
+    def test_confusable_leading_letter_is_matched_when_exact_form_is_ocr_misread(self):
+        """실측 재현(2026-09-18, 아르바이트 지원서): 표에서 "C식품"으로 확정된
+        값이 자유 서술문에서는 "C"가 "("로 오독되어("(식품 공장에서...")
+        정확한 문자열이 그 자리에 존재하지 않았다. 표 셀 자기 위치 외에는
+        정확히 일치하는 자리가 하나도 없을 때만, 영문 한 글자를 흔한 오독
+        기호(괄호·숫자)로 바꾼 형태도 찾아야 한다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "C식품 근무하며 (식품 공장에서 근무하다 생산 라인 관리"
+        _t, words, _o = text_ocr._words_from_lines([[(text, (0.0, 0.0, 500.0, 20.0))]])
+        table_cells = [{"field": "org", "value": "C식품", "bbox": (0.0, 0.0, 60.0, 20.0)}]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]["value"], "C식품")
+        left, _top, _right, _bottom = found[0]["bbox"]
+        self.assertGreater(left, 60.0)
+
+    def test_multiple_values_do_not_cross_contaminate_via_confusable_fallback(self):
+        """A식품처럼 정확히 일치하는 값이 있는 경우와 C식품처럼 오독으로만 찾을
+        수 있는 값이 같은 문서에 섞여 있을 때, C식품의 느슨한 폴백 패턴이
+        A식품 자리까지 다시 잡아 중복/오표기하면 안 된다."""
+        from backend.scanner.detectors import text_ocr
+
+        text = "지원동기: A식품 (식품 공장에서 근무했습니다"
+        _t, words, _o = text_ocr._words_from_lines([[(text, (0.0, 0.0, 500.0, 20.0))]])
+        table_cells = [
+            {"field": "org", "value": "A식품", "bbox": (600.0, 600.0, 650.0, 620.0)},
+            {"field": "org", "value": "C식품", "bbox": (700.0, 600.0, 750.0, 620.0)},
+        ]
+        found = text_ocr._find_cross_referenced_values(text, words, table_cells)
+        self.assertEqual(len(found), 2)
+        values = sorted(f["value"] for f in found)
+        self.assertEqual(values, ["A식품", "C식품"])
+
 
 class MergeTableCellsTest(unittest.TestCase):
     def test_overlapping_finding_is_replaced(self):
@@ -894,6 +1248,24 @@ class MergeTableCellsTest(unittest.TestCase):
         table_cells = [{"field": "org", "value": "Real Co.", "bbox": (0.0, 0.0, 90.0, 10.0)}]
         merged = text_ocr._merge_table_cells(findings, table_cells)
         self.assertEqual(merged, table_cells)
+
+    def test_overlapping_table_cells_do_not_evict_each_other(self):
+        """실측 재현(2026-09-18, 아르바이트 지원서): 자유 서술문에 이어붙은
+        "A식품 B식품"처럼 인접한 두 값의 교차참조 sub-word bbox가 서로 살짝
+        겹칠 수 있는데, 예전 코드는 table_cells를 하나씩 append하며 겹침을
+        검사해서 뒤에 처리된 셀이 먼저 넣은 셀을 지워버렸다(B식품이 A식품을
+        밀어냄). table_cells끼리는 서로 지우면 안 된다 — 둘 다 표에서 확정된
+        진짜 값이다."""
+        from backend.scanner.detectors import text_ocr
+
+        table_cells = [
+            {"field": "org", "value": "A식품", "bbox": (968.0, 1099.0, 1054.0, 1135.0)},
+            {"field": "org", "value": "B식품", "bbox": (1037.0, 1099.0, 1105.0, 1135.0)},
+        ]
+        merged = text_ocr._merge_table_cells([], table_cells)
+        self.assertEqual(len(merged), 2)
+        self.assertIn(table_cells[0], merged)
+        self.assertIn(table_cells[1], merged)
 
 
 class NormalizeDigitConfusableLettersTest(unittest.TestCase):

@@ -1,5 +1,6 @@
 import fontkit from '@pdf-lib/fontkit'
 import { PDFDocument, rgb } from 'pdf-lib'
+import { displayMaskedText, getRecommendedResponse } from './trainingPrivacyGuidance.js'
 
 const PAGE = { width: 595.28, height: 841.89 }
 // Layout knobs: keep all A4 spacing and typography adjustments in one place.
@@ -15,6 +16,17 @@ const LAYOUT = {
   itemLineHeight: 13.6,
   wordGapRatio: 0.34,
 }
+const CONVERSATION_LAYOUT = {
+  top: 666,
+  bottom: 54,
+  cardPadding: 14,
+  labelSize: 9,
+  labelHeight: 11,
+  labelGap: 9,
+  bodySize: 10.2,
+  lineHeight: 15.2,
+  cardGap: 12,
+}
 const COLORS = {
   navy: rgb(0.04, 0.08, 0.12),
   text: rgb(0.035, 0.055, 0.075),
@@ -23,6 +35,9 @@ const COLORS = {
   cyanStrong: rgb(0.015, 0.37, 0.52),
   greenSoft: rgb(0.91, 0.97, 0.985),
   greenBorder: rgb(0.72, 0.88, 0.92),
+  adviceGreen: rgb(0.14, 0.52, 0.30),
+  adviceGreenSoft: rgb(0.92, 0.98, 0.93),
+  adviceGreenBorder: rgb(0.62, 0.82, 0.67),
   red: rgb(0.82, 0.173, 0.235),
   redSoft: rgb(1, 0.945, 0.949),
   redBorder: rgb(0.965, 0.831, 0.847),
@@ -88,6 +103,48 @@ function wrapText(font, text, size, maxWidth) {
   }
   if (!lines.length) lines.push('')
   return lines
+}
+
+function wrapConversationText(font, text, size, maxWidth) {
+  const lines = []
+
+  const pushLongWord = (word) => {
+    let part = ''
+    for (const character of word) {
+      const candidate = `${part}${character}`
+      if (part && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+        lines.push(part)
+        part = character
+      } else {
+        part = candidate
+      }
+    }
+    return part
+  }
+
+  String(text ?? '').split('\n').forEach((paragraph) => {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean)
+    if (!words.length) {
+      lines.push('')
+      return
+    }
+
+    let line = ''
+    words.forEach((word) => {
+      const candidate = line ? `${line} ${word}` : word
+      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        line = candidate
+        return
+      }
+      if (line) lines.push(line)
+      line = font.widthOfTextAtSize(word, size) <= maxWidth
+        ? word
+        : pushLongWord(word)
+    })
+    if (line) lines.push(line)
+  })
+
+  return lines.length ? lines : ['']
 }
 
 function textWidth(font, text, size) {
@@ -237,8 +294,15 @@ function drawHeader(page, font, logo) {
   page.drawLine({ start: { x: MARGIN, y: 738 }, end: { x: PAGE.width - MARGIN, y: 738 }, thickness: 1.5, color: COLORS.green })
 }
 
-function drawFooter(page, font) {
-  page.drawText('01 / 01', { x: 512, y: 24, size: 8.5, font, color: COLORS.muted })
+function drawFooter(page, font, pageNumber, pageCount) {
+  const label = `${String(pageNumber).padStart(2, '0')} / ${String(pageCount).padStart(2, '0')}`
+  page.drawText(label, {
+    x: PAGE.width - MARGIN - font.widthOfTextAtSize(label, 8.5),
+    y: 24,
+    size: 8.5,
+    font,
+    color: COLORS.muted,
+  })
 }
 
 function drawList(page, font, items, options) {
@@ -288,13 +352,14 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   const compactDate = generatedDate.replace(/\s/g, '')
   const trainingInfo = [
     `훈련 레벨 : Level ${report.level}`,
+    `시나리오 : ${report.scenario_title || '-'}`,
     `점수 : ${report.score} / 100`,
     `등급 : ${report.grade || '-'}`,
     `리포트 생성일 : ${compactDate}`,
   ]
   trainingInfo.forEach((line, index) => {
     drawWordSpacedText(page, font, line, {
-      x: infoX, y: 684 - index * 10, size: 7.2, color: COLORS.muted,
+      x: infoX, y: 688 - index * 9, size: 7.2, color: COLORS.muted,
     })
   })
 
@@ -338,7 +403,196 @@ function drawPageOne(page, font, logo, report, generatedDate) {
     x: MARGIN, y: 58, width: CONTENT_WIDTH, height: 122, title: '다음 훈련에서 이렇게 대응하세요', icon: 'shield-check',
     items: report.improvements, tone: 'green', numbered: true, emptyMessage: '추가 개선 권고가 없습니다.',
   })
-  drawFooter(page, font)
+}
+
+function drawConversationHeader(page, font, logo, report) {
+  const logoHeight = 54
+  const logoWidth = logoHeight * (1513 / 1037)
+  page.drawImage(logo, { x: MARGIN - 5, y: 757, width: logoWidth, height: logoHeight })
+  page.drawText('AI SECURITY TRAINING REPORT', {
+    x: PAGE.width - MARGIN - font.widthOfTextAtSize('AI SECURITY TRAINING REPORT', 8.5),
+    y: 789,
+    size: 8.5,
+    font,
+    color: COLORS.muted,
+  })
+  page.drawLine({
+    start: { x: MARGIN, y: 744 },
+    end: { x: PAGE.width - MARGIN, y: 744 },
+    thickness: 1.5,
+    color: COLORS.green,
+  })
+  drawWordSpacedText(page, font, 'AI와 나의 실전 대화 기록', {
+    x: MARGIN,
+    y: 704,
+    size: 22,
+    color: COLORS.text,
+  })
+  const scenario = report.scenario_title || '시나리오 정보 없음'
+  drawWordSpacedText(page, font, `Level ${report.level} · ${scenario}`, {
+    x: MARGIN,
+    y: 679,
+    size: 9.5,
+    color: COLORS.muted,
+  })
+}
+
+function drawConversationCard(page, font, { role, label, lines, top }) {
+  const layout = CONVERSATION_LAYOUT
+  const height = layout.cardPadding * 2 + layout.labelHeight + layout.labelGap + lines.length * layout.lineHeight
+  const y = top - height
+  const isAttacker = role === 'assistant'
+  const fill = isAttacker ? COLORS.surface : COLORS.greenSoft
+  const accent = isAttacker ? COLORS.red : COLORS.cyanStrong
+
+  drawRoundedRect(page, {
+    x: MARGIN,
+    y,
+    width: CONTENT_WIDTH,
+    height,
+    radius: 10,
+    color: fill,
+    borderColor: isAttacker ? COLORS.redBorder : COLORS.greenBorder,
+    borderWidth: 0,
+  })
+  page.drawRectangle({
+    x: MARGIN,
+    y: y + 10,
+    width: 3.5,
+    height: height - 20,
+    color: accent,
+  })
+  drawWordSpacedText(page, font, compactKoreanSpacing(label), {
+    x: MARGIN + layout.cardPadding,
+    y: top - layout.cardPadding - layout.labelHeight + 2,
+    size: layout.labelSize,
+    color: accent,
+  })
+  drawLines(page, font, lines, {
+    x: MARGIN + layout.cardPadding,
+    y: top - layout.cardPadding - layout.labelHeight - layout.labelGap,
+    size: layout.bodySize,
+    lineHeight: layout.lineHeight,
+    color: COLORS.text,
+  })
+  return y
+}
+
+function recommendationHeight(font, text) {
+  const lines = wrapConversationText(
+    font,
+    text,
+    CONVERSATION_LAYOUT.bodySize,
+    CONTENT_WIDTH - CONVERSATION_LAYOUT.cardPadding * 2,
+  )
+  return {
+    lines,
+    height: CONVERSATION_LAYOUT.cardPadding * 2
+      + CONVERSATION_LAYOUT.labelHeight
+      + CONVERSATION_LAYOUT.labelGap
+      + lines.length * CONVERSATION_LAYOUT.lineHeight,
+  }
+}
+
+function drawRecommendationCard(page, font, { lines, top }) {
+  const layout = CONVERSATION_LAYOUT
+  const height = layout.cardPadding * 2 + layout.labelHeight + layout.labelGap + lines.length * layout.lineHeight
+  const y = top - height
+  drawRoundedRect(page, {
+    x: MARGIN,
+    y,
+    width: CONTENT_WIDTH,
+    height,
+    radius: 10,
+    color: COLORS.adviceGreenSoft,
+    borderColor: COLORS.adviceGreenBorder,
+    borderWidth: 0,
+  })
+  drawWordSpacedText(page, font, '적절한 대응', {
+    x: MARGIN + layout.cardPadding,
+    y: top - layout.cardPadding - layout.labelHeight + 2,
+    size: layout.labelSize,
+    color: COLORS.adviceGreen,
+  })
+  drawLines(page, font, lines, {
+    x: MARGIN + layout.cardPadding,
+    y: top - layout.cardPadding - layout.labelHeight - layout.labelGap,
+    size: layout.bodySize,
+    lineHeight: layout.lineHeight,
+    color: COLORS.text,
+  })
+  return y
+}
+
+function drawConversationPages(pdfDoc, font, logo, report) {
+  const conversation = Array.isArray(report.conversation) ? report.conversation : []
+  if (!conversation.length) return
+
+  const roleTurns = { assistant: 0, user: 0 }
+  let page = pdfDoc.addPage([PAGE.width, PAGE.height])
+  drawConversationHeader(page, font, logo, report)
+  let cursorY = CONVERSATION_LAYOUT.top
+
+  conversation.forEach((message) => {
+    const role = message.role === 'user' ? 'user' : 'assistant'
+    roleTurns[role] += 1
+    const speaker = role === 'assistant' ? 'AI 사기범' : '나의 대응'
+    const turn = String(roleTurns[role]).padStart(2, '0')
+    const baseLabel = `${speaker} · TURN ${turn}`
+    let remainingLines = wrapConversationText(
+      font,
+      displayMaskedText(message.content),
+      CONVERSATION_LAYOUT.bodySize,
+      CONTENT_WIDTH - CONVERSATION_LAYOUT.cardPadding * 2,
+    )
+    let continuation = false
+
+    while (remainingLines.length) {
+      const fixedHeight = CONVERSATION_LAYOUT.cardPadding * 2
+        + CONVERSATION_LAYOUT.labelHeight
+        + CONVERSATION_LAYOUT.labelGap
+      let availableHeight = cursorY - CONVERSATION_LAYOUT.bottom
+      let maxLines = Math.floor((availableHeight - fixedHeight) / CONVERSATION_LAYOUT.lineHeight)
+
+      if (maxLines < 1) {
+        page = pdfDoc.addPage([PAGE.width, PAGE.height])
+        drawConversationHeader(page, font, logo, report)
+        cursorY = CONVERSATION_LAYOUT.top
+        availableHeight = cursorY - CONVERSATION_LAYOUT.bottom
+        maxLines = Math.floor((availableHeight - fixedHeight) / CONVERSATION_LAYOUT.lineHeight)
+      }
+
+      const chunk = remainingLines.slice(0, maxLines)
+      remainingLines = remainingLines.slice(chunk.length)
+      cursorY = drawConversationCard(page, font, {
+        role,
+        label: continuation ? `${baseLabel} · 계속` : baseLabel,
+        lines: chunk,
+        top: cursorY,
+      }) - CONVERSATION_LAYOUT.cardGap
+      continuation = true
+
+      if (remainingLines.length) {
+        page = pdfDoc.addPage([PAGE.width, PAGE.height])
+        drawConversationHeader(page, font, logo, report)
+        cursorY = CONVERSATION_LAYOUT.top
+      }
+    }
+
+    const recommendation = role === 'user' ? getRecommendedResponse(message.content) : null
+    if (recommendation) {
+      const recommendationCard = recommendationHeight(font, recommendation)
+      if (cursorY - CONVERSATION_LAYOUT.bottom < recommendationCard.height) {
+        page = pdfDoc.addPage([PAGE.width, PAGE.height])
+        drawConversationHeader(page, font, logo, report)
+        cursorY = CONVERSATION_LAYOUT.top
+      }
+      cursorY = drawRecommendationCard(page, font, {
+        lines: recommendationCard.lines,
+        top: cursorY,
+      }) - CONVERSATION_LAYOUT.cardGap
+    }
+  })
 }
 
 export async function createTrainingReportPdf(report, fontBytes) {
@@ -357,6 +611,10 @@ export async function createTrainingReportPdf(report, fontBytes) {
   }).format(new Date())
 
   drawPageOne(pageOne, font, logo, report, generatedDate)
+  drawConversationPages(pdfDoc, font, logo, report)
+
+  const pages = pdfDoc.getPages()
+  pages.forEach((page, index) => drawFooter(page, font, index + 1, pages.length))
 
   pdfDoc.setTitle(`DocX-ray Training Level ${report.level} Result`)
   pdfDoc.setAuthor('DocX-ray')

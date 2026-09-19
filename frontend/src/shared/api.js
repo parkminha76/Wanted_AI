@@ -102,6 +102,9 @@ export const api = {
       { timeoutMs: TIMEOUT_MS.scan },
     ),
 
+  /** 합성 샘플 원본 주소. 상세 미리보기에서만 Blob으로 읽고 브라우저 저장소에는 남기지 않는다. */
+  sampleOriginalUrl: (filename) => `${BASE_URL}/samples/original/${encodeURIComponent(filename)}`,
+
   /** 마스킹 사본 다운로드 주소. 링크(href)로 쓴다. 사본은 서버에서 30분 뒤 지워진다. */
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
   /**

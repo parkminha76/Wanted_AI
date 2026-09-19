@@ -105,6 +105,10 @@ export default function App() {
     // 직접 올린 이미지 원본은 마스킹 사본 생성에도 이미 브라우저 메모리에서만 보관한다.
     // 상세 미리보기는 이 File 객체를 재사용하므로 서버에 원본을 추가 저장하지 않는다.
     sourceFile: uploads.find((uploaded) => uploaded.name === (results[fileIndex]?.filename ?? results[0]?.filename)) ?? null,
+    // 합성 샘플은 서버 저장소의 원본을 미리보기로만 가져온다. 실제 업로드 원본에는 이 주소를 만들지 않는다.
+    sourceUrl: batchSource === 'samples' && results[fileIndex]
+      ? api.sampleOriginalUrl(results[fileIndex].filename)
+      : null,
     onSelectFile: (index) => {
       setFileIndex(index)
       setFindingId(null)
@@ -112,6 +116,19 @@ export default function App() {
     findingId,
     onSelectFinding: setFindingId,
     navigate,
+  }
+
+  // 서버가 재배포·재시작되면 메모리에만 있던 다운로드 ID가 사라질 수 있다.
+  // 이때 첫 화면으로만 보내면 사용자가 같은 만료 결과로 되돌아올 수 있으므로,
+  // 브라우저 메모리에 남아 있는 원본(또는 샘플 이름)으로 실제 검사를 다시 수행한다.
+  const retryExpiredCopies = () => {
+    if (batchSource === 'files' && uploads.length > 0) {
+      return startScan('files', uploads)
+    }
+    if (batchSource === 'samples' && batch?.results?.length > 0) {
+      return startScan('samples', batch.results.map((result) => result.filename))
+    }
+    navigate('', { replace: true })
   }
 
   let page
@@ -126,7 +143,14 @@ export default function App() {
       page = <FindingDetailPage {...scanProps} batchSource={batchSource} />
       break
     case 'results/mask':
-      page = <MaskPage {...scanProps} uploads={uploads} batchSource={batchSource} />
+      page = (
+        <MaskPage
+          {...scanProps}
+          uploads={uploads}
+          batchSource={batchSource}
+          onRetryExpired={retryExpiredCopies}
+        />
+      )
       break
     case 'training':
       page = (
