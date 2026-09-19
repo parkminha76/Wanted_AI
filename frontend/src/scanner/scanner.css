@@ -1067,15 +1067,57 @@
 }
 
 /* position: relative — 항목을 고를 때 mark.offsetTop을 이 상자 기준으로 잰다. */
+/* TXT/MD/LOG 원문과 마스킹 사본 미리보기도 흰 배경 + 검은 글씨로 — PDF·DOCX·엑셀 미리보기와
+   같은 "실제 문서" 느낌을 준다("검은색이라 가독성이 떨어진다" 피드백, XLSX와 같은 이유). */
 .paper__body {
   position: relative;
   max-height: 50vh;
   overflow-y: auto;
-  color: var(--color-paper-text);
+  padding: var(--space-4);
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #1f1f1f;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* 엑셀 표(.sheet-scroll)가 이미 자기 테두리·흰 배경을 갖고 있어서, 겹쳐 이중 테두리가
+   되지 않게 표 모드에서는 위 상자 모양을 지운다. */
+.paper__body--sheet {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.paper__body .hit,
+.sheet-grid .hit {
+  background: #fbe4e1;
+  color: #8a2c22;
+}
+
+.paper__body .hit--hidden,
+.sheet-grid .hit--hidden {
+  background: #fbe8cf;
+  color: #8a5a12;
+}
+
+.paper__body .hit--other,
+.sheet-grid .hit--other {
+  background: #e7e7e5;
+  color: #3a352c;
+}
+
+.paper__body .hit-excluded {
+  border-bottom: 1px dashed #b0b0b0;
+}
+
+.paper__body .mask-token,
+.docx-preview-host .mask-token {
+  background: #e6f0fa;
+  color: #1a5a86;
 }
 
 .paper--empty {
@@ -1141,6 +1183,13 @@
   outline-offset: 1px;
 }
 
+/* 마스킹된 문서 보기 전용 — 실제 마스킹 사본처럼 자리를 완전히 검게 칠한다(유형 구분 없음). */
+.image-hit--redacted {
+  border: 0;
+  border-radius: 1px;
+  background: #000;
+}
+
 .image-preview__note {
   margin-top: var(--space-3);
   color: var(--color-text-muted);
@@ -1177,7 +1226,10 @@
   height: auto;
 }
 
-.docx-preview-host {
+/* 여러 쪽 PDF를 이 상자 안에서만 스크롤한다 — 안 그러면 쪽을 넘길 때마다 페이지 전체가
+   길어져서 위쪽(쪽 이동 인디케이터·검사 결과 요약)이 멀어진다(DOCX의 .docx-preview-host와 같은 이유). */
+.rendered-preview-host {
+  position: relative;
   overflow: auto;
   max-height: 68vh;
   padding: var(--space-4);
@@ -1186,12 +1238,28 @@
   background: #525252;
 }
 
-.docx-preview-host .docx-wrapper {
+.rendered-preview-host .rendered-page:last-child {
+  margin-bottom: 0;
+}
+
+.docx-preview-host {
+  position: relative;
+  overflow: auto;
+  max-height: 68vh;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #525252;
+}
+
+/* docx-preview 렌더 옵션(className:'docx-preview')이 실제로 붙이는 클래스는
+   .docx-preview-wrapper/.docx-preview다 — .docx-wrapper/.docx는 기본값일 때 이름이라 안 먹었다. */
+.docx-preview-host .docx-preview-wrapper {
   padding: 0;
   background: transparent;
 }
 
-.docx-preview-host .docx {
+.docx-preview-host .docx-preview {
   margin: 0 auto var(--space-4);
   box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
 }
@@ -1200,28 +1268,46 @@
   color: inherit;
 }
 
-/* 쪽 나누기 — 서버 ScanResult.pages가 2개 이상일 때 */
-.page-nav {
+/* 여러 쪽짜리 문서(DOCX/PDF/XLSX 등) 쪽 이동 — "‹ 1 / 4 ›" 모양 인디케이터로 통일한다.
+   문서 제목 바로 아래, 위쪽 가운데에 둔다. */
+.doc-page-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
 
-.page-nav__item {
+.doc-page-nav__count {
+  min-width: 3.5rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.doc-page-nav__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-lg);
+  line-height: 1;
 }
 
-.page-nav__item:hover {
+.doc-page-nav__arrow:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-navy);
+}
+
+.doc-page-nav__arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .paper-page + .paper-page {
@@ -1322,6 +1408,37 @@
 
 .sheet-grid tr:last-child > * { border-bottom: 0; }
 .sheet-grid tr > *:last-child { border-right: 0; }
+
+/* 엑셀 시트는 앱의 어두운 테마 대신 흰 배경 + 검은 글씨로 — 실제 스프레드시트를 보는 느낌을
+   준다("검은색이라 가독성이 떨어진다" 피드백). 표 구조·칸 나누기·하이라이트 위치는 그대로 두고
+   색만 밝은 값으로 덮어쓴다. PdfPreview의 흰 종이(#fff), DocxPreview의 실제 문서 렌더와 같은 방향이다. */
+.sheet-scroll {
+  background: #fff;
+  border-color: #d9d9d9;
+}
+
+.sheet-grid {
+  color: #1f1f1f;
+}
+
+.sheet-grid th,
+.sheet-grid td {
+  border-color: #e0e0e0;
+}
+
+.sheet-grid thead th,
+.sheet-grid tbody > tr > th {
+  background: #f3f3f3;
+  color: #5f6368;
+}
+
+.sheet-grid tbody tr:nth-child(even) td {
+  background: transparent;
+}
+
+.sheet-grid tbody tr:hover td {
+  background: #e8f0fe;
+}
 
 .hit {
   padding: 0 2px;

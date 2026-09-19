@@ -123,7 +123,7 @@ export default function App() {
       page = <ResultsPage {...scanProps} onCancelFile={cancelFile} />
       break
     case 'results/detail':
-      page = <FindingDetailPage {...scanProps} />
+      page = <FindingDetailPage {...scanProps} batchSource={batchSource} />
       break
     case 'results/mask':
       page = <MaskPage {...scanProps} uploads={uploads} batchSource={batchSource} />
