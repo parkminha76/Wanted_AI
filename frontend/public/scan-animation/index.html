@@ -474,10 +474,7 @@ class Component extends DCLogic {
             });
           });
           const total = t;
-          this.after(g, total + 800, () => {
-            this.setState({ activeIdx:-1 });
-            this.after(g, 700, () => this.playDoc((idx + 1) % DOCS.length, false));
-          });
+          this.after(g, total, () => this.playDoc((idx + 1) % DOCS.length, false));
         });
       });
     };

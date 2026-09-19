@@ -66,6 +66,73 @@ const EXPLANATIONS = {
   id_meta: '신분증 발급 정보는 다른 정보와 합쳐지면 신분 확인을 속이는 데 쓰일 수 있습니다.',
 }
 
+// 검사 항목 — 결과지의 "무엇을 검사했나"에 쓰는 여섯 묶음.
+//
+// backend/shared/schema.py의 _ACTION_GROUPS와 같은 구성이다. 그쪽은 RiskType 전체를
+// 빠짐없이 한 번씩만 덮는지 import 시점에 assert로 확인하므로, 타입이 새로 생기면
+// 서버가 먼저 깨진다. 여기 표는 그 결과를 화면 문구로 옮긴 것이다.
+//
+// 위의 GROUPS와는 쓰임이 다르다. GROUPS는 "무엇을 가릴까"(마스킹 화면에서 고르는 단위),
+// CHECKS는 "무엇을 검사했나"(결과지에서 읽는 단위)다. 같은 타입이 양쪽에서 다르게
+// 묶이는 것은 의도한 것이다 — 가리는 기준과 설명하는 기준이 같을 이유가 없다.
+export const CHECKS = {
+  ai_command: {
+    label: '숨겨진 AI 명령',
+    covers: '문서에 심어 둔 지시문 · 눈에 안 보이는 글자',
+    tone: 'high',
+    lead: '문서를 읽는 AI를 조종하는 명령이 심어져 있습니다',
+    types: ['injection', 'hidden_text'],
+  },
+  credential: {
+    label: '인증정보',
+    covers: 'API 키 · 데이터베이스 접속정보',
+    tone: 'high',
+    lead: '서비스 계정 열쇠가 값 그대로 적혀 있습니다',
+    types: ['api_key', 'db_credential'],
+  },
+  identity: {
+    label: '고유식별정보',
+    covers: '주민등록번호 · 여권 · 운전면허 · 외국인등록번호 · 신분증 이미지',
+    tone: 'high',
+    lead: '한 번 나가면 되돌릴 수 없는 신분 정보가 있습니다',
+    types: ['rrn', 'foreign_reg', 'passport', 'driver_license', 'id_photo', 'signature', 'id_meta'],
+  },
+  financial: {
+    label: '금융정보',
+    covers: '계좌번호 · 카드번호',
+    tone: 'high',
+    lead: '계좌·카드 정보가 그대로 남아 있습니다',
+    types: ['account', 'card'],
+  },
+  contact: {
+    label: '연락처·신원',
+    covers: '이름 · 전화번호 · 이메일 · 주소 · 생년월일 · 사번',
+    tone: 'medium',
+    lead: '개인을 알아볼 수 있는 정보가 남아 있습니다',
+    types: ['person', 'phone', 'email', 'address', 'birth_date', 'emp_no'],
+  },
+  organization: {
+    label: '조직·네트워크 정보',
+    covers: '사업자등록번호 · 법인등록번호 · 조직명 · 내부 IP',
+    tone: 'medium',
+    lead: '조직과 사내 서버 정보가 드러납니다',
+    types: ['biz_reg', 'corp_reg', 'org', 'ip'],
+  },
+}
+
+// 심각한 것부터. 결과지의 검사 항목 목록과 문제 목록이 같은 순서를 쓴다.
+export const CHECK_ORDER = ['ai_command', 'credential', 'identity', 'financial', 'contact', 'organization']
+
+export function checkOf(type) {
+  return CHECK_ORDER.find((key) => CHECKS[key].types.includes(type)) ?? 'organization'
+}
+
+export function countByCheck(findings = []) {
+  const counts = Object.fromEntries(CHECK_ORDER.map((key) => [key, 0]))
+  for (const finding of findings) counts[checkOf(finding.type)] += 1
+  return counts
+}
+
 export function explanationFor(type) {
   return EXPLANATIONS[type] ?? '다른 정보와 합쳐지면 개인이나 조직을 특정하는 데 쓰일 수 있습니다.'
 }
