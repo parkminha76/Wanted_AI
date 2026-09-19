@@ -64,10 +64,12 @@ export default function App() {
           : -1
       setFileIndex(firstUploaded < 0 ? 0 : firstUploaded)
       setFindingId(null)
-      navigate('results')
+      // replace — "검사 중" 화면을 뒤로가기 스택에 안 남긴다(안 그러면 결과에서 뒤로 갈 때
+      // 끝나 버린 검사 중 화면으로 떨어진다).
+      navigate('results', { replace: true })
     } catch (err) {
       setScanError(err.message)
-      navigate('')
+      navigate('', { replace: true })
     } finally {
       setScanJob(null)
     }
@@ -76,9 +78,11 @@ export default function App() {
   // "이 파일 취소" — 화면 목록에서만 뺀다.
   // TODO: 서버 배치에는 남아 있어서 "전체 사본 받기(.zip)"에는 아직 포함된다.
   function cancelFile(target) {
+    let remaining = 0
     setBatch((prev) => {
       if (!prev) return prev
       const results = prev.results.filter((result) => result !== target)
+      remaining = results.length
       return {
         ...prev,
         results,
@@ -86,6 +90,9 @@ export default function App() {
         total_findings: results.reduce((sum, result) => sum + result.findings.length, 0),
       }
     })
+    // 마지막 남은 파일까지 취소하면 보여줄 결과가 없다 — "검사 결과가 없습니다" 안내 화면으로
+    // 한 번 더 넘어가지 않고 바로 첫 화면으로 돌아간다(검사 완료 후 뒤로가기와 같은 이유).
+    if (remaining === 0) navigate('', { replace: true })
     setFileIndex(0)
     setFindingId(null)
   }
