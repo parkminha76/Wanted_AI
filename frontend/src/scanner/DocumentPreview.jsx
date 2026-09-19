@@ -27,9 +27,31 @@ export default function DocumentPreview({
   pages = [],
   fileType = '',
   sourceFile = null,
+  sourceUrl = null,
 }) {
   const bodyRef = useRef(null)
+  const [sampleFile, setSampleFile] = useState(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
+
+  useEffect(() => {
+    if (sourceFile || !sourceUrl) {
+      setSampleFile(null)
+      return undefined
+    }
+    let cancelled = false
+    fetch(sourceUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error('sample original unavailable')
+        return response.blob()
+      })
+      .then((blob) => {
+        if (!cancelled) setSampleFile(new File([blob], title || 'sample'))
+      })
+      .catch(() => {
+        if (!cancelled) setSampleFile(null)
+      })
+    return () => { cancelled = true }
+  }, [sourceFile, sourceUrl, title])
 
   const fullSelection = useMemo(
     () => Object.fromEntries(findings.map((finding) => [finding.id, 'full'])),
@@ -63,19 +85,20 @@ export default function DocumentPreview({
   }
 
   const content = showServerMaskedText ? maskedText : text
-  const isImagePreview = fileType === 'image' && sourceFile
+  const previewFile = sourceFile ?? sampleFile
+  const isImagePreview = fileType === 'image' && previewFile
 
   if (isImagePreview) {
-    return <ImagePreview title={title} file={sourceFile} findings={findings} selectedId={selectedId} />
+    return <ImagePreview title={title} file={previewFile} findings={findings} selectedId={selectedId} />
   }
 
   // 직접 업로드한 원본은 브라우저 메모리에만 보관한다. PDF/DOCX도 이 File을 바로
   // 렌더링하므로 서버에 원본이나 미리보기 이미지를 새로 저장하지 않는다.
-  if (fileType === 'pdf' && sourceFile) {
-    return <PdfPreview title={title} file={sourceFile} findings={findings} selectedId={selectedId} />
+  if (fileType === 'pdf' && previewFile && !masked) {
+    return <PdfPreview title={title} file={previewFile} findings={findings} selectedId={selectedId} />
   }
-  if (fileType === 'docx' && sourceFile) {
-    return <DocxPreview title={title} file={sourceFile} findings={findings} selectedId={selectedId} />
+  if (fileType === 'docx' && previewFile) {
+    return <DocxPreview title={title} file={previewFile} findings={findings} selectedId={selectedId} masked={masked} />
   }
 
   if (!content) {
@@ -253,7 +276,7 @@ export default function DocumentPreview({
           </nav>
         )}
         <div ref={bodyRef} className={`paper__body${fileType === 'xlsx' || fileType === 'csv' ? ' paper__body--sheet' : ''}`} tabIndex={0} aria-label={label}>
-          {showServerMaskedText && maskedText}
+          {showServerMaskedText && renderMaskedText(maskedText)}
           {!showServerMaskedText &&
             (pagedSegments
               ? (fileType === 'xlsx'
@@ -365,7 +388,7 @@ function PdfPreview({ title, file, findings, selectedId }) {
   )
 }
 
-function DocxPreview({ title, file, findings, selectedId }) {
+function DocxPreview({ title, file, findings, selectedId, masked }) {
   const containerRef = useRef(null)
   const [error, setError] = useState('')
 
@@ -380,7 +403,7 @@ function DocxPreview({ title, file, findings, selectedId }) {
           className: 'docx-preview', breakPages: true, ignoreLastRenderedPageBreak: false,
           renderHeaders: true, renderFooters: true, useBase64URL: true,
         })
-        if (!cancelled) highlightDocxFindings(container, findings, selectedId)
+        if (!cancelled) highlightDocxFindings(container, findings, selectedId, masked)
       } catch (caught) {
         if (!cancelled) setError('DOCX 원본을 화면에 표시하지 못했습니다.')
       }
@@ -388,7 +411,7 @@ function DocxPreview({ title, file, findings, selectedId }) {
     setError('')
     render()
     return () => { cancelled = true }
-  }, [file, findings, selectedId])
+  }, [file, findings, selectedId, masked])
 
   return (
     <div className="paper-wrap docx-preview-wrap">
@@ -402,7 +425,7 @@ function DocxPreview({ title, file, findings, selectedId }) {
   )
 }
 
-function highlightDocxFindings(container, findings, selectedId) {
+function highlightDocxFindings(container, findings, selectedId, masked) {
   const walker = window.document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
   const nodes = []
   let node
@@ -432,8 +455,11 @@ function highlightDocxFindings(container, findings, selectedId) {
         range.setEnd(textNode, to)
         const mark = window.document.createElement('mark')
         mark.dataset.findingId = finding.id
-        mark.className = `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
+        mark.className = masked
+          ? 'mask-token'
+          : `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
         range.surroundContents(mark)
+        if (masked) mark.textContent = `[${finding.label || '민감정보'}]`
       }
       remaining -= to - from
       offset = nextOffset
@@ -441,6 +467,14 @@ function highlightDocxFindings(container, findings, selectedId) {
     }
     used.add(finding.text)
   }
+}
+
+function renderMaskedText(text) {
+  return String(text).split(/(\[[^\]\r\n]+\])/g).map((part, index) =>
+    /^\[[^\]\r\n]+\]$/.test(part)
+      ? <mark key={index} className="mask-token">{part}</mark>
+      : <span key={index}>{part}</span>,
+  )
 }
 
 // 이미지의 탐지 bbox는 원본 픽셀 좌표다. 원본의 가로·세로를 기준으로 %로 바꿔

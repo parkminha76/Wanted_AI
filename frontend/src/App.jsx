@@ -105,6 +105,10 @@ export default function App() {
     // 직접 올린 이미지 원본은 마스킹 사본 생성에도 이미 브라우저 메모리에서만 보관한다.
     // 상세 미리보기는 이 File 객체를 재사용하므로 서버에 원본을 추가 저장하지 않는다.
     sourceFile: uploads.find((uploaded) => uploaded.name === (results[fileIndex]?.filename ?? results[0]?.filename)) ?? null,
+    // 합성 샘플은 서버 저장소의 원본을 미리보기로만 가져온다. 실제 업로드 원본에는 이 주소를 만들지 않는다.
+    sourceUrl: batchSource === 'samples' && results[fileIndex]
+      ? api.sampleOriginalUrl(results[fileIndex].filename)
+      : null,
     onSelectFile: (index) => {
       setFileIndex(index)
       setFindingId(null)

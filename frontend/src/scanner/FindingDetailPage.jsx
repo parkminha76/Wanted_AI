@@ -33,7 +33,7 @@ const SEARCH_PAGE_GROUP_SIZE = 10
 
 const toneOf = (finding) => CHECKS[checkOf(finding.type)].tone
 
-export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, onSelectFile, findingId, onSelectFinding, navigate }) {
+export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, sourceUrl, onSelectFile, findingId, onSelectFinding, navigate }) {
   // 결과지에서 "계좌·카드 정보" 카드를 눌러 왔는데 "132건 중 124번째"가 뜨면 내가 뭘 눌렀는지
   // 알 수 없다. 들어올 때 고른 항목의 심각도로 먼저 걸러 두고, 거르개는 사용자가 다시 바꾼다.
   const [filter, setFilter] = useState(() => {
@@ -253,7 +253,8 @@ export default function FindingDetailPage({ batch, file, fileIndex, sourceFile, 
             maskedText={file.masked_text}
             pages={file.pages}
             fileType={file.file_type}
-            sourceFile={maskedPreview ? null : sourceFile}
+            sourceFile={sourceFile}
+            sourceUrl={sourceUrl}
           />
         </div>
 
