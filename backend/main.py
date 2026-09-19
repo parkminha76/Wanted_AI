@@ -756,13 +756,30 @@ def download_all(batch_id: str, files: str | None = None) -> FileResponse:
         raise HTTPException(status_code=404, detail="배치가 없거나 보관 기간이 지났습니다")
 
     if files is not None:
-        # 배치 목록(file_ids)이 아니라 사본에 붙은 배치 표시로 거른다. 부분 마스킹 사본은
-        # 검사 뒤에 만들어져 목록에는 없지만 같은 배치의 것이다.
-        file_ids = [fid for fid in files.split(",") if _batch_of(fid) == batch_id]
+        # 배치 목록(file_ids)이 아니라 사본에 붙은 배치 표시로 확인한다. 부분 마스킹 사본은
+        # 검사 뒤에 만들어져 목록에는 없지만 같은 배치의 것이다. 중복 id는 순서를 유지하며
+        # 한 번만 넣는다.
+        file_ids = list(dict.fromkeys(fid for fid in files.split(",") if fid))
+        if not file_ids:
+            raise HTTPException(status_code=404, detail="내려받을 사본을 선택해 주세요")
 
-    entries = [_masked_files[fid] for fid in file_ids if fid in _masked_files]
-    if not entries:
-        raise HTTPException(status_code=404, detail="내려받을 사본이 없습니다")
+    # 일부만 조용히 zip에 넣지 않는다. 선택한 사본 중 하나라도 만료됐거나 다른 배치의
+    # 것이면 사용자는 '전체를 받았다'고 오해할 수 있으므로, 전부 실패시키고 다시 검사를
+    # 안내한다.
+    unavailable = [
+        fid
+        for fid in file_ids
+        if _batch_of(fid) != batch_id
+        or fid not in _masked_files
+        or not os.path.exists(_masked_files[fid].path)
+    ]
+    if unavailable:
+        raise HTTPException(
+            status_code=404,
+            detail="선택한 사본 중 일부가 없거나 보관 기간이 지났습니다. 다시 검사해 주세요",
+        )
+
+    entries = [_masked_files[fid] for fid in file_ids]
 
     zip_dir = tempfile.mkdtemp(prefix="infoguard_zip_")
     zip_path = os.path.join(zip_dir, "infoguard_masked.zip")
