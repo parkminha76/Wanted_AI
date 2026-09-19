@@ -204,50 +204,48 @@ export default function MaskPage({
             로 가세요.
           </p>
         </div>
-        {!expired && (
-          <div className="page-head__actions">
-            <Button disabled={stopped} onClick={downloadEach}>
-              {busy
+        <div className="page-head__actions">
+          <Button
+            disabled={expired ? false : stopped}
+            onClick={expired ? (onRetryExpired ?? (() => navigate('', { replace: true }))) : downloadEach}
+          >
+            {expired
+              ? '↻ 사본 다시 만들기'
+              : busy
                 ? busyLabel
                 : picked.length > 1
-                  ? `↓ 선택한 ${picked.length}개 한번에 받기 (.zip)`
+                  ? `↓ 선택 파일 다운받기 (${picked.length}개 · ZIP)`
                   : '↓ 선택 파일 다운받기'}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {expired ? (
-        <div className="stack stack--tight">
-          <p className="alert alert--error" role="alert">
-            서버가 업데이트되었거나 사본 보관 시간이 지났습니다. 사본을 다시 만들어 주세요.
-          </p>
-          <Button onClick={onRetryExpired ?? (() => navigate('', { replace: true }))}>
-            사본 다시 만들기
           </Button>
         </div>
-      ) : (
-        <>
-          {busy && (
-            <p className="alert alert--info" role="status">
-              {busy}
-            </p>
-          )}
-          {error && (
-            <p className="alert alert--error" role="alert">
-              {error}
-            </p>
-          )}
-          {blocked.length > 0 && (
-            <p className="alert alert--info">
-              {blocked.map((row) => row.result.filename).join(' · ')}: 올린 원본이 브라우저에 없어 부분 마스킹
-              사본을 만들 수 없습니다. 전체 마스킹으로 받거나 파일을 다시 올려 주세요.
-            </p>
-          )}
+      </div>
 
-          <div className="mask-picks__caption">받을 파일과 가리는 방식을 고르세요.</div>
+      {expired && (
+        <p className="alert alert--error" role="alert">
+          서버가 업데이트되었거나 사본 보관 시간이 지났습니다. 선택 내용은 그대로 두었습니다. 위의
+          사본 다시 만들기를 눌러 새 사본을 만들어 주세요.
+        </p>
+      )}
+      {busy && (
+        <p className="alert alert--info" role="status">
+          {busy}
+        </p>
+      )}
+      {error && (
+        <p className="alert alert--error" role="alert">
+          {error}
+        </p>
+      )}
+      {blocked.length > 0 && (
+        <p className="alert alert--info">
+          {blocked.map((row) => row.result.filename).join(' · ')}: 올린 원본이 브라우저에 없어 부분 마스킹
+          사본을 만들 수 없습니다. 전체 마스킹으로 받거나 파일을 다시 올려 주세요.
+        </p>
+      )}
 
-          <table className="mask-picks" aria-label="받을 파일과 가리는 방식">
+      <div className="mask-picks__caption">받을 파일과 가리는 방식을 고르세요.</div>
+
+      <table className="mask-picks" aria-label="받을 파일과 가리는 방식">
             <thead>
               <tr>
                 <th scope="col">
@@ -295,19 +293,17 @@ export default function MaskPage({
                 </tr>
               ))}
             </tbody>
-          </table>
+      </table>
 
-          {skipped > 0 && (
-            <p className="mask-summary__note">{skipped}개는 원본 형식의 사본을 만들지 못해 목록에서 뺐습니다.</p>
-          )}
-
-          <MaskExample />
-
-          <p className="mask-summary__note">
-            원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.
-          </p>
-        </>
+      {skipped > 0 && (
+        <p className="mask-summary__note">{skipped}개는 원본 형식의 사본을 만들지 못해 목록에서 뺐습니다.</p>
       )}
+
+      <MaskExample />
+
+      <p className="mask-summary__note">
+        원본은 서버에서 이미 삭제되었습니다. 사본은 검사 후 30분 동안만 받을 수 있습니다.
+      </p>
     </div>
   )
 }
