@@ -1,6 +1,6 @@
 # backend/db
 
-InfoGuard 데이터베이스 레이어. TiDB Cloud(MySQL 호환)를 쓴다.
+docXray 데이터베이스 레이어. TiDB Cloud(MySQL 호환)를 쓴다.
 
 담당: A (backend/db 중 B와 안 겹치는 스키마/로직 부분)
 

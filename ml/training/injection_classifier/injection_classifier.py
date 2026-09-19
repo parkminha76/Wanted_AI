@@ -274,7 +274,7 @@ def evaluate(rows: Sequence[dict], threshold: float = DEFAULT_THRESHOLD) -> dict
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="InfoGuard 인젝션 분류기 학습")
+    parser = argparse.ArgumentParser(description="docXray 인젝션 분류기 학습")
     parser.add_argument(
         "--data-dir",
         type=Path,

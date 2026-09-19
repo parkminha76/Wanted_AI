@@ -184,7 +184,7 @@ export default function MaskPage({
   // ZIP은 체크 상태와 무관하게 현재 목록 전체를 한 파일로 받는다. 각 행에서 고른
   // 전체/부분 마스킹 방식은 그대로 반영한다.
   const downloadZip = () =>
-    once(rows, (ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'infoguard_masked.zip'))
+    once(rows, (ids) => downloadCopy(api.downloadAllUrl(batch.batch_id, ids), 'docxray_masked.zip'))
 
   const busyLabel = (
     <>
