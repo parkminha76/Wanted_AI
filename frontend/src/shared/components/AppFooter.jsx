@@ -5,6 +5,8 @@
 //
 // 가운데 링크들은 랜딩의 구역(id)으로 데려간다. 지금 화면에 그 구역이 없으면 먼저 랜딩으로 옮기고,
 // 랜딩이 그려진 다음에 스크롤한다.
+import { useState } from 'react'
+import LegalPolicyModal from './LegalPolicyModal.jsx'
 import '../../scanner/landing.css'
 
 const SECTION_WAIT_FRAMES = 20 // 랜딩이 그려지기를 기다리는 최대 프레임 수(약 0.3초)
@@ -16,6 +18,8 @@ function scrollTo(id) {
 
 // standalone: 첫 화면 밖(훈련 모드·이용 가이드)에서 쓸 때. 본문과 붙지 않게 위 여백을 스스로 준다.
 export default function AppFooter({ navigate, onScan, busy = false, standalone = false }) {
+  const [policy, setPolicy] = useState(null)
+
   function goToSection(id) {
     if (document.getElementById(id)) {
       scrollTo(id)
@@ -66,11 +70,6 @@ export default function AppFooter({ navigate, onScan, busy = false, standalone =
               </button>
             </li>
             <li>
-              <button type="button" className="landing-footer__link" disabled={busy} onClick={() => onScan('samples')}>
-                샘플 문서로 검사
-              </button>
-            </li>
-            <li>
               <button type="button" className="landing-footer__link" onClick={() => navigate('training')}>
                 사기 대응 훈련
               </button>
@@ -78,38 +77,28 @@ export default function AppFooter({ navigate, onScan, busy = false, standalone =
           </ul>
         </nav>
 
-        <nav className="landing-footer__col" aria-label="보안과 프라이버시">
-          <p className="landing-footer__title">Security &amp; Privacy</p>
+        <nav className="landing-footer__col" aria-label="안내">
+          <p className="landing-footer__title">안내</p>
           <ul>
             <li>
-              <button type="button" className="landing-footer__link" onClick={() => goToSection('privacy')}>
-                프라이버시 원칙
-              </button>
-            </li>
-            <li>
-              <button type="button" className="landing-footer__link" onClick={() => goToSection('risk')}>
-                숨은 위험 탐지
+              <button type="button" className="landing-footer__link" onClick={() => navigate('guide')}>
+                이용 가이드
               </button>
             </li>
           </ul>
         </nav>
 
-        <nav className="landing-footer__col" aria-label="안내">
-          <p className="landing-footer__title">About</p>
+        <nav className="landing-footer__col" aria-label="법적 고지">
+          <p className="landing-footer__title">법적 고지</p>
           <ul>
             <li>
-              <button type="button" className="landing-footer__link" onClick={() => goToSection('intro')}>
-                DocX-ray 소개
+              <button type="button" className="landing-footer__link" onClick={() => setPolicy('terms')}>
+                이용약관
               </button>
             </li>
             <li>
-              <button type="button" className="landing-footer__link" onClick={() => goToSection('flow')}>
-                작동 방식
-              </button>
-            </li>
-            <li>
-              <button type="button" className="landing-footer__link" onClick={() => navigate('guide')}>
-                이용 가이드
+              <button type="button" className="landing-footer__link" onClick={() => setPolicy('privacy')}>
+                개인정보 처리방침
               </button>
             </li>
           </ul>
@@ -132,9 +121,12 @@ export default function AppFooter({ navigate, onScan, busy = false, standalone =
       </div>
 
       <div className="landing-footer__meta">
-        <span>© 2026 DocX-ray 팀 · 2026 원티드 AI Championship 제안 프로젝트</span>
-        <span>문서 보안, 더 안전한 오늘을 만듭니다.</span>
+        <span>© 2026 Tracer 팀 · 2026 원티드 AI Championship 제안 프로젝트</span>
+        <address className="landing-footer__address">
+          Playdata 평생교육원 · 서울특별시 서초구 효령로 335 (서초동, 대호프레조빌) 1층 · Tel : 0507-1355-7302
+        </address>
       </div>
+      <LegalPolicyModal type={policy} onClose={() => setPolicy(null)} />
     </footer>
   )
 }
