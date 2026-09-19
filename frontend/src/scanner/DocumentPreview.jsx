@@ -20,6 +20,7 @@ export default function DocumentPreview({
   maskedText = '',
   selection = null,
   pages = [],
+  fileType = '',
 }) {
   const bodyRef = useRef(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
@@ -107,6 +108,90 @@ export default function DocumentPreview({
     )
   }
 
+  // XLSX 원문은 서버에서 셀 사이를 탭, 행 사이를 줄바꿈으로 보낸다. 같은 segment를
+  // 셀 단위로 나누면 offset 기반 하이라이트를 잃지 않고 표 형태로 다시 그릴 수 있다.
+  function spreadsheetRows(sourceSegments) {
+    const rows = []
+    let row = []
+    let cell = []
+
+    function finishCell() {
+      row.push(cell)
+      cell = []
+    }
+
+    function finishRow() {
+      finishCell()
+      rows.push(row)
+      row = []
+    }
+
+    sourceSegments.forEach((segment) => {
+      const parts = segment.text.split(/(\t|\n)/)
+      parts.forEach((part) => {
+        if (!part) return
+        if (part === '\t') finishCell()
+        else if (part === '\n') finishRow()
+        else cell.push({ ...segment, text: part })
+      })
+    })
+    if (cell.length || row.length) finishRow()
+    return rows.filter((rowItems) => rowItems.some((cellItems) => cellItems.some((item) => item.text.trim())))
+  }
+
+  function columnLabel(index) {
+    let value = index + 1
+    let label = ''
+    while (value > 0) {
+      value -= 1
+      label = String.fromCharCode(65 + (value % 26)) + label
+      value = Math.floor(value / 26)
+    }
+    return label
+  }
+
+  function renderSpreadsheetPage(page, pageIndex) {
+    const rows = spreadsheetRows(page.segments)
+    const columnCount = Math.max(1, ...rows.map((rowItems) => rowItems.length))
+    return (
+      <section
+        key={`${page.page}-${pageIndex}`}
+        className="paper-page paper-page--sheet"
+        data-page={page.page}
+        aria-label={page.label}
+      >
+        <p className="paper-page__label">
+          <span>{page.label}</span>
+          <span>{pageIndex + 1} / {pagedSegments.length}</span>
+        </p>
+        <div className="sheet-scroll">
+          <table className="sheet-grid">
+            <thead>
+              <tr>
+                <th aria-hidden="true" />
+                {Array.from({ length: columnCount }, (_, columnIndex) => <th key={columnIndex}>{columnLabel(columnIndex)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((rowItems, rowIndex) => (
+                <tr key={rowIndex}>
+                  <th scope="row">{rowIndex + 1}</th>
+                  {Array.from({ length: columnCount }, (_, columnIndex) => (
+                    <td key={columnIndex}>
+                      {(rowItems[columnIndex] ?? []).map((segment, segmentIndex) =>
+                        renderSegment(segment, `sheet-${pageIndex}-${rowIndex}-${columnIndex}-${segmentIndex}`),
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+
   let label = '문서 원문과 탐지 위치'
   if (selection) label = '선택 마스킹 미리보기'
   else if (masked) label = '마스킹 사본 내용'
@@ -129,11 +214,13 @@ export default function DocumentPreview({
             ))}
           </nav>
         )}
-        <div ref={bodyRef} className="paper__body" tabIndex={0} aria-label={label}>
+        <div ref={bodyRef} className={`paper__body${fileType === 'xlsx' ? ' paper__body--sheet' : ''}`} tabIndex={0} aria-label={label}>
           {showServerMaskedText && maskedText}
           {!showServerMaskedText &&
             (pagedSegments
-              ? pagedSegments.map((page, index) => (
+              ? (fileType === 'xlsx'
+                ? pagedSegments.map(renderSpreadsheetPage)
+                : pagedSegments.map((page, index) => (
                   <section
                     key={`${page.page}-${index}`}
                     className="paper-page"
@@ -148,7 +235,7 @@ export default function DocumentPreview({
                     </p>
                     <div>{page.segments.map(renderSegment)}</div>
                   </section>
-                ))
+                )))
               : segments.map(renderSegment))}
         </div>
       </article>

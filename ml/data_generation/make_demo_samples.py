@@ -213,14 +213,16 @@ def make_customer_list(path: Path) -> None:
 
     comparison = workbook.create_sheet("탐지 비교")
     comparison.sheet_view.showGridLines = False
-    comparison.merge_cells("A1:D1")
-    comparison["A1"] = "개인정보 탐지와 오탐 비교"
+    comparison.merge_cells("A1:B1")
+    comparison["A1"] = "개인정보 검토 문장"
     comparison["A1"].font = Font(name="맑은 고딕", size=16, bold=True, color=TEXT)
     comparison.row_dimensions[1].height = 30
-    comparison.merge_cells("A2:D2")
-    comparison["A2"] = "동일한 번호 형식도 문맥에 따라 결과가 달라지는지 확인하는 합성 시연 데이터"
+    comparison.merge_cells("A2:B2")
+    comparison["A2"] = "문맥이 서로 다른 합성 시연 문장"
     comparison["A2"].font = Font(name="맑은 고딕", size=9, italic=True, color="667380")
-    for column, value in enumerate(["유형", "검토 문장", "기대 처리", "검증 목적"], start=1):
+    # 사용자가 결과 화면에서 확인해야 할 것은 원문과 탐지 위치다. 모델 검증용
+    # 기대값(탐지/통과)과 내부 사유는 데모 문서에 노출하지 않는다.
+    for column, value in enumerate(["유형", "검토 문장"], start=1):
         cell = comparison.cell(4, column, value)
         cell.fill = PatternFill("solid", fgColor=NAVY)
         cell.font = Font(name="맑은 고딕", size=10, bold=True, color="FFFFFF")
@@ -245,20 +247,21 @@ def make_customer_list(path: Path) -> None:
         ("address", "이번 회의는 강남역에서 진행합니다.", "통과", "일반 장소 hard negative"),
     ]
     for row_index, values in enumerate(comparison_rows, start=5):
+        values = values[:2]
         for column, value in enumerate(values, start=1):
             cell = comparison.cell(row_index, column, value)
             cell.font = Font(name="맑은 고딕", size=9, color=TEXT)
             cell.fill = PatternFill("solid", fgColor="FFFFFF" if row_index % 2 else PALE_GRAY)
             cell.border = Border(bottom=thin_gray)
             cell.alignment = Alignment(
-                horizontal="center" if column in {1, 3} else "left",
+                horizontal="center" if column == 1 else "left",
                 vertical="center", wrap_text=True,
             )
         comparison.row_dimensions[row_index].height = 34
-    for column, width in zip("ABCD", [14, 66, 14, 28]):
+    for column, width in zip("AB", [14, 92]):
         comparison.column_dimensions[column].width = width
     comparison.freeze_panes = "A5"
-    comparison.auto_filter.ref = f"A4:D{4 + len(comparison_rows)}"
+    comparison.auto_filter.ref = f"A4:B{4 + len(comparison_rows)}"
     comparison.print_area = f"A1:D{4 + len(comparison_rows)}"
     comparison.page_setup.orientation = "landscape"
     comparison.page_setup.fitToWidth = 1

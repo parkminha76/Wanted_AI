@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '../shared/components/index.js'
 import {
   CHECKS,
-  SOURCE_LABELS,
   checkOf,
   explanationFor,
   formatPercent,
@@ -11,6 +10,7 @@ import {
 } from '../shared/findings.js'
 import DocumentPreview from './DocumentPreview.jsx'
 import EmptyResult from './EmptyResult.jsx'
+import FileSwitcher from './FileSwitcher.jsx'
 import './scanner.css'
 
 // 상세 화면. 왼쪽에서 "어디인지" 보고 오른쪽에서 "왜 문제고 어떻게 고치는지" 읽는다.
@@ -28,16 +28,20 @@ const FILTERS = [
   { key: 'high', label: '위험' },
   { key: 'medium', label: '주의' },
 ]
+const SEARCH_PAGE_SIZE = 5
+const SEARCH_PAGE_GROUP_SIZE = 10
 
 const toneOf = (finding) => CHECKS[checkOf(finding.type)].tone
 
-export default function FindingDetailPage({ batch, file, findingId, onSelectFinding, navigate }) {
+export default function FindingDetailPage({ batch, file, fileIndex, onSelectFile, findingId, onSelectFinding, navigate }) {
   // 결과지에서 "계좌·카드 정보" 카드를 눌러 왔는데 "132건 중 124번째"가 뜨면 내가 뭘 눌렀는지
   // 알 수 없다. 들어올 때 고른 항목의 심각도로 먼저 걸러 두고, 거르개는 사용자가 다시 바꾼다.
   const [filter, setFilter] = useState(() => {
     const entry = file?.findings?.find((finding) => finding.id === findingId)
     return entry ? toneOf(entry) : 'all'
   })
+  const [query, setQuery] = useState('')
+  const [searchPage, setSearchPage] = useState(1)
 
   if (!batch || !file) return <EmptyResult navigate={navigate} />
 
@@ -51,6 +55,27 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
   const list = excluded || filter === 'all' ? file.findings : file.findings.filter((finding) => toneOf(finding) === filter)
   const finding = excluded ? null : (list.find((item) => item.id === findingId) ?? list[0] ?? null)
   const index = finding ? list.indexOf(finding) : -1
+  const normalizedQuery = query.trim().toLowerCase()
+  const matches = normalizedQuery
+    ? list.filter((item) => [item.label, item.text, locationOf(item)].join(' ').toLowerCase().includes(normalizedQuery))
+    : []
+  const searchPageCount = Math.max(1, Math.ceil(matches.length / SEARCH_PAGE_SIZE))
+  const currentSearchPage = Math.min(searchPage, searchPageCount)
+  const pageGroupStart = Math.floor((currentSearchPage - 1) / SEARCH_PAGE_GROUP_SIZE) * SEARCH_PAGE_GROUP_SIZE + 1
+  const pageGroupEnd = Math.min(pageGroupStart + SEARCH_PAGE_GROUP_SIZE - 1, searchPageCount)
+  const visiblePages = Array.from({ length: pageGroupEnd - pageGroupStart + 1 }, (_, index) => pageGroupStart + index)
+  const visibleMatches = matches.slice(
+    (currentSearchPage - 1) * SEARCH_PAGE_SIZE,
+    currentSearchPage * SEARCH_PAGE_SIZE,
+  )
+  const typeCounts = list.reduce((result, item) => {
+    result.set(item.label, (result.get(item.label) ?? 0) + 1)
+    return result
+  }, new Map())
+
+  useEffect(() => {
+    setSearchPage(1)
+  }, [query, filter])
 
   const check = finding ? CHECKS[checkOf(finding.type)] : null
   const evidence = finding?.evidence ?? {}
@@ -66,6 +91,18 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
   function pick(step) {
     const next = list[index + step]
     if (next) onSelectFinding(next.id)
+  }
+
+  function locationOf(item) {
+    if (item.page != null) return `${item.page}쪽`
+    return `${lineNumberAt(file.raw_text, item.start)}번째 줄`
+  }
+
+  function changeFile(nextIndex) {
+    setFilter('all')
+    setQuery('')
+    setSearchPage(1)
+    onSelectFile(nextIndex)
   }
 
   return (
@@ -87,31 +124,115 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
         </div>
       </div>
 
-      <div className="detail-filters" role="group" aria-label="항목 거르기">
-        <span className="detail-filters__label">보기</span>
-        {FILTERS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className="chipbtn"
-            aria-pressed={filter === item.key}
-            onClick={() => setFilter(item.key)}
-          >
-            {item.label} {counts[item.key]}
-          </button>
-        ))}
-        {file.filtered_count > 0 && (
-          <button type="button" className="chipbtn" aria-pressed={excluded} onClick={() => setFilter('excluded')}>
-            제외한 항목 {file.filtered_count}
-          </button>
-        )}
+      <FileSwitcher results={batch.results} index={fileIndex} onSelect={changeFile} />
+
+      <div className="detail-toolbar">
+        <div className="detail-filters" role="group" aria-label="항목 거르기">
+          <span className="detail-filters__label">탐지 결과</span>
+          {FILTERS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className="chipbtn"
+              aria-pressed={filter === item.key}
+              onClick={() => setFilter(item.key)}
+            >
+              {item.label} <b>{counts[item.key]}</b>
+            </button>
+          ))}
+          {file.filtered_count > 0 && (
+            <button type="button" className="chipbtn" aria-pressed={excluded} onClick={() => setFilter('excluded')}>
+              제외 <b>{file.filtered_count}</b>
+            </button>
+          )}
+        </div>
+
       </div>
+
+      {!excluded && list.length > 0 && (
+        <section className="detail-finder" aria-label="탐지 항목 찾기">
+          <div className="detail-finder__head">
+            <label htmlFor="finding-search">항목 찾기</label>
+            <span>{list.length}건 중 유형·내용·위치로 검색</span>
+          </div>
+          <input
+            id="finding-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="예: 이메일, 1쪽, 홍길동"
+          />
+          {normalizedQuery ? (
+            <ul className="finding-search-results" aria-label="검색 결과">
+              {visibleMatches.map((item) => {
+                const itemIndex = list.indexOf(item)
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      aria-current={item.id === finding?.id ? 'true' : undefined}
+                      onClick={() => {
+                        onSelectFinding(item.id)
+                        setQuery('')
+                      }}
+                    >
+                      <span>{itemIndex + 1}</span>
+                      <b>{item.label}</b>
+                      <em>{item.text}</em>
+                      <small>{locationOf(item)}</small>
+                    </button>
+                  </li>
+                )
+              })}
+              {matches.length === 0 && <li className="finding-search-results__empty">일치하는 항목이 없습니다.</li>}
+            </ul>
+          ) : (
+            <div className="finding-type-jump" aria-label="유형별 빠른 이동">
+              {[...typeCounts.entries()].map(([label, count]) => (
+                <button key={label} type="button" onClick={() => setQuery(label)}>
+                  {label} <b>{count}</b>
+                </button>
+              ))}
+            </div>
+          )}
+          {normalizedQuery && searchPageCount > 1 && (
+            <nav className="finding-pagination" aria-label="검색 결과 페이지">
+              <button
+                type="button"
+                aria-label="이전 10페이지"
+                disabled={pageGroupStart <= 1}
+                onClick={() => setSearchPage(pageGroupStart - SEARCH_PAGE_GROUP_SIZE)}
+              >
+                ‹
+              </button>
+              {visiblePages.map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  aria-current={page === currentSearchPage ? 'page' : undefined}
+                  onClick={() => setSearchPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label="다음 10페이지"
+                disabled={pageGroupEnd >= searchPageCount}
+                onClick={() => setSearchPage(pageGroupEnd + 1)}
+              >
+                ›
+              </button>
+            </nav>
+          )}
+        </section>
+      )}
 
       <div className="detail-split">
         <div className="panel">
           <div className="panel__heading">
             <b>문서 원문</b>
-            <small>진한 자리가 지금 보고 있는 곳입니다</small>
+            <small>선택한 항목을 진한 테두리로 표시합니다</small>
           </div>
           <DocumentPreview
             title={file.filename}
@@ -119,6 +240,7 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
             findings={file.findings}
             selectedId={finding?.id}
             pages={file.pages}
+            fileType={file.file_type}
           />
         </div>
 
@@ -156,46 +278,12 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
             <>
               <div className="detail-card__top">
                 <span className={`state state--${check.tone}`}>{check.tone === 'high' ? '위험' : '주의'}</span>
-                <b>{finding.label}</b>
-              </div>
-
-              <dl className="facts">
                 <div>
-                  <dt>위치</dt>
-                  <dd>{where}</dd>
-                </div>
-                <div>
-                  <dt>검사 항목</dt>
-                  <dd>{check.label}</dd>
-                </div>
-                <div>
-                  <dt>내용</dt>
-                  <dd>
-                    <code className="facts__value">{finding.text}</code>
-                  </dd>
-                </div>
-                <div>
-                  <dt>찾은 방법</dt>
-                  <dd>{SOURCE_LABELS[finding.source] ?? finding.source}</dd>
-                </div>
-              </dl>
-
-              <div className="why">
-                <h2>왜 문제인가</h2>
-                <p>{explanationFor(finding.type)}</p>
-                {evidence.hidden_reason_text && <p>숨겨져 있던 방식: {evidence.hidden_reason_text}</p>}
-              </div>
-
-              <div className="why why--fix">
-                <h2>이렇게 고치세요</h2>
-                <p>{advice?.description ?? '원본 대신 아래처럼 가린 사본을 공유하세요. 문서 서식은 그대로 유지됩니다.'}</p>
-                <div className="beforeafter">
-                  <span className="beforeafter__before">{finding.text}</span>
-                  <span className="beforeafter__after">{placeholderFor(finding)}</span>
+                  <b>{finding.label}</b>
                 </div>
               </div>
 
-              <div className="detail-card__nav">
+              <div className="detail-card__nav detail-card__nav--top" aria-label="탐지 항목 이동">
                 <span>
                   {index + 1} / {list.length}
                 </span>
@@ -205,6 +293,35 @@ export default function FindingDetailPage({ batch, file, findingId, onSelectFind
                 <Button variant="secondary" disabled={index >= list.length - 1} onClick={() => pick(1)}>
                   다음 →
                 </Button>
+              </div>
+
+              <h2 className="detail-section-title"><span>1</span> 탐지 내용</h2>
+              <dl className="facts">
+                <div>
+                  <dt>위치</dt>
+                  <dd>{where}</dd>
+                </div>
+                <div>
+                  <dt>내용</dt>
+                  <dd>
+                    <code className="facts__value">{finding.text}</code>
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="why">
+                <h2><span>2</span> 왜 위험한가</h2>
+                <p>{explanationFor(finding.type)}</p>
+                {evidence.hidden_reason_text && <p>숨겨져 있던 방식: {evidence.hidden_reason_text}</p>}
+              </div>
+
+              <div className="why why--fix">
+                <h2><span>3</span> 이렇게 조치하세요</h2>
+                <p>{advice?.description ?? '원본 대신 아래처럼 가린 사본을 공유하세요. 문서 서식은 그대로 유지됩니다.'}</p>
+                <div className="beforeafter">
+                  <span className="beforeafter__before">{finding.text}</span>
+                  <span className="beforeafter__after">{placeholderFor(finding)}</span>
+                </div>
               </div>
             </>
           )}
