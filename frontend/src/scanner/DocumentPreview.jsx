@@ -31,7 +31,6 @@ export default function DocumentPreview({
   sampleFilename = null,
 }) {
   const bodyRef = useRef(null)
-  const [sampleFile, setSampleFile] = useState(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
 
   // 샘플 문서는 검사할 때 브라우저에 원본 File을 안 올린다(서버가 이미 갖고 있어서). PDF/DOCX/이미지를
@@ -639,11 +638,8 @@ function highlightDocxFindings(container, findings, selectedId) {
         range.setEnd(textNode, to)
         const mark = window.document.createElement('mark')
         mark.dataset.findingId = finding.id
-        mark.className = masked
-          ? 'mask-token'
-          : `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
+        mark.className = `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
         range.surroundContents(mark)
-        if (masked) mark.textContent = `[${finding.label || '민감정보'}]`
       }
       remaining -= to - from
       offset = nextOffset
