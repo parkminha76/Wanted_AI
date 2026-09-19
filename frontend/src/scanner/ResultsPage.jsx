@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, SectionRail } from '../shared/components/index.js'
+import { SCORE_HINT } from '../shared/components/RiskBadge.jsx'
 import { CHECKS, CHECK_ORDER, checkOf, countByCheck, lineNumberAt } from '../shared/findings.js'
 import EmptyResult from './EmptyResult.jsx'
 import FileSwitcher from './FileSwitcher.jsx'
@@ -8,8 +9,8 @@ import './scanner.css'
 
 // 검사 결과지. 답하는 순서가 화면 순서다.
 //   ① 이 문서 괜찮나   — 한 줄 판정
-//   ② 무엇을 검사했나   — 여섯 항목의 정상·주의·위험 (깨끗한 항목도 보여준다)
-//   ③ 어디가 문제인가   — 항목별로 묶은 문제 카드
+//   ② 검사 항목        — 여섯 항목의 발견 없음·주의·위험 (깨끗한 항목도 보여준다)
+//   ③ 발견된 문제       — 항목별로 묶은 문제 카드
 // ④왜 문제인가와 ⑤어떻게 고치나는 상세 화면(FindingDetailPage)이 맡는다. 한 화면에
 // 다 넣으면 "그래서 괜찮은 거야?"에 답하기 전에 읽을 것이 너무 많아진다.
 //
@@ -96,12 +97,19 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, onSe
           <Button variant="secondary" onClick={() => navigate('')}>
             다른 문서 검사하기
           </Button>
-          <Button onClick={() => navigate('results/mask')}>↓ 안전한 사본 받기</Button>
+          <Button variant="secondary" onClick={() => navigate('results/detail')}>
+            검사 결과 상세보기
+          </Button>
+          {/* 사본 받기가 이 화면의 끝점이다. 위 두 칸을 합친 너비로 혼자 한 줄을 쓴다. */}
+          <Button block onClick={() => navigate('results/mask')}>
+            ↓ 안전한 사본 다운로드 받기
+          </Button>
         </div>
       </div>
 
       {batch.note && <p className="alert alert--info">{batch.note}</p>}
       <FileSwitcher results={batch.results} index={fileIndex} onSelect={onSelectFile} />
+      <p className="score-note">위험도 {Math.round(file.risk_score)} / 100 · {SCORE_HINT}</p>
       {file.error && (
         <p className="alert alert--error" role="alert">
           {file.error}
@@ -137,7 +145,7 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, onSe
           <dd>{tally.medium}</dd>
         </div>
         <div className="tally--ok">
-          <dt>정상</dt>
+          <dt>발견 없음</dt>
           <dd>{tally.ok}</dd>
         </div>
       </dl>
@@ -157,16 +165,19 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, onSe
       {/* ② 무엇을 검사했나 */}
       <section id="checks" className="block rv" aria-labelledby="checks-title">
         <h2 id="checks-title" className="block__title">
-          무엇을 검사했나
+          검사 항목
         </h2>
-        <p className="block__desc">문서 한 건에 대해 여섯 가지를 확인했습니다.</p>
+        <p className="block__desc">
+          문서 한 건에 대해 여섯 가지를 확인했습니다. <b>발견 없음</b>은 그 항목을 검사했지만
+          해당하는 정보가 문서에 없다는 뜻입니다.
+        </p>
         <ul className="checks">
           {rows.map((row) => (
             <li key={row.key} className={row.count === 0 ? 'is-clean' : undefined}>
               <span className="checks__name">{row.label}</span>
               <span className="checks__covers">{row.covers}</span>
               <span className={`state state--${row.count === 0 ? 'ok' : row.tone}`}>
-                {row.count === 0 ? '정상' : `${TONE_LABEL[row.tone]} ${row.count}건`}
+                {row.count === 0 ? '발견 없음' : `${TONE_LABEL[row.tone]} ${row.count}건`}
               </span>
             </li>
           ))}
@@ -181,13 +192,16 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, onSe
       {/* ③ 어디가 문제인가 */}
       <section id="issues" className="block rv" aria-labelledby="issues-title">
         <h2 id="issues-title" className="block__title">
-          어디가 문제인가
+          발견된 문제
         </h2>
         {problems.length === 0 ? (
           <p className="block__desc">가려야 할 항목을 찾지 못했습니다.</p>
         ) : (
           <>
-            <p className="block__desc">심각한 순서대로 놓았습니다. 누르면 문서에서 그 자리를 펴 보여줍니다.</p>
+            <p className="block__desc">
+              위험도가 높은 항목부터 정렬했습니다. 항목을 누르면 상세보기로 이동해 문서에서 해당
+              위치와 권장 조치를 확인할 수 있습니다.
+            </p>
             <ol className="problems">
               {problems.map((problem, index) => (
                 <li key={problem.key}>

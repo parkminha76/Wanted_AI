@@ -55,7 +55,14 @@ export default function App() {
       // 검사가 성공했을 때만 바꾼다 — 실패했는데 바꾸면 이전 결과의 원본 File이 사라진다.
       setBatchSource(kind)
       setUploads(kind === 'files' ? files : [])
-      setFileIndex(0)
+      // 서버는 위험도 내림차순으로 돌려준다. 화면 기본값은 사용자가 처음 올린 파일이다 —
+      // 목록 순서는 그대로 두고 어느 것을 펴 놓을지만 바꾼다. 샘플 검사는 올린 순서가
+      // 없으므로 서버 순서 첫 번째(=가장 위험한 파일)를 그대로 쓴다.
+      const firstUploaded =
+        kind === 'files'
+          ? result.results.findIndex((r) => r.filename === files[0]?.name)
+          : -1
+      setFileIndex(firstUploaded < 0 ? 0 : firstUploaded)
       setFindingId(null)
       navigate('results')
     } catch (err) {

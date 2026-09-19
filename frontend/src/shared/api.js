@@ -104,7 +104,11 @@ export const api = {
 
   /** 마스킹 사본 다운로드 주소. 링크(href)로 쓴다. 사본은 서버에서 30분 뒤 지워진다. */
   downloadUrl: (fileId) => `${BASE_URL}/download/${encodeURIComponent(fileId)}`,
-  downloadAllUrl: (batchId) => `${BASE_URL}/download/all?batch_id=${encodeURIComponent(batchId)}`,
+  /** fileIds를 주면 그 배치 안에서 고른 사본만 묶는다. 안 주면 배치 전체다. */
+  downloadAllUrl: (batchId, fileIds = null) => {
+    const base = `${BASE_URL}/download/all?batch_id=${encodeURIComponent(batchId)}`
+    return fileIds?.length ? `${base}&files=${fileIds.map(encodeURIComponent).join(',')}` : base
+  },
 
   /** POST /training/start — { training_progress_id, level, scenario_id, scenario_title, turn_no, attacker_message } */
   /** GET /masking/options — 마스킹 방식(full/standard)과 유형별 부분 마스킹 지원 여부·규칙 설명. */
@@ -118,16 +122,22 @@ export const api = {
    *   응답: { file_id, filename, file_type, selected_findings, download_url, masked_text }
    *   masked_text는 선택을 적용해 서버가 실제로 가린 텍스트(부분 마스킹 모양 포함)다.
    */
-  maskSelected(file, selections) {
+  maskSelected(file, selections, replaces = null) {
     const form = new FormData()
     form.append('file', file)
     form.append('masking_selection', JSON.stringify({ selections }))
+    // 배치 .zip이 옛 전체 마스킹 사본 대신 이 사본을 묶도록 자리를 알려 준다.
+    if (replaces) form.append('replaces', replaces)
     return request('/mask', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scan })
   },
 
   /** POST /samples/mask — 샘플 문서는 브라우저에 원본 File이 없어서 서버에 있는 샘플을 파일 이름으로 지정한다. 응답은 maskSelected와 같다. */
-  maskSample: (filename, selections) =>
-    request('/samples/mask', { method: 'POST', json: { filename, selections }, timeoutMs: TIMEOUT_MS.scan }),
+  maskSample: (filename, selections, replaces = null) =>
+    request('/samples/mask', {
+      method: 'POST',
+      json: { filename, selections, replaces },
+      timeoutMs: TIMEOUT_MS.scan,
+    }),
 
   /** POST /training/start — { training_progress_id, level, state, turn_no, attacker_message } */
   startTraining: ({ userId, level }) =>
