@@ -177,6 +177,7 @@
 
   --z-header: 20;
   --z-modal: 1000;
+  --z-toast: 1100;
 }
 
 @media (min-width: 768px) {

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { FolderClock, Handshake, Paperclip, Send } from 'lucide-react'
+import { BookOpen, FolderClock, Handshake, MessageSquareText, Paperclip, ScanSearch, Send } from 'lucide-react'
 import { api, UPLOAD_LIMITS } from '../shared/api.js'
-import { AppFooter, Badge, Button, DecodeText, GlowCard, RiskBadge, SectionRail } from '../shared/components/index.js'
+import { AppFooter, Badge, Button, DecodeText, GlowCard, Modal, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from '../shared/findings.js'
+import { maskedPreviewText } from '../shared/maskingRules.js'
 import './scanner.css'
 import './landing.css'
 
@@ -25,7 +26,7 @@ const ACCEPTED_EXTENSIONS = [
 const SECTIONS = [
   { id: 'intro', label: '소개' },
   { id: 'upload', label: '검사하기' },
-  { id: 'share', label: '공유 위험' },
+  { id: 'share', label: '유출 위험' },
   { id: 'risk', label: '탐지 항목' },
   { id: 'flow', label: '검사 절차' },
   { id: 'privacy', label: '데이터 보호' },
@@ -39,10 +40,26 @@ const SECTIONS = [
 //   18종  backend/shared/schema.py의 RiskType 중 개인정보 유형
 //         (숨은 명령·숨은 텍스트와 이미지 전용 3종을 빼면 18개)
 //   8종   PDF·DOCX·XLSX·TXT·MD·CSV·LOG·이미지
+// detail은 카드에 마우스를 올리면(또는 키보드로 포커스하면) 뜨는 설명 — 18종은
+// backend/shared/schema.py TYPE_LABELS에서 위 18개만 그대로 옮겨 적은 것이라, 유형이 늘거나
+// 이름이 바뀌면 같이 고쳐야 한다.
 const HERO_METRICS = [
-  { value: '0초', label: '원본 보관 시간' },
-  { value: '18종', label: '찾아내는 개인정보 유형' },
-  { value: '8종', label: '지원 파일 형식' },
+  {
+    value: '0초',
+    label: '원본 보관 시간',
+    detail: '업로드한 원본은 검사가 끝나는 즉시 서버에서 삭제합니다. 마스킹 사본은 30분 동안만 내려받을 수 있고, 그 뒤 자동으로 삭제됩니다.',
+  },
+  {
+    value: '18종',
+    label: '찾아내는 개인정보 유형',
+    detail:
+      '주민등록번호 · 여권번호 · 운전면허번호 · 외국인등록번호 · 계좌번호 · 카드번호 · API 키 · DB 접속정보 · 이메일 · 전화번호 · 사업자등록번호 · 법인등록번호 · IP 주소 · 사번 · 생년월일 · 이름 · 주소 · 조직명',
+  },
+  {
+    value: '8종',
+    label: '지원 파일 형식',
+    detail: 'PDF · DOCX · XLSX · TXT · MD · CSV · LOG · 이미지(PNG/JPG/BMP/WEBP/TIFF)',
+  },
 ]
 
 // 숨은 위험 목록은 backend/scanner/parser/parse.py·detectors/hidden.py가 실제로 잡는 것만 적는다.
@@ -180,8 +197,9 @@ const PRIVACY = [
   { tag: 'SYNTHETIC ONLY', copy: '학습·테스트 데이터는 실제 개인정보 없이 합성 생성기로 만듭니다.' },
 ]
 
-// 서버가 받는 최대 길이. backend/main.py의 MAX_TEXT_LENGTH와 같게 둔다(더 길면 422가 돌아온다).
-const MAX_TEXT_LENGTH = 100000
+// 텍스트 붙여넣기 상자의 최대 글자 수. 서버(backend/main.py의 MAX_TEXT_LENGTH)는 100,000자까지
+// 받아주지만, 화면에서는 더 짧게 제한한다 — 이보다 길면 422가 아니라 여기서 막힌다.
+const MAX_TEXT_LENGTH = 2000
 
 function extensionOf(name) {
   const dot = name.lastIndexOf('.')
@@ -192,6 +210,30 @@ function extensionOf(name) {
 function shorten(value = '', limit = 48) {
   const chars = Array.from(value)
   return chars.length > limit ? `${chars.slice(0, limit).join('')}…` : value
+}
+
+// 같은 유형 + 같은 값의 탐지를 하나로 묶어 "이름 홍길동 · 3건"처럼 건수로 보여준다.
+function groupDuplicateFindings(findings) {
+  const byKey = new Map()
+  for (const finding of findings) {
+    const key = `${finding.type}::${finding.text}`
+    const existing = byKey.get(key)
+    if (existing) {
+      existing.count += 1
+      existing.maxConfidence = Math.max(existing.maxConfidence, finding.confidence)
+    } else {
+      byKey.set(key, {
+        key,
+        label: finding.label,
+        text: finding.text,
+        type: finding.type,
+        source: finding.source,
+        count: 1,
+        maxConfidence: finding.confidence,
+      })
+    }
+  }
+  return [...byKey.values()]
 }
 
 function formatBytes(bytes) {
@@ -226,14 +268,23 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
   // 브라우저 저장소에 남기지 않는다(검사 결과와 같은 기준).
   const [mode, setMode] = useState('file') // 'file' | 'text'
   const [draft, setDraft] = useState('')
+  const [scannedText, setScannedText] = useState('')
   const [textResult, setTextResult] = useState(null)
   const [textScanning, setTextScanning] = useState(false)
   const [textError, setTextError] = useState('')
+  const [textTypeFilter, setTextTypeFilter] = useState('') // '' = 첫 유형(아직 안 골랐을 때). 묶음 표(아래)만 걸러 보여준다.
+  const [textTablePage, setTextTablePage] = useState(1) // 묶음 표 페이지 — 10건 넘으면 나눠 보여준다.
+  const [textMaskMode, setTextMaskMode] = useState('full') // 'full' | 'standard' — MaskPage.jsx와 같은 두 값
   const [copied, setCopied] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [toast, setToast] = useState('')
+  const toastTimerRef = useRef(null)
   // 체험용 데모 문서. 목록만 따로 받아서(검사 없이) 고를 수 있게 보여준다.
   const [samples, setSamples] = useState([])
   const [pickedSamples, setPickedSamples] = useState([])
   const hasFiles = files.length > 0
+
+  useEffect(() => () => clearTimeout(toastTimerRef.current), [])
 
   useEffect(() => {
     let cancelled = false
@@ -367,7 +418,13 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
     setTextError('')
     setTextResult(null)
     setCopied(false)
+    setTextTypeFilter('')
+    setTextTablePage(1)
+    setTextMaskMode('full')
     try {
+      // finding.start/end는 서버에 보낸 이 문자열(trim 후) 기준이라, 하이라이트가 어긋나지
+      // 않게 결과와 같은 스냅샷을 따로 들고 있는다 — draft는 이후 사용자가 계속 고칠 수 있다.
+      setScannedText(text)
       setTextResult(await api.scanText(text))
     } catch (err) {
       setTextError(err.message)
@@ -376,23 +433,65 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
     }
   }
 
+  function showToast(message) {
+    setToast(message)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToast(''), 2200)
+  }
+
   function clearText() {
     setDraft('')
+    setScannedText('')
     setTextResult(null)
     setTextError('')
     setCopied(false)
+    setTextTypeFilter('')
+    setTextTablePage(1)
+    setTextMaskMode('full')
+    setConfirmClearOpen(false)
   }
 
   async function copyMasked() {
     try {
-      await navigator.clipboard.writeText(textResult.masked_text)
+      await navigator.clipboard.writeText(textMaskedPreview)
       setCopied(true)
+      showToast('복사가 완료되었습니다')
     } catch {
       setTextError('브라우저가 복사를 막았습니다. 아래 상자에서 직접 선택해 복사해 주세요.')
     }
   }
 
   const textCounts = textResult ? countByGroup(textResult.findings) : null
+  // 드롭다운 목록 — 이번 결과에 실제로 나온 유형만, 처음 나온 순서대로. "전체 유형" 선택지는 없고
+  // 항상 유형 하나를 보여준다 — 고른 적이 없으면 첫 번째 유형이 기본이다.
+  const textTypeOptions = textResult
+    ? [...new Map(textResult.findings.map((f) => [f.type, f.label])).entries()].map(([type, label]) => ({
+        type,
+        label,
+      }))
+    : []
+  const textEffectiveTypeFilter = textTypeFilter || textTypeOptions[0]?.type || ''
+  const textGroupedRows = textResult
+    ? groupDuplicateFindings(textResult.findings).filter((group) => group.type === textEffectiveTypeFilter)
+    : []
+  // 묶음 표 페이지 나누기 — 한 유형에 10건 넘게 나오면 10개씩 잘라 보여준다.
+  const TEXT_TABLE_PAGE_SIZE = 10
+  const textTotalPages = Math.max(1, Math.ceil(textGroupedRows.length / TEXT_TABLE_PAGE_SIZE))
+  const textCurrentPage = Math.min(textTablePage, textTotalPages)
+  const textPagedRows = textGroupedRows.slice(
+    (textCurrentPage - 1) * TEXT_TABLE_PAGE_SIZE,
+    textCurrentPage * TEXT_TABLE_PAGE_SIZE,
+  )
+  // 전체([유형])/부분(박**) 마스킹 미리보기 — 서버를 다시 부르지 않고 findings.js·maskingRules.js의
+  // 규칙으로 화면에서 바로 계산한다(파일 검사 결과 화면의 선택 마스킹과 같은 규칙).
+  const textMaskedPreview =
+    textResult && textResult.findings.length > 0
+      ? maskedPreviewText(
+          scannedText,
+          textResult.findings,
+          Object.fromEntries(textResult.findings.map((f) => [f.id, textMaskMode])),
+        )
+      : textResult?.masked_text ?? ''
   const messages = [...problems, ...(error ? [error] : [])]
 
   return (
@@ -425,14 +524,20 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
             </Button>
           </div>
           <dl className="landing-metrics">
-            {HERO_METRICS.map((metric) => (
-              <div key={metric.label}>
-                <dt>{metric.label}</dt>
-                <dd>
-                  <DecodeText text={metric.value} />
-                </dd>
-              </div>
-            ))}
+            {HERO_METRICS.map((metric) => {
+              const tooltipId = `hero-metric-tip-${metric.label}`
+              return (
+                <div key={metric.label} className="landing-metric" tabIndex={0} aria-describedby={tooltipId}>
+                  <dt>{metric.label}</dt>
+                  <dd>
+                    <DecodeText text={metric.value} />
+                  </dd>
+                  <span id={tooltipId} role="tooltip" className="landing-metric__tooltip">
+                    {metric.detail}
+                  </span>
+                </div>
+              )
+            })}
           </dl>
           <p className="landing-metrics__note">
             원본은 검사가 끝나는 즉시 지웁니다. 마스킹 사본도 30분 뒤 자동 삭제됩니다.
@@ -453,7 +558,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           <i className="landing-cta__glow" aria-hidden="true" />
           <div className="landing-cta__inner">
             <h2 id="upload-title" className="landing-cta__title">
-              보내기 전에, 한 번 투시해 보세요.
+              보내기 전에, 한 번 확인해 보세요.
             </h2>
             <p className="landing-cta__lead">
               문서를 끌어다 놓으면 개인정보와 숨은 AI 명령을 찾아,
@@ -507,8 +612,8 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                     </span>
                     <span className="row">
                       {draft && (
-                        <Button variant="ghost" size="sm" disabled={textScanning} onClick={clearText}>
-                          지우기
+                        <Button variant="ghost" size="sm" disabled={textScanning} onClick={() => setConfirmClearOpen(true)}>
+                          전체 삭제
                         </Button>
                       )}
                       <Button disabled={textScanning || !draft.trim()} onClick={runTextScan}>
@@ -529,44 +634,135 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                         <p className="text-scan__clean">찾은 개인정보가 없습니다. 그래도 보내기 전에 한 번 더 읽어 보세요.</p>
                       ) : (
                         <>
-                          <div className="text-scan__summary">
-                            <RiskBadge level={textResult.level} score={textResult.risk_score} />
-                            <ul className="text-scan__counts">
-                              {GROUP_ORDER.filter((key) => textCounts[key] > 0).map((key) => (
-                                <li key={key}>
-                                  {GROUPS[key].label} <b>{textCounts[key]}건</b>
-                                </li>
-                              ))}
-                            </ul>
+                          <div className="text-scan__masked">
+                            <p className="text-scan__masked-head">
+                              <span>마스킹이 완료되었습니다.</span>
+                            </p>
+
+                            {/* 전체([유형])/부분(박**) 마스킹 전환 — MaskPage.jsx(파일 검사 결과)의
+                                "전체 마스킹"/"선택 마스킹" 탭과 같은 모양을 쓴다. */}
+                            <div className="tabs tabs--compact" role="tablist" aria-label="마스킹 방식">
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={textMaskMode === 'full'}
+                                className="tabs__tab"
+                                onClick={() => {
+                                  setTextMaskMode('full')
+                                  setCopied(false)
+                                }}
+                              >
+                                전체 마스킹
+                              </button>
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={textMaskMode === 'standard'}
+                                className="tabs__tab"
+                                onClick={() => {
+                                  setTextMaskMode('standard')
+                                  setCopied(false)
+                                }}
+                              >
+                                부분 마스킹
+                              </button>
+                            </div>
+
+                            <p className="text-scan__masked-body">{textMaskedPreview}</p>
+                            <div className="text-scan__masked-actions">
+                              <Button variant="secondary" size="sm" onClick={copyMasked}>
+                                {copied ? '복사완료' : '복사하기'}
+                              </Button>
+                            </div>
                           </div>
 
-                          <ul className="text-scan__list">
-                            {textResult.findings.map((finding) => (
-                              <li key={finding.id}>
-                                <span className="text-scan__type">{finding.label}</span>
-                                <span className="text-scan__value">{shorten(finding.text)}</span>
-                                <span className="text-scan__meta">
-                                  확신도 {formatPercent(finding.confidence)} · {SOURCE_LABELS[finding.source] ?? finding.source}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
+                          {/* 같은 값이 여러 번 나오면(이름이 반복되는 경우 등) 하나로 묶어 건수로 보여준다.
+                              유형이 여러 번 겹쳐 읽기 어려울 수 있어 드롭다운으로 한 유형만 골라 본다
+                              ("전체 유형"은 없다 — 목록이 길면 다 보여주는 쪽이 오히려 더 안 읽힌다). */}
+                          <div className="text-scan__toolbar-row">
+                            <div className="text-scan__group-toolbar">
+                              <label htmlFor="text-scan-type-filter" className="text-scan__group-toolbar-label">
+                                유형별 보기
+                              </label>
+                              <select
+                                id="text-scan-type-filter"
+                                className="select"
+                                value={textEffectiveTypeFilter}
+                                onChange={(event) => {
+                                  setTextTypeFilter(event.target.value)
+                                  setTextTablePage(1)
+                                }}
+                              >
+                                {textTypeOptions.map((option) => (
+                                  <option key={option.type} value={option.type}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="text-scan__summary">
+                              <RiskBadge level={textResult.level} score={textResult.risk_score} />
+                              <ul className="text-scan__counts">
+                                {GROUP_ORDER.filter((key) => textCounts[key] > 0).map((key) => (
+                                  <li key={key}>
+                                    {GROUPS[key].label} <b>{textCounts[key]}건</b>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div className="text-scan__group-table-wrap">
+                            <table className="text-scan__group-table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">유형</th>
+                                  <th scope="col">값</th>
+                                  <th scope="col">건수</th>
+                                  <th scope="col">확신도</th>
+                                  <th scope="col">근거</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {textPagedRows.map((group) => (
+                                  <tr key={group.key}>
+                                    <td>{group.label}</td>
+                                    <td>{shorten(group.text, 24)}</td>
+                                    <td>{group.count}건</td>
+                                    <td>{formatPercent(group.maxConfidence)}</td>
+                                    <td>{SOURCE_LABELS[group.source] ?? group.source}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {textGroupedRows.length === 0 && (
+                              <p className="text-scan__group-empty">이 유형에 해당하는 항목이 없습니다.</p>
+                            )}
+                          </div>
+
+                          {/* 10건 넘으면 페이지 인디케이터. 유형을 바꾸면 1페이지로 되돌아간다(위 select onChange). */}
+                          {textTotalPages > 1 && (
+                            <nav className="text-scan__pagination" aria-label="묶음 표 페이지">
+                              {Array.from({ length: textTotalPages }, (_, index) => index + 1).map((page) => (
+                                <button
+                                  key={page}
+                                  type="button"
+                                  className="text-scan__page-btn"
+                                  aria-current={page === textCurrentPage ? 'true' : undefined}
+                                  onClick={() => setTextTablePage(page)}
+                                >
+                                  {page}
+                                </button>
+                              ))}
+                            </nav>
+                          )}
 
                           {textResult.filtered_count > 0 && (
                             <p className="text-scan__filtered">
                               형태는 비슷하지만 개인정보가 아니라고 판단해 {textResult.filtered_count}건은 제외했습니다.
                             </p>
                           )}
-
-                          <div className="text-scan__masked">
-                            <p className="text-scan__masked-head">
-                              <span>가린 문장</span>
-                              <Button variant="secondary" size="sm" onClick={copyMasked}>
-                                {copied ? '복사했습니다' : '복사하기'}
-                              </Button>
-                            </p>
-                            <p className="text-scan__masked-body">{textResult.masked_text}</p>
-                          </div>
                         </>
                       )}
                     </div>
@@ -838,12 +1034,6 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       {/* 전환 띠 — 바닥글 바로 위에서 다음 행동 세 가지를 고르게 한다 */}
       <section className="landing-outro rv" aria-labelledby="outro-title">
-        <p className="landing-outro__stack" aria-hidden="true">
-          SAFER DOCUMENTS
-          <br />
-          BRIGHTER TOMORROW
-        </p>
-
         <div className="landing-outro__center">
           <h2 id="outro-title" className="landing-outro__title">
             <span className="landing-outro__accent">개인에서 조직으로,</span> 더 안전한 문서 환경을 만듭니다.
@@ -853,29 +1043,52 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           </p>
           <div className="landing-outro__actions">
             <button type="button" className="landing-pill" onClick={() => scrollToSection('upload')}>
-              <span aria-hidden="true">▣</span>
+              <span aria-hidden="true">
+                <ScanSearch size={18} strokeWidth={2} />
+              </span>
               문서 보안 검사
             </button>
             <button type="button" className="landing-pill" onClick={() => navigate('training')}>
-              <span aria-hidden="true">◫</span>
+              <span aria-hidden="true">
+                <MessageSquareText size={18} strokeWidth={2} />
+              </span>
               사기 대응 훈련
             </button>
             <button type="button" className="landing-pill" onClick={() => navigate('guide')}>
-              <span aria-hidden="true">◍</span>
+              <span aria-hidden="true">
+                <BookOpen size={18} strokeWidth={2} />
+              </span>
               이용 가이드
             </button>
           </div>
         </div>
-
-        <p className="landing-outro__stack landing-outro__stack--right">
-          YOUR DOCUMENTS,
-          <br />
-          SAFER WITH AI
-        </p>
       </section>
 
       {/* 바닥글 — 링크는 이 앱 안에서 실제로 동작하는 것만 둔다(없는 페이지로 가는 링크는 누르면 바로 드러난다) */}
       <AppFooter navigate={navigate} onScan={onScan} busy={busy} />
+
+      <Modal
+        open={confirmClearOpen}
+        title="입력한 내용을 전체 삭제하시겠습니까?"
+        onClose={() => setConfirmClearOpen(false)}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmClearOpen(false)}>
+              취소
+            </Button>
+            <Button variant="danger" onClick={clearText}>
+              전체 삭제
+            </Button>
+          </>
+        }
+      >
+        <p>전체 삭제 시 복구할 수 없으며, 붙여 넣은 텍스트와 검사 결과가 함께 삭제됩니다.</p>
+      </Modal>
+
+      {/* 복사 완료 토스트. 2.2초 뒤 스스로 사라진다(showToast). */}
+      <div className={`toast${toast ? ' toast--visible' : ''}`} role="status" aria-live="polite">
+        {toast}
+      </div>
     </div>
   )
 }
