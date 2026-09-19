@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FolderClock, Handshake, Paperclip, Send } from 'lucide-react'
 import { api, UPLOAD_LIMITS } from '../shared/api.js'
-import { AppFooter, Badge, Button, DecodeText, GlowCard, RiskBadge, SectionRail } from '../shared/components/index.js'
+import { AppFooter, Badge, Button, DecodeText, GlowCard, Modal, RiskBadge, SectionRail } from '../shared/components/index.js'
 import { GROUPS, GROUP_ORDER, countByGroup, formatPercent, SOURCE_LABELS } from '../shared/findings.js'
 import './scanner.css'
 import './landing.css'
@@ -25,7 +25,7 @@ const ACCEPTED_EXTENSIONS = [
 const SECTIONS = [
   { id: 'intro', label: '소개' },
   { id: 'upload', label: '검사하기' },
-  { id: 'share', label: '공유 위험' },
+  { id: 'share', label: '유출 위험' },
   { id: 'risk', label: '탐지 항목' },
   { id: 'flow', label: '검사 절차' },
   { id: 'privacy', label: '데이터 보호' },
@@ -180,8 +180,9 @@ const PRIVACY = [
   { tag: 'SYNTHETIC ONLY', copy: '학습·테스트 데이터는 실제 개인정보 없이 합성 생성기로 만듭니다.' },
 ]
 
-// 서버가 받는 최대 길이. backend/main.py의 MAX_TEXT_LENGTH와 같게 둔다(더 길면 422가 돌아온다).
-const MAX_TEXT_LENGTH = 100000
+// 텍스트 붙여넣기 상자의 최대 글자 수. 서버(backend/main.py의 MAX_TEXT_LENGTH)는 100,000자까지
+// 받아주지만, 화면에서는 더 짧게 제한한다 — 이보다 길면 422가 아니라 여기서 막힌다.
+const MAX_TEXT_LENGTH = 500
 
 function extensionOf(name) {
   const dot = name.lastIndexOf('.')
@@ -230,10 +231,15 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
   const [textScanning, setTextScanning] = useState(false)
   const [textError, setTextError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [toast, setToast] = useState('')
+  const toastTimerRef = useRef(null)
   // 체험용 데모 문서. 목록만 따로 받아서(검사 없이) 고를 수 있게 보여준다.
   const [samples, setSamples] = useState([])
   const [pickedSamples, setPickedSamples] = useState([])
   const hasFiles = files.length > 0
+
+  useEffect(() => () => clearTimeout(toastTimerRef.current), [])
 
   useEffect(() => {
     let cancelled = false
@@ -376,17 +382,25 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
     }
   }
 
+  function showToast(message) {
+    setToast(message)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToast(''), 2200)
+  }
+
   function clearText() {
     setDraft('')
     setTextResult(null)
     setTextError('')
     setCopied(false)
+    setConfirmClearOpen(false)
   }
 
   async function copyMasked() {
     try {
       await navigator.clipboard.writeText(textResult.masked_text)
       setCopied(true)
+      showToast('복사가 완료되었습니다')
     } catch {
       setTextError('브라우저가 복사를 막았습니다. 아래 상자에서 직접 선택해 복사해 주세요.')
     }
@@ -453,7 +467,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           <i className="landing-cta__glow" aria-hidden="true" />
           <div className="landing-cta__inner">
             <h2 id="upload-title" className="landing-cta__title">
-              보내기 전에, 한 번 투시해 보세요.
+              보내기 전에, 한 번 확인해 보세요.
             </h2>
             <p className="landing-cta__lead">
               문서를 끌어다 놓으면 개인정보와 숨은 AI 명령을 찾아,
@@ -507,7 +521,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                     </span>
                     <span className="row">
                       {draft && (
-                        <Button variant="ghost" size="sm" disabled={textScanning} onClick={clearText}>
+                        <Button variant="ghost" size="sm" disabled={textScanning} onClick={() => setConfirmClearOpen(true)}>
                           지우기
                         </Button>
                       )}
@@ -562,7 +576,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                             <p className="text-scan__masked-head">
                               <span>가린 문장</span>
                               <Button variant="secondary" size="sm" onClick={copyMasked}>
-                                {copied ? '복사했습니다' : '복사하기'}
+                                {copied ? '복사완료' : '복사하기'}
                               </Button>
                             </p>
                             <p className="text-scan__masked-body">{textResult.masked_text}</p>
@@ -876,6 +890,29 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
 
       {/* 바닥글 — 링크는 이 앱 안에서 실제로 동작하는 것만 둔다(없는 페이지로 가는 링크는 누르면 바로 드러난다) */}
       <AppFooter navigate={navigate} onScan={onScan} busy={busy} />
+
+      <Modal
+        open={confirmClearOpen}
+        title="입력한 내용을 지울까요?"
+        onClose={() => setConfirmClearOpen(false)}
+        actions={
+          <>
+            <Button variant="danger" onClick={clearText}>
+              지우기
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmClearOpen(false)}>
+              취소
+            </Button>
+          </>
+        }
+      >
+        <p>붙여 넣은 텍스트와 검사 결과가 함께 지워집니다. 되돌릴 수 없습니다.</p>
+      </Modal>
+
+      {/* 복사 완료 토스트. 2.2초 뒤 스스로 사라진다(showToast). */}
+      <div className={`toast${toast ? ' toast--visible' : ''}`} role="status" aria-live="polite">
+        {toast}
+      </div>
     </div>
   )
 }
