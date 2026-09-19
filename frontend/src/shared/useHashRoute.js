@@ -15,8 +15,17 @@ export function useHashRoute() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  const navigate = (to) => {
-    window.location.hash = `/${to}`
+  // replace: true — 지금 히스토리 항목을 덮어쓴다(새로 쌓지 않는다). 검사 중처럼 잠깐 지나가는
+  // 화면을 이 값으로 다음 화면(결과/에러 복귀)으로 넘기면, 그 지나가는 화면이 뒤로가기 스택에
+  // 안 남는다 — 안 그러면 결과 화면에서 뒤로 가면 "검사 중"의 끝난 상태(빈 화면)로 떨어진다.
+  const navigate = (to, { replace = false } = {}) => {
+    if (replace) {
+      const { pathname, search } = window.location
+      window.history.replaceState(null, '', `${pathname}${search}#/${to}`)
+      setRoute(readHash())
+    } else {
+      window.location.hash = `/${to}`
+    }
     window.scrollTo(0, 0)
   }
 

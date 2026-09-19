@@ -293,7 +293,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
       .then(({ samples: list = [] }) => {
         if (cancelled) return
         setSamples(list)
-        setPickedSamples(list.map((sample) => sample.filename)) // 처음엔 전부 고른 상태
+        setPickedSamples([]) // 처음엔 아무것도 안 고른 상태 — 직접 골라야 한다
       })
       .catch(() => {
         // 목록을 못 받으면 고르는 화면을 숨기고 예전처럼 "전체 샘플" 버튼 하나만 둔다.
