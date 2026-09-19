@@ -1057,6 +1057,11 @@
   letter-spacing: 0.06em;
 }
 
+.landing-footer__address {
+  font-style: normal;
+  word-break: keep-all;
+}
+
 /* ---------- 넓은 화면 ---------- */
 @media (min-width: 600px) {
   .landing-cards--risk,
@@ -1114,6 +1119,47 @@
     justify-content: space-between;
   }
 
+}
+
+/* ---------- 법적 고지 모달 본문 ---------- */
+.legal-policy {
+  color: var(--color-text-muted);
+}
+
+.legal-policy__date {
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+}
+
+.legal-policy__intro {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  color: var(--color-text);
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.legal-policy__sections {
+  display: grid;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.legal-policy__section h3 {
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+}
+
+.legal-policy__section p {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: 1.8;
+  word-break: keep-all;
 }
 
 /* ---------- 움직임 ---------- */

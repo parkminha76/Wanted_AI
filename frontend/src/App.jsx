@@ -44,7 +44,7 @@ export default function App() {
   // 지금 결과가 직접 올린 파일인지 샘플 문서인지. 샘플은 선택 마스킹 때 POST /samples/mask를 쓴다.
   const [batchSource, setBatchSource] = useState(null) // 'files' | 'samples'
 
-  async function startScan(kind, files = []) {
+  async function startScan(kind, files = [], destination = 'results') {
     setScanError('')
     setScanJob({ kind, fileCount: files.length, startedAt: Date.now() })
     navigate('scanning')
@@ -66,7 +66,7 @@ export default function App() {
       setFindingId(null)
       // replace — "검사 중" 화면을 뒤로가기 스택에 안 남긴다(안 그러면 결과에서 뒤로 갈 때
       // 끝나 버린 검사 중 화면으로 떨어진다).
-      navigate('results', { replace: true })
+      navigate(destination, { replace: true })
     } catch (err) {
       setScanError(err.message)
       navigate('', { replace: true })
@@ -123,10 +123,10 @@ export default function App() {
   // 브라우저 메모리에 남아 있는 원본(또는 샘플 이름)으로 실제 검사를 다시 수행한다.
   const retryExpiredCopies = () => {
     if (batchSource === 'files' && uploads.length > 0) {
-      return startScan('files', uploads)
+      return startScan('files', uploads, 'results/mask')
     }
     if (batchSource === 'samples' && batch?.results?.length > 0) {
-      return startScan('samples', batch.results.map((result) => result.filename))
+      return startScan('samples', batch.results.map((result) => result.filename), 'results/mask')
     }
     navigate('', { replace: true })
   }
