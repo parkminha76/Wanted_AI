@@ -21,8 +21,12 @@ export const UPLOAD_LIMITS = {
 
 const TIMEOUT_MS = {
   default: 30_000,
-  // 첫 검사는 NER 모델을 불러오느라 수십 초 걸릴 수 있다. 파일이 여러 개면 더 걸린다.
+  // /scan/text, /samples, /mask는 아직 동기 응답이다(첫 검사는 NER 모델을
+  // 불러오느라 수십 초 걸릴 수 있고, 파일이 여러 개면 더 걸린다).
   scan: 180_000,
+  // /scan/async 접수는 검사를 기다리지 않고 파일을 서버로 올리기만 한다(느린
+  // 회선에서 파일이 여러 개·큰 경우를 대비해 기본값보다는 넉넉히 잡는다).
+  scanSubmit: 60_000,
   // 훈련 모드는 외부 AI(Attacker/Defender) 응답을 기다린다.
   training: 90_000,
 }
@@ -75,15 +79,32 @@ async function request(path, { method = 'GET', json, body, timeoutMs = TIMEOUT_M
   return data
 }
 
+// POST /scan/async가 돌려준 job_id를 완료될 때까지 물어본다.
+// 대용량 로그·CSV(수만 줄)는 NER이 줄마다 돌아 몇 분씩 걸릴 수 있다(실측
+// 2026-09-20: 5MB·25,146줄 로그 약 17분) — 동기 fetch 하나로는 브라우저
+// 타임아웃과 Railway 프록시 타임아웃을 둘 다 넘긴다. job_id 발급은 즉시
+// 끝나고, 실제 검사는 서버 백그라운드에서 돌며 이 폴링이 결과를 받아온다.
+async function pollScanJob(jobId, { intervalMs = 2000, maxWaitMs = 20 * 60 * 1000 } = {}) {
+  const deadline = Date.now() + maxWaitMs
+  while (Date.now() < deadline) {
+    const status = await request(`/scan/async/${jobId}`)
+    if (status.status === 'done') return status.result
+    if (status.status === 'error') throw new ApiError(status.detail || '검사 중 오류가 발생했습니다.')
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+  throw new ApiError('검사가 너무 오래 걸립니다. 잠시 후 다시 시도해 주세요.')
+}
+
 export const api = {
   /** GET /health — { status, schema_version, training_mode: 'on' | 'off' } */
   health: () => request('/health'),
 
-  /** POST /scan — 파일 여러 개. 응답 ScanBatch: { batch_id, results[], total_files, total_findings }. results는 서버가 위험도 순으로 정렬해 준다. */
-  scanFiles(files) {
+  /** POST /scan/async로 접수하고 완료될 때까지 기다린다. 응답 ScanBatch: { batch_id, results[], total_files, total_findings }. results는 서버가 위험도 순으로 정렬해 준다. */
+  async scanFiles(files) {
     const form = new FormData()
     for (const file of files) form.append('files', file) // 서버 인자 이름이 files다
-    return request('/scan', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scan })
+    const submitted = await request('/scan/async', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scanSubmit })
+    return pollScanJob(submitted.job_id)
   },
 
   /** POST /scan/text — 문장 하나. 응답 ScanResult(file_id 없음, masked_text 있음). */

@@ -40,6 +40,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 import uuid
 import zipfile
@@ -293,6 +294,9 @@ MAX_FILES_PER_REQUEST = 10
 MAX_TEXT_LENGTH = 100_000
 # 마스킹 사본 보관 시간. 사용자가 결과를 보고 내려받기까지의 여유다.
 MASKED_FILE_TTL_SECONDS = 30 * 60
+# 비동기 검사 작업(진행 상태) 보관 시간. 폴링이 끝난 뒤에도 한동안은 남겨 둬서
+# 화면이 마지막 폴링을 놓쳐도(탭 백그라운드 등) 뒤늦게 결과를 받아갈 수 있게 한다.
+SCAN_JOB_TTL_SECONDS = 30 * 60
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +333,36 @@ def _sweep_expired() -> None:
     for batch_id, file_ids in list(_batches.items()):
         if not any(fid in _masked_files for fid in file_ids):
             _batches.pop(batch_id, None)
+
+
+# ---------------------------------------------------------------------------
+# 비동기 검사 작업
+# ---------------------------------------------------------------------------
+#
+# 대용량 로그·CSV(수만 줄)는 NER이 줄마다 돌아 동기 요청 하나로 처리하면 수 분이
+# 걸린다(실측 2026-09-20: 25,146줄짜리 5MB 로그가 배치 크기를 키워도 CPU 연산량
+# 자체가 병목이라 약 17분). 프런트엔드 fetch 타임아웃(180초)과 Railway 프록시
+# 타임아웃(5분) 둘 다 그보다 짧아 동기 응답으로는 절대 끝을 볼 수 없다. 요청을
+# 즉시 접수만 하고(job_id 발급) 실제 검사는 백그라운드에서 돌리며, 화면은
+# job_id로 상태를 주기적으로 물어본다(GET /scan/async/{job_id}).
+
+
+@dataclass
+class _ScanJob:
+    status: Literal["running", "done", "error"]
+    created_at: float
+    result: dict | None = None
+    detail: str | None = None
+
+
+_scan_jobs: dict[str, _ScanJob] = {}
+
+
+def _sweep_expired_jobs() -> None:
+    deadline = time.time() - SCAN_JOB_TTL_SECONDS
+    for job_id, job in list(_scan_jobs.items()):
+        if job.created_at < deadline:
+            _scan_jobs.pop(job_id, None)
 
 
 def _sweep_orphan_dirs() -> int:
@@ -503,52 +537,43 @@ def masking_options() -> dict:
     return mask_policy.options_payload()
 
 
-@app.post("/scan")
-async def scan_upload(
-    files: list[UploadFile],
-    masking_policy_json: str | None = Form('{"default":"full","rules":{}}', alias="masking_policy"),
-    create_masked_copy: bool = Form(default=True),
-) -> dict:
-    """파일 여러 개를 검사해 위험도 순으로 돌려준다.
+async def _spool_batch(files: list[UploadFile], upload_dir: str) -> tuple[list[str], dict[str, str], list[str], int]:
+    """업로드 파일들을 임시 폴더에 받고, 이후 단계에 필요한 정보를 모아 돌려준다.
 
-    업로드 원본은 이 함수를 벗어나기 전에 지운다. 마스킹 사본만 file_id로 남는다.
+    (경로 목록, 경로->원래 파일명, 확장자 목록, 총 바이트) — scan_upload와
+    scan_upload_async가 같은 스풀링·이름 복원 로직을 쓴다.
     """
-    if not files:
-        raise HTTPException(status_code=400, detail="파일이 없습니다")
-    if len(files) > MAX_FILES_PER_REQUEST:
-        raise HTTPException(
-            status_code=413, detail=f"한 번에 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다"
-        )
-
-    selected_policy = _parse_masking_policy(masking_policy_json)
-    started = time.perf_counter()
-    _sweep_expired()
-    upload_dir = tempfile.mkdtemp(prefix="infoguard_upload_")
-    input_bytes = 0
-    try:
-        paths = [await _spool_upload(f, upload_dir) for f in files]
-        input_bytes = sum(os.path.getsize(path) for path in paths)
-        # 파일 파싱과 ML 추론은 CPU 동기 작업이다. async 엔드포인트에서 직접
-        # 실행하면 긴 XLSX 한 건이 이벤트 루프를 막아 /health까지 응답하지 못한다.
-        batch = await run_in_threadpool(
-            scan.scan_files,
-            paths,
-            masking_policy=selected_policy,
-            create_masked_copy=create_masked_copy,
-        )
-    finally:
-        # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
-        shutil.rmtree(upload_dir, ignore_errors=True)
-
+    paths = [await _spool_upload(f, upload_dir) for f in files]
+    input_bytes = sum(os.path.getsize(path) for path in paths)
     # scan_file은 자기가 받은 경로를 filename에 넣는데, 여기서 넘긴 것은 업로드
     # 임시 경로다(…/Temp/infoguard_upload_xxxx/연락처.pdf). 그대로 내보내면
     # **서버 디렉터리 구조가 응답에 실려 나가고**, 화면에는 파일명 대신 그 경로가
     # 뜬다. 사용자가 올린 이름으로 돌려놓는다 — 경로 성분은 _safe_basename이
     # 이미 떼어냈다(클라이언트가 "../../etc/passwd"를 보낼 수 있다).
-    #
+    display_name = {path: _safe_basename(f.filename) for path, f in zip(paths, files)}
+    file_types = sorted({os.path.splitext(_safe_basename(f.filename))[1].lower() or "unknown" for f in files})
+    return paths, display_name, file_types, input_bytes
+
+
+def _run_scan_batch(
+    paths: list[str],
+    display_name: dict[str, str],
+    file_types: list[str],
+    input_bytes: int,
+    selected_policy: dict,
+    create_masked_copy: bool,
+    started: float,
+    file_count: int,
+) -> dict:
+    """스캔을 실행하고 파일명 복원·마스킹 사본 등록·로그까지 끝낸 응답 본문을 만든다.
+
+    동기 함수다 — /scan은 run_in_threadpool로, /scan/async는 백그라운드 스레드에서
+    부른다. 둘 다 CPU 동기 작업이라 이벤트 루프에서 직접 돌리면 안 된다.
+    """
+    batch = scan.scan_files(paths, masking_policy=selected_policy, create_masked_copy=create_masked_copy)
+
     # 순서로 맞추지 않고 경로를 키로 쓴다. 결과 목록의 순서가 입력 순서와
     # 달라져도(정렬·건너뜀) 엉뚱한 파일에 이름이 붙지 않는다.
-    display_name = {path: _safe_basename(f.filename) for path, f in zip(paths, files)}
     for result in batch.results:
         result.filename = display_name.get(result.filename, os.path.basename(result.filename))
 
@@ -567,13 +592,8 @@ async def scan_upload(
         logging.INFO,
         "scan.files.completed",
         duration_ms=round((time.perf_counter() - started) * 1000, 1),
-        file_count=len(files),
-        file_types=sorted(
-            {
-                os.path.splitext(_safe_basename(f.filename))[1].lower() or "unknown"
-                for f in files
-            }
-        ),
+        file_count=file_count,
+        file_types=file_types,
         input_bytes=input_bytes,
         masked_file_count=sum(bool(result.file_id) for result in batch.results),
         total_findings=sum(finding_counts.values()),
@@ -585,6 +605,116 @@ async def scan_upload(
     body = batch.to_dict()
     body["masking_policy"] = selected_policy
     body["masked_copy_created"] = create_masked_copy
+    return body
+
+
+@app.post("/scan")
+async def scan_upload(
+    files: list[UploadFile],
+    masking_policy_json: str | None = Form('{"default":"full","rules":{}}', alias="masking_policy"),
+    create_masked_copy: bool = Form(default=True),
+) -> dict:
+    """파일 여러 개를 검사해 위험도 순으로 돌려준다.
+
+    업로드 원본은 이 함수를 벗어나기 전에 지운다. 마스킹 사본만 file_id로 남는다.
+    대용량 로그·CSV처럼 오래 걸릴 수 있는 요청은 /scan/async를 쓴다.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="파일이 없습니다")
+    if len(files) > MAX_FILES_PER_REQUEST:
+        raise HTTPException(
+            status_code=413, detail=f"한 번에 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다"
+        )
+
+    selected_policy = _parse_masking_policy(masking_policy_json)
+    started = time.perf_counter()
+    _sweep_expired()
+    upload_dir = tempfile.mkdtemp(prefix="infoguard_upload_")
+    try:
+        paths, display_name, file_types, input_bytes = await _spool_batch(files, upload_dir)
+        # 파일 파싱과 ML 추론은 CPU 동기 작업이다. async 엔드포인트에서 직접
+        # 실행하면 긴 XLSX 한 건이 이벤트 루프를 막아 /health까지 응답하지 못한다.
+        body = await run_in_threadpool(
+            _run_scan_batch,
+            paths,
+            display_name,
+            file_types,
+            input_bytes,
+            selected_policy,
+            create_masked_copy,
+            started,
+            len(files),
+        )
+    finally:
+        # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
+        shutil.rmtree(upload_dir, ignore_errors=True)
+
+    return body
+
+
+@app.post("/scan/async", status_code=202)
+async def scan_upload_async(
+    files: list[UploadFile],
+    masking_policy_json: str | None = Form('{"default":"full","rules":{}}', alias="masking_policy"),
+    create_masked_copy: bool = Form(default=True),
+) -> dict:
+    """/scan과 같은 검사를 백그라운드에서 돌린다. 즉시 job_id만 돌려준다.
+
+    대용량 로그·CSV(수만 줄)는 NER이 줄마다 돌아 몇 분씩 걸릴 수 있어(실측
+    2026-09-20: 5MB·25,146줄 로그 약 17분), 동기 응답으로는 프런트엔드 fetch
+    타임아웃(180초)과 Railway 프록시 타임아웃(5분)을 넘긴다. 화면은 이 job_id로
+    GET /scan/async/{job_id}를 주기적으로 물어 진행 상태를 확인한다.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="파일이 없습니다")
+    if len(files) > MAX_FILES_PER_REQUEST:
+        raise HTTPException(
+            status_code=413, detail=f"한 번에 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다"
+        )
+
+    selected_policy = _parse_masking_policy(masking_policy_json)
+    started = time.perf_counter()
+    _sweep_expired()
+    _sweep_expired_jobs()
+    upload_dir = tempfile.mkdtemp(prefix="infoguard_upload_")
+    try:
+        paths, display_name, file_types, input_bytes = await _spool_batch(files, upload_dir)
+    except Exception:
+        shutil.rmtree(upload_dir, ignore_errors=True)
+        raise
+
+    job_id = uuid.uuid4().hex
+    _scan_jobs[job_id] = _ScanJob(status="running", created_at=time.time())
+    file_count = len(files)
+
+    def _worker() -> None:
+        try:
+            body = _run_scan_batch(
+                paths, display_name, file_types, input_bytes,
+                selected_policy, create_masked_copy, started, file_count,
+            )
+            _scan_jobs[job_id] = _ScanJob(status="done", created_at=time.time(), result=body)
+        except Exception:  # noqa: BLE001 — 백그라운드 스레드라 여기서 잡지 않으면 조용히 사라진다
+            _scan_jobs[job_id] = _ScanJob(status="error", created_at=time.time(), detail="검사 중 오류가 발생했습니다")
+        finally:
+            # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
+            shutil.rmtree(upload_dir, ignore_errors=True)
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return {"job_id": job_id, "status": "running"}
+
+
+@app.get("/scan/async/{job_id}")
+def scan_job_status(job_id: str) -> dict:
+    """진행 상태를 돌려준다. done이면 /scan과 같은 모양의 결과가 result에 들어 있다."""
+    job = _scan_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="검사 작업을 찾을 수 없습니다")
+    body: dict = {"status": job.status}
+    if job.status == "done":
+        body["result"] = job.result
+    elif job.status == "error":
+        body["detail"] = job.detail
     return body
 
 
