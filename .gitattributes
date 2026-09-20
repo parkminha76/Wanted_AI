@@ -32,4 +32,3 @@
 *.onnx        binary
 # ---------- diff를 사람이 읽을 필요가 없는 것 ----------
 uv.lock linguist-generated=true -diff
-ml/models/ner_person_org_v1/*.safetensors filter=lfs diff=lfs merge=lfs -text
