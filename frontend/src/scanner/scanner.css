@@ -1104,14 +1104,12 @@
 .docx-preview-host .hit {
   background: #fbe4e1;
   color: #8a2c22 !important;
-  color: #8a2c22 !important;
 }
 
 .paper__body .hit--hidden,
 .sheet-grid .hit--hidden,
 .docx-preview-host .hit--hidden {
   background: #fbe8cf;
-  color: #8a5a12 !important;
   color: #8a5a12 !important;
 }
 
@@ -1156,6 +1154,7 @@
 
 .image-preview__stage {
   position: relative;
+  container-type: inline-size;
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
@@ -1182,6 +1181,10 @@
   border: 2px solid var(--color-risk-high);
   border-radius: 3px;
   background: color-mix(in srgb, var(--color-risk-high) 20%, transparent);
+  /* 형광펜처럼 곱하기로 얹는다. 반투명이라도 상자가 여러 개 겹치면 알파가 쌓여
+     밑의 글자를 덮어버리는데(실측 2026-09-20, 아이폰 계약서.pdf 1쪽의 담당자
+     연락처·입금 계좌), multiply는 아무리 겹쳐도 글자가 색보다 더 어두워서 남는다. */
+  mix-blend-mode: multiply;
   pointer-events: none;
 }
 
@@ -1216,11 +1219,18 @@
   border-radius: 3px;
   background: #e6f0fa;
   color: #1a5a86;
-  font-size: 10px;
+  /* 가림 상자는 형광펜이 아니라 덮개다 — .image-hit의 multiply를 물려받으면 안 된다. */
+  mix-blend-mode: normal;
+  /* 라벨 크기는 쪽 그림의 실제 폭을 따라간다. 10px 고정이던 시절에는 모바일처럼
+     쪽이 작게 그려질수록 라벨만 상대적으로 커져서, `[사업자등록번호]` 하나가 표의
+     옆 줄까지 덮어 원문을 읽을 수 없었다(실측 2026-09-20, 아이폰 계약서.pdf).
+     상자를 넘치던 overflow: visible도 같은 이유로 잘라낸다 — 가린 자리를 알리는
+     것이 목적이지, 라벨이 옆 내용을 가리면서까지 다 보일 필요는 없다. */
+  font-size: clamp(7px, 2.4cqw, 10px);
   font-weight: var(--font-weight-bold);
   line-height: 1;
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .image-preview__note {
@@ -1248,6 +1258,8 @@
 
 .rendered-page__stage {
   position: relative;
+  /* 안에 올리는 탐지 상자·가림 라벨이 쪽 그림의 폭(cqw)을 기준으로 크기를 잡는다. */
+  container-type: inline-size;
   border: 1px solid var(--color-border);
   background: #fff;
   box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
@@ -1394,6 +1406,24 @@
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+
+/* 좁은 화면에서는 칸 하나가 상자 폭을 거의 다 먹어서 한 열밖에 안 보였다(실측
+   2026-09-20, 아이폰 고객명단.xlsx: 스크롤 상자 262px에 칸 최소폭 112px + 여백 24px).
+   표는 "어느 칸에 무엇이 있었나"를 보여주는 것이 목적이라 글자를 조금 줄이고
+   여백을 좁혀 한 화면에 더 담는다. */
+@media (max-width: 767px) {
+  .sheet-grid {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .sheet-grid th,
+  .sheet-grid td {
+    min-width: 4.5rem;
+    max-width: 11rem;
+    padding: var(--space-1) var(--space-2);
+  }
 }
 
 .sheet-grid thead th {
