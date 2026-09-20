@@ -42,6 +42,7 @@ mask.py가 쓰는 두 함수:
 
 from __future__ import annotations
 
+import bisect
 import os
 import re
 import threading
@@ -128,6 +129,17 @@ _REASONS: dict[str, str] = {
 # CHECKSUM_NOT_AVAILABLE). 여기서 타입 목록을 따로 들고 있으면, 어느 필드가
 # 체크섬 검증되는지에 대한 판단이 두 곳에 생겨서 어긋난다 — 실제로 법인등록번호를
 # "검증됨"으로 잘못 표시하고 있었다(알고리즘 출처가 확정되지 않은 필드였다).
+
+# NER을 돌릴 텍스트 크기 상한. 실측(2026-09-20, DocXray_합성데이터_5MB.log —
+# 25,146줄 전부에 한글이 섞인 로그): NER이 사람·회사명을 잡으려고 줄마다 모델을
+# 돌리는데, 로그·CSV처럼 줄이 아주 많은 텍스트는 "한글 없는 줄 건너뛰기" 필터로도
+# 못 줄여서 전체 처리에 54분(3254.59초)이 걸렸다. 반면 rules.find_all(정규식+
+# 체크섬 — 전화번호·이메일·주민등록번호·계좌번호 등)은 같은 파일 전체를 1.31초에
+# 끝낸다. 이 크기를 넘는 텍스트는 NER(사람·회사명 탐지)을 건너뛰고 규칙 기반
+# 탐지만 돈다 — 사람/회사명은 놓칠 수 있지만, 몇 분씩 걸리거나 타임아웃 나는
+# 것보다는 낫다는 제품 판단(2026-09-20)이다. 계약서·이력서 같은 일반 문서는
+# 이 크기를 넘는 일이 거의 없다.
+_NER_MAX_TEXT_LENGTH = 100 * 1024
 
 # 문장 단위로 잘라 인젝션 여부를 검사한다. 마침표/느낌표/물음표/줄바꿈 기준.
 _SENTENCE_SPLIT_PATTERN = re.compile(r"[^.!?\n]+[.!?]?")
@@ -233,7 +245,18 @@ def _find_injections(text: str) -> list[Finding]:
     return findings
 
 
-def _sentence_around(text: str, start: int, end: int) -> tuple[str, int]:
+def _sentence_index(text: str) -> list[tuple[str, int, int]]:
+    """`_iter_sentences`를 한 번만 돌려 (문장, 시작, 끝) 목록으로 굳힌다.
+
+    `_sentence_around`를 값 개수만큼 부르면서 매번 이 목록을 새로 만들면 다시
+    O(값 개수 × 문장 수)가 된다 — 호출부가 한 번 만들어 재사용해야 한다.
+    """
+    return list(_iter_sentences(text))
+
+
+def _sentence_around(
+    text: str, start: int, end: int, sentences: list[tuple[str, int, int]] | None = None
+) -> tuple[str, int]:
     """오프셋 구간이 들어 있는 문장과, 그 문장이 원문에서 시작하는 자리를 돌려준다.
 
     오탐 제거 분류기에 넘길 context다. 학습 데이터가 문장 단위(평균 33자)라 문장을
@@ -243,8 +266,21 @@ def _sentence_around(text: str, start: int, end: int) -> tuple[str, int]:
     시작 자리도 함께 주는 이유: 분류기는 문장 속 값 자리를 __VALUE__로 바꿔 판단하는데,
     같은 값이 한 문장에 두 번 나오면 문장만으로는 어느 쪽인지 알 수 없다.
     호출부가 f.start - 시작 자리로 문장 안 위치를 바로 계산해 넘긴다.
+
+    `sentences`(=`_sentence_index(text)`)를 넘기면 문장 목록을 다시 만들지 않고
+    이진 탐색으로 찾는다 — 값이 많은 대용량 텍스트에서 이 함수를 값 개수만큼
+    부를 때 실측(2026-09-20, 4,442,184자짜리 로그, 계좌번호 3,593건) O(n²)에
+    가까운 지연을 냈다. 안 넘기면(기존 호출부·테스트 호환) 이 호출 한정으로
+    한 번 만든다 — 여러 값을 처리할 때는 반드시 미리 만들어 넘겨야 한다.
     """
-    for sentence, s, e in _iter_sentences(text):
+    if sentences is None:
+        sentences = _sentence_index(text)
+    starts = [s for _, s, _ in sentences]
+    # start보다 시작 위치가 크지 않은 마지막 문장 하나만 후보다 — 문장은 서로
+    # 겹치지 않으므로 그 문장에 안 들어가면 다른 어느 문장에도 안 들어간다.
+    idx = bisect.bisect_right(starts, start) - 1
+    if idx >= 0:
+        sentence, s, e = sentences[idx]
         # 문장이 값 자기 자신과 정확히 같으면(=이 "문장"에 값 말고는 아무 글자도
         # 없으면) 쓸 수 있는 문맥이 아니다. 실측 버그(2026-09-19, 숨은명령.docx):
         # "정산 계좌\n1401-839-183201"처럼 라벨과 값이 줄바꿈으로만 나뉘어 있으면,
@@ -372,52 +408,74 @@ def _has_explicit_negative_cue(finding: Finding, raw_text: str) -> bool:
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
-    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다."""
-    kept: list[Finding] = []
-    filtered_out: list[Finding] = []
+    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다.
+
+    1차로 각 finding을 훑으며 모델 판정이 필요 없는 것(injection, 명시적 부정/긍정
+    단서, 학습 안 한 타입)은 바로 정리하고, 모델이 실제로 판단해야 하는 것만
+    "보류" 표시로 모아둔다. 2차에서 그 보류 목록을 한 번에 배치 호출한다.
+
+    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 건마다
+    models.filter_false_positive를 따로 불렀더니 249.87초가 걸렸다(모델
+    벡터화 오버헤드가 건수만큼 반복). models.filter_false_positive_many로
+    한 번에 넘기면 이 반복이 사라진다.
+    """
+    # (kind, finding, context_start) — kind: "keep" | "drop" | "pending".
+    # pending은 모델 배치 호출이 끝난 뒤 2차에서 kept/filtered_out으로 갈라진다.
+    decisions: list[tuple[str, Finding, int]] = []
+    pending_args: list[tuple[str, str, str, int | None]] = []  # filter_false_positive_many 입력
+    pending_indices: list[int] = []  # decisions 안에서 각 pending 항목의 자리
+    # _sentence_around에 넘길 문장 목록. 학습된 타입(account 등) finding을 만나야만
+    # 필요하므로 그때 딱 한 번만 만든다 — 학습 안 한 타입뿐인 문서라면 아예 안 만든다.
+    sentences: list[tuple[str, int, int]] | None = None
+
     for f in findings:
         if f.type == "injection":
-            kept.append(f)
+            decisions.append(("keep", f, 0))
             continue
         if _has_explicit_negative_cue(f, raw_text):
             f.reason = "값 바로 뒤에 명시적 부정문이 있어 개인정보로 보지 않음"
-            filtered_out.append(f)
+            decisions.append(("drop", f, 0))
             continue
         # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
         # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만
         # 강한 문맥 근거로 보존한다.
         if _has_explicit_positive_label(f, raw_text):
-            kept.append(f)
+            decisions.append(("keep", f, 0))
             continue
-        # 실측(2026-09-20, 4,442,184자짜리 로그 파일 — phone·email 6천 건):
         # 분류기가 학습하지 않은 타입(phone·email 등)은 filter_false_positive가
         # 문맥을 보지도 않고 그냥 통과시킨다(모델이 배운 적 없는 타입은 안
-        # 묻는다는 주석 참고) — 그런데도 그 문맥을 만드는 _sentence_around를
-        # 매번 불렀다. _sentence_around는 호출할 때마다 원문 전체를 처음부터
-        # 다시 문장으로 쪼개며 찾는 값 자리까지 훑는 O(문장 수) 함수라, 값이
-        # 6천 개면 사실상 원문 전체를 6천 번 훑는 셈이 된다(실측: 139초). 학습
-        # 안 한 타입은 문맥이 버려질 걸 알고 있으므로, 애초에 만들지 않는다.
+        # 묻는다는 주석 참고) — 그 문맥(_sentence_around)조차 만들 필요가 없다.
         if not models.false_positive_model_ready(f.type):
-            kept.append(f)
+            decisions.append(("keep", f, 0))
             continue
-        context, context_start = _sentence_around(raw_text, f.start, f.end)
-        is_real, prob_positive = models.filter_false_positive(
-            f.text, context, f.type, value_start=f.start - context_start
-        )
-        # prob_positive는 "진짜 개인정보일 확률" 하나의 뜻만 갖는다(models.py 참고).
-        # 예전에는 걸러낸 쪽에서 1.0 - x로 뒤집었는데, 같은 이름의 값이 두 가지 뜻을
-        # 갖게 돼서 화면이 무엇을 보고 있는지 알 수 없었다.
-        if models.false_positive_model_ready(f.type):
-            f.evidence = {
-                **f.evidence,
-                "prob_positive": prob_positive,
-                "model": models.FALSE_POSITIVE_MODEL_NAME,
-            }
-        if is_real:
-            f.confidence = round(f.confidence * prob_positive, 3)
-            kept.append(f)
-        else:
-            filtered_out.append(f)
+        if sentences is None:
+            sentences = _sentence_index(raw_text)
+        context, context_start = _sentence_around(raw_text, f.start, f.end, sentences)
+        pending_indices.append(len(decisions))
+        decisions.append(("pending", f, context_start))
+        pending_args.append((f.text, context, f.type, f.start - context_start))
+
+    if pending_args:
+        batch_results = models.filter_false_positive_many(pending_args)
+        for idx, (is_real, prob_positive) in zip(pending_indices, batch_results):
+            _, f, _ = decisions[idx]
+            # prob_positive는 "진짜 개인정보일 확률" 하나의 뜻만 갖는다(models.py 참고).
+            # 예전에는 걸러낸 쪽에서 1.0 - x로 뒤집었는데, 같은 이름의 값이 두 가지 뜻을
+            # 갖게 돼서 화면이 무엇을 보고 있는지 알 수 없었다.
+            if models.false_positive_model_ready(f.type):
+                f.evidence = {
+                    **f.evidence,
+                    "prob_positive": prob_positive,
+                    "model": models.FALSE_POSITIVE_MODEL_NAME,
+                }
+            if is_real:
+                f.confidence = round(f.confidence * prob_positive, 3)
+                decisions[idx] = ("keep", f, 0)
+            else:
+                decisions[idx] = ("drop", f, 0)
+
+    kept = [f for kind, f, _ in decisions if kind == "keep"]
+    filtered_out = [f for kind, f, _ in decisions if kind == "drop"]
     return kept, filtered_out
 
 
@@ -530,17 +588,45 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
         key=lambda f: (f.weight, bool(f.evidence.get("structured_header"))),
         reverse=True,
     )
+    # namespace(True=injection, False=그 외)별로 "이미 채택된, 서로 안 겹치는"
+    # 구간을 시작 위치 오름차순으로 유지한다. 겹침 검사를 새 finding마다 채택된
+    # 전체 목록과 비교하면(예전 방식) O(finding 수²)가 된다 — 실측(2026-09-20,
+    # 4,442,184자짜리 로그, findings 37,931건): 45.38초. 채택된 구간은 서로
+    # 겹치지 않으므로 시작 순으로 정렬하면 끝도 함께 오름차순이다(디스조인트 구간의
+    # 성질) — 그래서 겹침 후보 범위를 이진 탐색으로 곧장 좁힐 수 있다.
+    ns_accepted: dict[bool, list[Finding]] = {True: [], False: []}
+    ns_starts: dict[bool, list[int]] = {True: [], False: []}
+    ns_order: dict[bool, list[int]] = {True: [], False: []}
     kept: list[Finding] = []
-    for f in by_weight:
-        overlapping = [
-            k
-            for k in kept
-            if f.start < k.end and k.start < f.end and (f.type == "injection") == (k.type == "injection")
-        ]
-        if overlapping:
+    for order, f in enumerate(by_weight):
+        is_injection = f.type == "injection"
+        accepted = ns_accepted[is_injection]
+        starts = ns_starts[is_injection]
+        orders = ns_order[is_injection]
+
+        # start < f.end인 채택 구간은 전부 인덱스 [0, upper)에 몰려 있다(시작
+        # 오름차순 정렬). 그중 end > f.start인 것만 실제로 겹친다 — 끝도
+        # 오름차순이므로 upper부터 거꾸로 훑다가 처음으로 안 겹치는 걸 만나면
+        # 그 앞쪽은 전부 더 겹치지 않는다(멈춰도 안전).
+        upper = bisect.bisect_left(starts, f.end)
+        lo = upper
+        while lo > 0 and accepted[lo - 1].end > f.start:
+            lo -= 1
+
+        if lo < upper:
             if f.type == "hidden_text":
-                _merge_hidden_evidence(overlapping[0], f)
+                # 겹치는 후보가 여럿이면(=넓은 구간 하나가 이미 채택된 여러 짧은
+                # 구간을 덮는 경우) 그중 먼저 채택된(=가중치가 더 높았던) 쪽에
+                # 근거를 옮긴다 — 예전 방식이 `kept`를 훑을 때 먼저 나오는 항목을
+                # 썼던 것과 같은 우선순위다.
+                survivor_idx = min(range(lo, upper), key=lambda i: orders[i])
+                _merge_hidden_evidence(accepted[survivor_idx], f)
             continue
+
+        insert_at = bisect.bisect_left(starts, f.start)
+        starts.insert(insert_at, f.start)
+        accepted.insert(insert_at, f)
+        orders.insert(insert_at, order)
         kept.append(f)
     return sorted(kept, key=lambda f: f.start)
 
@@ -669,12 +755,15 @@ def scan_text(
         for d in _find_structured_xlsx_values(meta.get("spans") or [])
     ]
 
-    # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다.
+    # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다. 텍스트가 너무 크면
+    # (로그·CSV 등) 사람·회사명 탐지를 포기하고 규칙 기반 탐지만 돈다 —
+    # _NER_MAX_TEXT_LENGTH 주석 참고.
     if ner is not None and hasattr(ner, "detect"):
         ner_text = text
         if meta.get("file_type") == "xlsx" and meta.get("spans"):
             ner_text = _xlsx_ner_input(text, meta["spans"], findings)
-        findings += [_raw_to_finding(d, "ner") for d in ner.detect(ner_text)]
+        if len(ner_text) <= _NER_MAX_TEXT_LENGTH:
+            findings += [_raw_to_finding(d, "ner") for d in ner.detect(ner_text)]
 
     # 3. 숨은 텍스트. 파서가 준 서식 정보(spans)가 있으면 흰 글씨·0pt·숨김 속성까지
     # 보고, 없으면(훈련 모드의 실시간 답장 스캔) 문자열만으로 제로폭·Bidi·태그
