@@ -29,12 +29,12 @@ class TrainingRedesignTests(unittest.TestCase):
 
     def test_training_sanitizer_replaces_only_explicit_formats(self):
         result = sanitize_training_text(
-            "홍길동 인포가드 서울 010-1234-5678 test@example.com "
+            "홍길동 docX-ray 서울 010-1234-5678 test@example.com "
             "110-123-456789 4111-1111-1111-1111 990101-1234567"
         )
         self.assertEqual(
             result["sanitized_text"],
-            "홍길동 인포가드 서울 [PHONE] [EMAIL] [ACCOUNT] [CARD] [RRN]",
+            "홍길동 docX-ray 서울 [PHONE] [EMAIL] [ACCOUNT] [CARD] [RRN]",
         )
         self.assertEqual(
             result["shared_fields"],

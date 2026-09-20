@@ -32,7 +32,7 @@ SCAN_RESULT_RETENTION_DAYS = 30
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="InfoGuard 데이터 보존 정책 실행")
+    parser = argparse.ArgumentParser(description="docXray 데이터 보존 정책 실행")
     parser.add_argument(
         "--execute",
         action="store_true",

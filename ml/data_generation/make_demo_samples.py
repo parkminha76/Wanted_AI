@@ -194,7 +194,7 @@ def make_customer_list(path: Path) -> None:
     guide["A1"].font = Font(name="맑은 고딕", size=16, bold=True, color=TEXT)
     guide.row_dimensions[1].height = 30
     guidance = [
-        ("문서 목적", "InfoGuard의 개인정보 탐지와 마스킹 기능을 시연하기 위한 합성 고객명단"),
+        ("문서 목적", "docX-ray의 개인정보 탐지와 마스킹 기능을 시연하기 위한 합성 고객명단"),
         ("취급 등급", "내부 검토용"),
         ("포함 정보", "합성 이름, 연락처, 이메일, 주소"),
         ("주의 사항", "실제 고객정보가 아니며 외부 업무에 사용할 수 없음"),
@@ -293,13 +293,13 @@ def make_developer_note(path: Path) -> None:
 
 ## 환경 변수
 
-아래 값은 InfoGuard 시연을 위해 만든 **합성 인증정보**다. 실제 시스템에서는 문서에 키를 기록하지 않고 비밀 저장소를 사용한다.
+아래 값은 docX-ray 시연을 위해 만든 **합성 인증정보**다. 실제 시스템에서는 문서에 키를 기록하지 않고 비밀 저장소를 사용한다.
 
 ```env
 APP_ENV=staging
 OPENAI_API_KEY=sk-demo000000000000000000000000000000
 GITHUB_TOKEN=ghp_demo0000000000000000000000000000
-DATABASE_URL=mysql://demo_user:demo_password@db.example.invalid/infoguard
+DATABASE_URL=mysql://demo_user:demo_password@db.example.invalid/docxray
 ```
 
 ## 실행 순서
@@ -404,7 +404,7 @@ def make_contract(path: Path) -> None:
     _pdf_label_value(page, 599, "지급 조건", "검수 완료일로부터 10영업일 이내")
 
     page.draw_rect(pymupdf.Rect(52, 652, 543, 703), color=(0.77, 0.84, 0.91), fill=(0.95, 0.97, 0.99), width=0.7)
-    _pdf_text(page, pymupdf.Rect(66, 665, 529, 693), "본 문서는 InfoGuard 기능 시연을 위한 합성 계약서이며 실제 기업·개인·금융정보를 포함하지 않습니다.", size=8.7, color=(0.20, 0.30, 0.40), align=1)
+    _pdf_text(page, pymupdf.Rect(66, 665, 529, 693), "본 문서는 docX-ray 기능 시연을 위한 합성 계약서이며 실제 기업·개인·금융정보를 포함하지 않습니다.", size=8.7, color=(0.20, 0.30, 0.40), align=1)
     page.draw_line((52, 748), (543, 748), color=(0.76, 0.80, 0.84), width=0.6)
     _pdf_text(page, pymupdf.Rect(52, 760, 400, 780), "블루웨이브 솔루션  |  내부 검토용", size=8, color=(0.40, 0.45, 0.50))
     _pdf_text(page, pymupdf.Rect(450, 760, 543, 780), "1 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
@@ -561,10 +561,10 @@ def make_contract(path: Path) -> None:
     page.draw_rect(pymupdf.Rect(52, 534, 543, 608), color=(0.77, 0.84, 0.91), fill=(0.95, 0.97, 0.99), width=0.7)
     _pdf_text(page, pymupdf.Rect(66, 548, 529, 594), "번호 형식이 같더라도 실제 계좌·카드·사업자번호 문맥만 개인정보로 유지하고, 주문번호·쿠폰번호·접수번호 문맥은 오탐으로 제거되는지 확인합니다. 전화번호와 주소는 규칙 탐지 후 전체 마스킹 범위를 확인합니다.", size=8.6, color=(0.20, 0.30, 0.40))
     page.draw_line((52, 782), (543, 782), color=(0.76, 0.80, 0.84), width=0.6)
-    _pdf_text(page, pymupdf.Rect(52, 792, 400, 812), "블루웨이브 솔루션  |  InfoGuard 합성 데모 문서", size=8, color=(0.40, 0.45, 0.50))
+    _pdf_text(page, pymupdf.Rect(52, 792, 400, 812), "블루웨이브 솔루션  |  docX-ray 합성 데모 문서", size=8, color=(0.40, 0.45, 0.50))
     _pdf_text(page, pymupdf.Rect(450, 792, 543, 812), "4 / 4", size=8, color=(0.40, 0.45, 0.50), align=2)
 
-    document.set_metadata({"title": "디지털 서비스 운영 용역계약서", "author": "블루웨이브 솔루션", "subject": "InfoGuard 합성 데모 문서"})
+    document.set_metadata({"title": "디지털 서비스 운영 용역계약서", "author": "블루웨이브 솔루션", "subject": "docX-ray 합성 데모 문서"})
     document.subset_fonts()
     document.save(path, garbage=4, deflate=True)
     document.close()
@@ -741,7 +741,7 @@ def make_hidden_command(path: Path) -> None:
     for item in (
         "증빙에 불필요한 고객 이름·전화번호·주소는 제출 전에 삭제하거나 마스킹합니다.",
         "계정 비밀번호, 인증 토큰, API 키는 문서와 메일 본문에 기록하지 않습니다.",
-        "외부 AI로 문서를 검토할 때는 InfoGuard에서 만든 마스킹 사본만 사용합니다.",
+        "외부 AI로 문서를 검토할 때는 docX-ray에서 만든 마스킹 사본만 사용합니다.",
         "오발송 사고는 재무운영팀 접수 후 파일 회수와 영향 확인 절차로 처리됩니다.",
     ):
         document.add_paragraph(item, style="List Bullet")
@@ -825,7 +825,7 @@ def make_hidden_command(path: Path) -> None:
     hidden.font.size = Pt(1)
 
     footer = section.footer.paragraphs[0]
-    footer.text = "블루웨이브 솔루션  |  InfoGuard 합성 데모 문서  |  내부 검토용"
+    footer.text = "블루웨이브 솔루션  |  docX-ray 합성 데모 문서  |  내부 검토용"
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for footer_run in footer.runs:
         footer_run.font.size = Pt(7.5)

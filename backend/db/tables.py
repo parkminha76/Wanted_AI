@@ -1,5 +1,5 @@
 """
-InfoGuard DB 테이블 정의 (v3)
+docXray DB 테이블 정의 (v3)
 ==============================
 
 v2 -> v3 변경 요약은 db/CHANGELOG_v3.md, 컬럼별 근거는 db/schema.sql 상단

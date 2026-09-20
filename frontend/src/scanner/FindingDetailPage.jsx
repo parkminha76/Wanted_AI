@@ -19,10 +19,6 @@ import './scanner.css'
 // 오탐으로 제외한 항목은 탭이 아니라 이 화면의 거르개 하나로 들어와 있다. "가릴까 말까"를
 // 판단하는 자리가 둘로 나뉘어 있을 이유가 없다.
 
-// 검사 항목 -> 서버 action_guide의 조치 key. 조치 문구는 서버가 만든 것을 그대로 쓴다
-// (schema.build_action_guide) — 화면과 다운로드 안내가 다른 말을 하지 않게.
-const ACTION_KEY = { ai_command: 'ai-command' }
-
 const FILTERS = [
   { key: 'all', label: '전체' },
   { key: 'high', label: '위험' },
@@ -65,7 +61,6 @@ export default function FindingDetailPage({
   const excluded = filter === 'excluded'
   const list = excluded || filter === 'all' ? file.findings : file.findings.filter((finding) => toneOf(finding) === filter)
   const finding = excluded ? null : (list.find((item) => item.id === findingId) ?? list[0] ?? null)
-  const index = finding ? list.indexOf(finding) : -1
   const normalizedQuery = query.trim().toLowerCase()
   const matches = normalizedQuery
     ? list.filter((item) => [item.label, item.text, locationOf(item)].join(' ').toLowerCase().includes(normalizedQuery))
@@ -79,10 +74,17 @@ export default function FindingDetailPage({
     (currentSearchPage - 1) * SEARCH_PAGE_SIZE,
     currentSearchPage * SEARCH_PAGE_SIZE,
   )
-  const typeCounts = list.reduce((result, item) => {
-    result.set(item.label, (result.get(item.label) ?? 0) + 1)
+  const categories = list.reduce((result, item) => {
+    const category = result.find((entry) => entry.label === item.label)
+    if (category) category.findings.push(item)
+    else result.push({ label: item.label, findings: [item] })
     return result
-  }, new Map())
+  }, [])
+  const activeCategory = finding
+    ? categories.find((category) => category.label === finding.label) ?? categories[0]
+    : categories[0]
+  const categoryIndex = activeCategory ? categories.indexOf(activeCategory) : -1
+  const categoryFindings = activeCategory?.findings ?? []
 
   useEffect(() => {
     setSearchPage(1)
@@ -90,18 +92,13 @@ export default function FindingDetailPage({
 
   const check = finding ? CHECKS[checkOf(finding.type)] : null
   const evidence = finding?.evidence ?? {}
-  const where = finding
-    ? finding.page != null
-      ? `${finding.page}쪽`
-      : `${lineNumberAt(file.raw_text, finding.start)}번째 줄`
+  const categoryAdvice = activeCategory
+    ? `${activeCategory.label} 총 ${categoryFindings.length}건은 업무에 필요한 범위만 남기고 부분 또는 전체 마스킹하세요.`
     : ''
-  const advice = finding
-    ? file.action_guide?.actions?.find((action) => action.key === (ACTION_KEY[checkOf(finding.type)] ?? checkOf(finding.type)))
-    : null
 
-  function pick(step) {
-    const next = list[index + step]
-    if (next) onSelectFinding(next.id)
+  function pickCategory(step) {
+    const next = categories[categoryIndex + step]
+    if (next) onSelectFinding(next.findings[0].id)
   }
 
   function locationOf(item) {
@@ -128,7 +125,7 @@ export default function FindingDetailPage({
           <h1 className="page-title">검사 결과 상세보기</h1>
           <p className="page-desc break-anywhere">
             {file.filename || '텍스트'}
-            {finding ? ` · 문제 ${list.length}건 중 ${index + 1}번째` : ''}
+            {activeCategory ? ` · ${categories.length}개 유형 중 ${categoryIndex + 1}번째` : ''}
           </p>
         </div>
         <div className="page-head__actions">
@@ -200,9 +197,14 @@ export default function FindingDetailPage({
             </ul>
           ) : (
             <div className="finding-type-jump" aria-label="유형별 빠른 이동">
-              {[...typeCounts.entries()].map(([label, count]) => (
-                <button key={label} type="button" onClick={() => setQuery(label)}>
-                  {label} <b>{count}</b>
+              {categories.map((category) => (
+                <button
+                  key={category.label}
+                  type="button"
+                  aria-current={category.label === activeCategory?.label ? 'true' : undefined}
+                  onClick={() => onSelectFinding(category.findings[0].id)}
+                >
+                  {category.label} <b>{category.findings.length}</b>
                 </button>
               ))}
             </div>
@@ -310,42 +312,52 @@ export default function FindingDetailPage({
                 </div>
               </div>
 
-              <div className="detail-card__nav detail-card__nav--top" aria-label="탐지 항목 이동">
+              <div className="detail-card__nav detail-card__nav--top" aria-label="탐지 유형 이동">
                 <span>
-                  {index + 1} / {list.length}
+                  {categoryIndex + 1} / {categories.length}
                 </span>
-                <Button variant="secondary" disabled={index <= 0} onClick={() => pick(-1)}>
+                <Button variant="secondary" disabled={categoryIndex <= 0} onClick={() => pickCategory(-1)}>
                   ← 이전
                 </Button>
-                <Button variant="secondary" disabled={index >= list.length - 1} onClick={() => pick(1)}>
+                <Button
+                  variant="secondary"
+                  disabled={categoryIndex >= categories.length - 1}
+                  onClick={() => pickCategory(1)}
+                >
                   다음 →
                 </Button>
               </div>
 
-              <h2 className="detail-section-title"><span>1</span> 탐지 내용</h2>
-              <dl className="facts">
-                <div>
-                  <dt>위치</dt>
-                  <dd>{where}</dd>
-                </div>
-                <div>
-                  <dt>내용</dt>
-                  <dd>
-                    <code className="facts__value">{finding.text}</code>
-                  </dd>
-                </div>
-              </dl>
+              <h2 className="detail-section-title">
+                <span>1</span> 탐지 내용 <small>{categoryFindings.length}건</small>
+              </h2>
+              <div className="category-findings" role="list" aria-label={`${finding.label} 탐지 내용`}>
+                {categoryFindings.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="listitem"
+                    className="category-finding"
+                    aria-current={item.id === finding.id ? 'true' : undefined}
+                    onClick={() => onSelectFinding(item.id)}
+                  >
+                    <span>{locationOf(item)}</span>
+                    <code>{item.text}</code>
+                  </button>
+                ))}
+              </div>
 
               <div className="why">
-                <h2><span>2</span> 왜 위험한가</h2>
+                <h2><span>2</span> 노출 시 영향</h2>
                 <p>{explanationFor(finding.type)}</p>
                 {evidence.hidden_reason_text && <p>숨겨져 있던 방식: {evidence.hidden_reason_text}</p>}
               </div>
 
               <div className="why why--fix">
-                <h2><span>3</span> 이렇게 조치하세요</h2>
-                <p>{advice?.description ?? '원본 대신 아래처럼 가린 사본을 공유하세요. 문서 서식은 그대로 유지됩니다.'}</p>
+                <h2><span>3</span> 권장 조치</h2>
+                <p>{categoryAdvice}</p>
                 <div className="beforeafter">
+                  <small>마스킹 예시</small>
                   <span className="beforeafter__before">{finding.text}</span>
                   <span className="beforeafter__after">{placeholderFor(finding)}</span>
                 </div>
