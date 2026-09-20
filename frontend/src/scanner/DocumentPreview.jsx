@@ -29,9 +29,14 @@ export default function DocumentPreview({
   fileType = '',
   sourceFile = null,
   sampleFilename = null,
+  // 오탐으로 제외한 항목(위험도 점수엔 안 넣는 값들). 원문 보기(칠하기)에는 안 쓰지만, 마스킹
+  // 사본은 서버가 이 값들도 같이 가려서 만든다 — 미리보기도 다운로드 사본과 같아지도록 마스킹
+  // 대상에는 findings와 함께 포함한다.
+  filteredOut = [],
 }) {
   const bodyRef = useRef(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
+  const maskCandidates = useMemo(() => [...findings, ...filteredOut], [findings, filteredOut])
 
   // 샘플 문서는 검사할 때 브라우저에 원본 File을 안 올린다(서버가 이미 갖고 있어서). PDF/DOCX/이미지를
   // 실제 문서처럼 그리려면 그 File이 있어야 해서, 없을 때만 /samples/original로 원본을 따로 받아 온다.
@@ -55,8 +60,8 @@ export default function DocumentPreview({
   const effectiveSourceFile = sourceFile || fetchedSample
 
   const fullSelection = useMemo(
-    () => Object.fromEntries(findings.map((finding) => [finding.id, 'full'])),
-    [findings],
+    () => Object.fromEntries(maskCandidates.map((finding) => [finding.id, 'full'])),
+    [maskCandidates],
   )
   // 쪽이 여러 개일 때만 화면에서 계산하던 것을 쪽이 하나일 때도 똑같이 적용한다 — 안 그러면
   // CSV/XLSX 표나 TXT/MD 같은 홑쪽 문서는 마스킹 보기에서 서버가 만든 밋밋한 문자열(maskedText)로
@@ -67,8 +72,10 @@ export default function DocumentPreview({
 
   const segments = useMemo(() => {
     if (showServerMaskedText) return []
-    return activeSelection ? buildSelectionSegments(text, findings, activeSelection) : buildSegments(text, findings)
-  }, [showServerMaskedText, activeSelection, text, findings])
+    return activeSelection
+      ? buildSelectionSegments(text, maskCandidates, activeSelection)
+      : buildSegments(text, findings)
+  }, [showServerMaskedText, activeSelection, text, findings, maskCandidates])
 
   const pagedSegments = useMemo(
     () => (hasPages && !showServerMaskedText ? splitByPages(segments, pages) : null),
@@ -107,7 +114,16 @@ export default function DocumentPreview({
   const isImagePreview = fileType === 'image' && effectiveSourceFile
 
   if (isImagePreview) {
-    return <ImagePreview title={title} file={effectiveSourceFile} findings={findings} selectedId={selectedId} masked={masked} />
+    return (
+      <ImagePreview
+        title={title}
+        file={effectiveSourceFile}
+        findings={findings}
+        filteredOut={filteredOut}
+        selectedId={selectedId}
+        masked={masked}
+      />
+    )
   }
 
   // 직접 업로드한 원본은 브라우저 메모리에만 보관한다. 샘플 문서는 sampleFilename으로 받아 온
@@ -116,10 +132,28 @@ export default function DocumentPreview({
   // 표시한다(PDF는 검게 칠하고, DOCX는 텍스트를 [유형]으로 바꿔 끼운다) — 원문 보기와 같은
   // 문서 형태를 유지하기 위해서다.
   if (fileType === 'pdf' && effectiveSourceFile) {
-    return <PdfPreview title={title} file={effectiveSourceFile} findings={findings} selectedId={selectedId} masked={masked} />
+    return (
+      <PdfPreview
+        title={title}
+        file={effectiveSourceFile}
+        findings={findings}
+        filteredOut={filteredOut}
+        selectedId={selectedId}
+        masked={masked}
+      />
+    )
   }
   if (fileType === 'docx' && effectiveSourceFile) {
-    return <DocxPreview title={title} file={effectiveSourceFile} findings={findings} selectedId={selectedId} masked={masked} />
+    return (
+      <DocxPreview
+        title={title}
+        file={effectiveSourceFile}
+        findings={findings}
+        filteredOut={filteredOut}
+        selectedId={selectedId}
+        masked={masked}
+      />
+    )
   }
   // 샘플 원본을 받아 오는 중 — 검은 글자 화면으로 잠깐 바뀌었다가 다시 실제 문서로 바뀌는
   // 깜빡임을 막는다.
@@ -348,7 +382,10 @@ export default function DocumentPreview({
   )
 }
 
-function PdfPreview({ title, file, findings, selectedId, masked = false }) {
+function PdfPreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
+  // 마스킹 사본은 서버가 오탐 제외 항목까지 가려서 만든다 — 미리보기도 같은 자리를 검게
+  // 칠하도록 마스킹 대상에는 filteredOut을 같이 넣는다. 원문 보기(색칠)는 findings만 쓴다.
+  const boxSource = masked ? [...findings, ...filteredOut] : findings
   const [pages, setPages] = useState([])
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -442,7 +479,7 @@ function PdfPreview({ title, file, findings, selectedId, masked = false }) {
         {pages.length > 0 && (
           <div ref={articleRef} className="rendered-preview-host">
             {pages.map((page) => {
-              const boxes = findings.filter((finding) => finding.page === page.pageNumber && Array.isArray(finding.bbox))
+              const boxes = boxSource.filter((finding) => finding.page === page.pageNumber && Array.isArray(finding.bbox))
               return (
                 <section
                   key={page.pageNumber}
@@ -487,7 +524,7 @@ function PdfPreview({ title, file, findings, selectedId, masked = false }) {
   )
 }
 
-function DocxPreview({ title, file, findings, selectedId, masked = false }) {
+function DocxPreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
   const containerRef = useRef(null)
   const [error, setError] = useState('')
   const [pageCount, setPageCount] = useState(0)
@@ -509,7 +546,9 @@ function DocxPreview({ title, file, findings, selectedId, masked = false }) {
         // masked일 때는 실제 마스킹 사본에 있는 텍스트(binary)가 브라우저에 없어서(서버만 갖고
         // 있다) 원본 문서를 그대로 그린 다음 탐지된 텍스트만 [유형]으로 바꿔 끼운다 — 표·글꼴 등
         // 문서 형태는 원문 보기와 같게 유지된다.
-        if (masked) maskDocxFindings(container, findings)
+        // 마스킹 사본은 서버가 오탐 제외 항목까지 가려서 만든다 — 미리보기도 같은 자리를
+        // [유형]으로 바꾸도록 마스킹 대상에는 filteredOut을 같이 넣는다.
+        if (masked) maskDocxFindings(container, [...findings, ...filteredOut])
         else highlightDocxFindings(container, findings, selectedId)
         // docx-preview는 실제 A4 폭(고정 px)으로 그려서, 좁은 상자 안에서는 한쪽이 잘려
         // 줌인한 것처럼 보인다. 상자 너비에 맞춰 페이지 전체를 축소해 한눈에 보이게 한다.
@@ -529,7 +568,7 @@ function DocxPreview({ title, file, findings, selectedId, masked = false }) {
       cancelled = true
       resizeObserver?.disconnect()
     }
-  }, [file, findings, selectedId, masked])
+  }, [file, findings, filteredOut, selectedId, masked])
 
   function jumpToDocxPage(pageNumber) {
     const container = containerRef.current
@@ -608,6 +647,26 @@ function fitDocxToContainer(container) {
   wrapper.style.zoom = String(scale)
 }
 
+// 렌더된 문서 텍스트 안에서 각 finding이 실제로 나온 자리를 찾는다. finding.start(raw_text
+// 오프셋) 순서로 훑으면서, 같은 문자열 값별로 "다음에는 어디서부터 찾을지" 커서를 따로 들고
+// 있는다 — text.indexOf(value)만 쓰면 같은 값(반복되는 연락처·이메일 등)은 findings에 항목이
+// 몇 개 있든 매번 문서의 첫 자리만 찾아서, 두 번째부터는 원문 그대로 노출되는 화면 전용 버그가
+// 있었다(다운로드 사본은 서버가 오프셋으로 처리해서 문제없었다). finding 배열 순서가 뒤섞여
+// 와도 정확히 대응하도록 start로 다시 정렬한 뒤 커서를 진행한다.
+function locateDocxMatches(text, findings) {
+  const sorted = [...findings].filter((finding) => finding.text).sort((a, b) => (a.start ?? 0) - (b.start ?? 0))
+  const cursors = new Map()
+  const matches = []
+  for (const finding of sorted) {
+    const from = cursors.get(finding.text) ?? 0
+    const start = text.indexOf(finding.text, from)
+    if (start < 0) continue
+    matches.push({ start, finding })
+    cursors.set(finding.text, start + finding.text.length)
+  }
+  return matches
+}
+
 function highlightDocxFindings(container, findings, selectedId) {
   const walker = window.document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
   const nodes = []
@@ -616,12 +675,13 @@ function highlightDocxFindings(container, findings, selectedId) {
     if (node.nodeValue) nodes.push(node)
   }
   const text = nodes.map((item) => item.nodeValue).join('')
-  const used = new Set()
 
-  for (const finding of findings) {
-    if (!finding.text || used.has(finding.text)) continue
-    const start = text.indexOf(finding.text)
-    if (start < 0) continue
+  // 뒤(오른쪽) 자리부터 칠한다 — surroundContents()가 텍스트 노드를 쪼개서, 앞에서부터 칠하면
+  // 그 뒤에 있는 자리를 찾을 때 쓰는 좌표(nodes 배열의 길이 합산)가 이미 쪼개진 노드 기준이라
+  // 어긋난다. maskDocxFindings와 같은 이유다.
+  const matches = locateDocxMatches(text, findings).sort((a, b) => b.start - a.start)
+
+  for (const { start, finding } of matches) {
     let remaining = finding.text.length
     let offset = 0
     for (const textNode of nodes) {
@@ -645,7 +705,6 @@ function highlightDocxFindings(container, findings, selectedId) {
       offset = nextOffset
       if (remaining <= 0) break
     }
-    used.add(finding.text)
   }
 }
 
@@ -663,19 +722,10 @@ function maskDocxFindings(container, findings) {
     if (node.nodeValue) nodes.push(node)
   }
   const text = nodes.map((item) => item.nodeValue).join('')
-  const used = new Set()
 
   // 뒤(오른쪽)에 있는 항목부터 바꾼다 — 앞에서부터 바꾸면 자리표시자로 글자 수가 달라져서
   // 그 뒤 항목을 찾을 때 쓰는 좌표(text.indexOf 결과)가 이미 어긋난 상태가 된다.
-  const ordered = []
-  for (const finding of findings) {
-    if (!finding.text || used.has(finding.text)) continue
-    const start = text.indexOf(finding.text)
-    if (start < 0) continue
-    ordered.push({ start, finding })
-    used.add(finding.text)
-  }
-  ordered.sort((a, b) => b.start - a.start)
+  const ordered = locateDocxMatches(text, findings).sort((a, b) => b.start - a.start)
 
   for (const { start, finding } of ordered) {
     let remaining = finding.text.length
@@ -713,7 +763,7 @@ function maskDocxFindings(container, findings) {
 
 // 이미지의 탐지 bbox는 원본 픽셀 좌표다. 원본의 가로·세로를 기준으로 %로 바꿔
 // 브라우저 크기가 달라져도 같은 자리에 하이라이트가 남게 한다.
-function ImagePreview({ title, file, findings, selectedId }) {
+function ImagePreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
   const [imageUrl, setImageUrl] = useState('')
   const [size, setSize] = useState(null)
 
@@ -723,7 +773,10 @@ function ImagePreview({ title, file, findings, selectedId }) {
     return () => URL.revokeObjectURL(nextUrl)
   }, [file])
 
-  const boxes = findings.filter((finding) => Array.isArray(finding.bbox) && finding.bbox.length === 4)
+  // 마스킹 사본은 서버가 오탐 제외 항목까지 가려서 만든다 — 미리보기도 같은 자리를 검게
+  // 칠하도록 마스킹 대상에는 filteredOut을 같이 넣는다. 원문 보기(색칠)는 findings만 쓴다.
+  const boxSource = masked ? [...findings, ...filteredOut] : findings
+  const boxes = boxSource.filter((finding) => Array.isArray(finding.bbox) && finding.bbox.length === 4)
 
   return (
     <div className="paper-wrap image-preview-wrap">
@@ -739,23 +792,30 @@ function ImagePreview({ title, file, findings, selectedId }) {
           )}
           {size && boxes.map((finding) => {
             const [x0, y0, x1, y1] = finding.bbox
-            return (
+            const boxStyle = {
+              left: `${(x0 / size.width) * 100}%`,
+              top: `${(y0 / size.height) * 100}%`,
+              width: `${((x1 - x0) / size.width) * 100}%`,
+              height: `${((y1 - y0) / size.height) * 100}%`,
+            }
+            // masked일 때는 실제 마스킹 사본처럼 위치만 검게 칠한다(유형별 색·선택 강조는
+            // 원문 보기에서만 의미가 있다 — 가린 자리에는 "무엇인지"를 다시 드러내지 않는다).
+            return masked ? (
+              <span key={finding.id} className="image-hit image-hit--redacted" style={boxStyle} aria-label="가려진 영역" />
+            ) : (
               <mark
                 key={finding.id}
                 data-finding-id={finding.id}
                 className={`image-hit image-hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`}
-                style={{
-                  left: `${(x0 / size.width) * 100}%`,
-                  top: `${(y0 / size.height) * 100}%`,
-                  width: `${((x1 - x0) / size.width) * 100}%`,
-                  height: `${((y1 - y0) / size.height) * 100}%`,
-                }}
+                style={boxStyle}
                 aria-label={`${finding.label} 탐지 위치`}
               />
             )
           })}
         </div>
-        <p className="image-preview__note">색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.</p>
+        <p className="image-preview__note">
+          {masked ? '검게 칠해진 영역이 가려진 개인정보입니다.' : '색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.'}
+        </p>
       </article>
     </div>
   )
