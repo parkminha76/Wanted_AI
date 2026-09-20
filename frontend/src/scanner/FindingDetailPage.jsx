@@ -260,6 +260,10 @@ export default function FindingDetailPage({
             title={file.filename}
             text={file.raw_text}
             findings={file.findings}
+            // 오탐으로 제외한 항목(위험도엔 안 넣는 값들)도 실제 마스킹 사본에서는 서버가 같이
+            // 가린다 — 마스킹 보기 미리보기가 다운로드 사본과 다르게 보이지 않도록 같이 넘긴다.
+            // 원문 보기(색칠)에는 안 쓴다(DocumentPreview가 masked일 때만 findings와 합친다).
+            filteredOut={file.filtered_out}
             selectedId={finding?.id}
             masked={maskedPreview}
             maskedText={file.masked_text}

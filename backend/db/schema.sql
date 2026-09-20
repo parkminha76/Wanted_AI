@@ -1,4 +1,4 @@
--- InfoGuard DB 스키마 v3 (TiDB Cloud / MySQL 호환)
+-- docXray DB 스키마 v3 (TiDB Cloud / MySQL 호환)
 --
 -- v2 -> v3 변경 요약 (db/CHANGELOG_v3.md 참고):
 --   - findings.reason, scan_results.error: 자유 텍스트 -> 고정 코드(ENUM).

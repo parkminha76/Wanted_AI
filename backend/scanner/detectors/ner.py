@@ -39,8 +39,18 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
-MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
+_BASE_MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
+
+# 2026-09-20: 짧은 맥락(CSV 행, 번호 목록, 참석자 명단 두 줄 블록)에서 이름/
+# 회사명을 놓치거나 끝 글자를 잘라 먹던 문제를, 같은 라벨 체계로 이어서 학습
+# (continued fine-tuning)한 모델로 고쳤다 — ml/training/ner_finetune/README나
+# 학습 스크립트 참고. 실측(주문내역.csv "오미정"/"양재호", 참석자명단.png류
+# 문장)으로 베이스 대비 신뢰도가 뚜렷이 올라간 것을 확인했고, 자연스러운
+# 문장에서의 원래 성능도 유지됨을 확인했다(파국적 망각 없음).
+_FINETUNED_MODEL_DIR = Path(__file__).resolve().parents[3] / "ml" / "models" / "ner_person_org_v1"
+MODEL_NAME = str(_FINETUNED_MODEL_DIR) if _FINETUNED_MODEL_DIR.is_dir() else _BASE_MODEL_NAME
 
 # 한 번에 모델에 넣을 최대 글자 수. 한국어는 대략 2글자당 1토큰이라 400자면
 # 200토큰 안팎으로, 512 한도에 충분한 여유가 있다.

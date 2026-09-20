@@ -72,6 +72,13 @@ runs/
 !ml/models/infoguard_cnn_v1.pt
 !ml/models/fp_filter_v1.pkl
 !ml/models/injection_classifier_v1.pkl
+# NER 파인튜닝 모델(짧은 맥락 이름·회사명 인식, 2026-09-20) — .safetensors라
+# 위 규칙에 걸리지만 detectors/ner.py가 이 경로가 있으면 우선 로드한다.
+# 55MB라 Git LFS로 추적한다(.gitattributes 참고).
+!ml/models/ner_person_org_v1/config.json
+!ml/models/ner_person_org_v1/model.safetensors
+!ml/models/ner_person_org_v1/tokenizer.json
+!ml/models/ner_person_org_v1/tokenizer_config.json
 
 # ---------- 3. Node / 프론트엔드 ----------
 node_modules/
@@ -91,6 +98,7 @@ pnpm-debug.log*
 
 # ---------- 4. 로그 & 임시파일 ----------
 *.log
+!sample_data/**/*.log
 logs/
 *.tmp
 *.temp

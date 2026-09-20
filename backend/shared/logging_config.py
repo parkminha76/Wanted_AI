@@ -1,4 +1,4 @@
-"""Privacy-safe structured logging for the InfoGuard backend.
+"""Privacy-safe structured logging for the docXray backend.
 
 Logs are operational metadata only. Never add uploaded filenames, raw text,
 detected values, session identifiers, download identifiers, or API keys here.

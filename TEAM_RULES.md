@@ -1,4 +1,4 @@
-# 인포가드 팀 규칙
+# docX-ray 팀 규칙
 
 2026 원티드 AI CHAMPIONSHIP · 4인 · 제출 9/20
 

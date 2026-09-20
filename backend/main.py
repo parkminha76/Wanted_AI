@@ -1,4 +1,4 @@
-"""InfoGuard API — 바깥에서 부르는 창구.
+"""docXray API — 바깥에서 부르는 창구.
 
     POST /scan            파일 여러 개 업로드 -> ScanBatch JSON   (D가 호출)
     POST /mask            화면에서 고른 항목만 마스킹한 사본 생성
@@ -782,7 +782,7 @@ def download_all(batch_id: str, files: str | None = None) -> FileResponse:
     entries = [_masked_files[fid] for fid in file_ids]
 
     zip_dir = tempfile.mkdtemp(prefix="infoguard_zip_")
-    zip_path = os.path.join(zip_dir, "infoguard_masked.zip")
+    zip_path = os.path.join(zip_dir, "docxray_masked.zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
         used: set[str] = set()
         for entry in entries:
@@ -807,7 +807,7 @@ def download_all(batch_id: str, files: str | None = None) -> FileResponse:
 
     return FileResponse(
         zip_path,
-        filename="infoguard_masked.zip",
+        filename="docxray_masked.zip",
         media_type="application/zip",
         background=BackgroundTask(shutil.rmtree, zip_dir, ignore_errors=True),
     )
