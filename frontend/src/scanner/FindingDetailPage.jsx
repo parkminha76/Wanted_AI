@@ -260,10 +260,16 @@ export default function FindingDetailPage({
             title={file.filename}
             text={file.raw_text}
             findings={file.findings}
-            // 오탐으로 제외한 항목(위험도엔 안 넣는 값들)도 실제 마스킹 사본에서는 서버가 같이
-            // 가린다 — 마스킹 보기 미리보기가 다운로드 사본과 다르게 보이지 않도록 같이 넘긴다.
-            // 원문 보기(색칠)에는 안 쓴다(DocumentPreview가 masked일 때만 findings와 합친다).
-            filteredOut={file.filtered_out}
+            // 오탐으로 제외한 항목은 미리보기에서도 가리지 않는다.
+            //
+            // 예전에는 "서버 사본도 어차피 같이 가리니 미리보기도 맞춘다"는 이유로 넘겼는데,
+            // 실측(2026-09-20, 고객명단.xlsx)해 보니 서버 사본은 이 항목들을 **가리지 않는다** —
+            // 제외된 사업자번호·카드번호·계좌번호가 masked_text에 원문 그대로 남아 있었다.
+            // 그래서 넘기면 미리보기만 다운로드 사본보다 과하게 칠해져, 화면에서 체크를 푼
+            // 항목이 "마스킹된 문서 보기"에서는 다 가려진 것처럼 보였다.
+            //
+            // 오탐 제거가 이 제품의 핵심 주장이라, 그 항목이 가려진 것처럼 보이는 건
+            // 주장 자체를 무너뜨린다.
             selectedId={finding?.id}
             masked={maskedPreview}
             maskedText={file.masked_text}
