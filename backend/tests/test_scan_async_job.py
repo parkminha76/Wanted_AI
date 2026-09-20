@@ -39,6 +39,13 @@ def _fake_scan_files(paths, **kwargs):
 class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         shutil.rmtree(main._SCAN_JOB_DIR, ignore_errors=True)
+        # _persist_scan_results는 실제 원격 DB(TiDB)에 쓴다 — 이 유닛 테스트는 job
+        # 저장소(디스크 파일) 동작만 검증하면 되고, DB 도달 가능 여부에 좌우되면 안
+        # 된다. 실측(2026-09-20): DB가 응답 없을 때 연결 타임아웃만 50초 넘게 걸려
+        # 이 테스트들의 폴링 대기(15초)를 넘겨 실패했다 — 이 파일이 원인이 아니었다.
+        patcher = patch.object(main, "_persist_scan_results")
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     async def test_submit_then_poll_returns_the_same_shape_as_sync_scan(self) -> None:
         upload = UploadFile(io.BytesIO(b"hello world"), filename="a.txt")

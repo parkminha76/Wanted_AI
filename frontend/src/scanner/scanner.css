@@ -1104,14 +1104,12 @@
 .docx-preview-host .hit {
   background: #fbe4e1;
   color: #8a2c22 !important;
-  color: #8a2c22 !important;
 }
 
 .paper__body .hit--hidden,
 .sheet-grid .hit--hidden,
 .docx-preview-host .hit--hidden {
   background: #fbe8cf;
-  color: #8a5a12 !important;
   color: #8a5a12 !important;
 }
 
@@ -1156,6 +1154,7 @@
 
 .image-preview__stage {
   position: relative;
+  container-type: inline-size;
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
@@ -1182,6 +1181,10 @@
   border: 2px solid var(--color-risk-high);
   border-radius: 3px;
   background: color-mix(in srgb, var(--color-risk-high) 20%, transparent);
+  /* 형광펜처럼 곱하기로 얹는다. 반투명이라도 상자가 여러 개 겹치면 알파가 쌓여
+     밑의 글자를 덮어버리는데(실측 2026-09-20, 아이폰 계약서.pdf 1쪽의 담당자
+     연락처·입금 계좌), multiply는 아무리 겹쳐도 글자가 색보다 더 어두워서 남는다. */
+  mix-blend-mode: multiply;
   pointer-events: none;
 }
 
@@ -1208,19 +1211,19 @@
    자리"라는 하나의 뜻을 서로 다르게 표시하는 셈이라 통일한다). 원본 글자 상자보다
    라벨이 넓을 수 있어(전화번호 상자는 좁은데 "[전화번호]"는 김) overflow를 열어 상자
    밖으로 자연스럽게 삐져나오게 한다. */
+/* 가려진 자리 표시 — 글자는 넣지 않는다.
+   마스킹 사본 자체에 서버가 칸 너비에 맞춰 [회사]·[전화] 같은 짧은 라벨을 이미 그려
+   넣는다(mask.py의 _PDF_PLACEHOLDERS, _pdf_font_size). 그 위에 화면에서 같은 뜻의
+   라벨을 한 번 더 얹었더니 칸보다 커져서 잘리고 옆 줄까지 덮었다(실측 2026-09-20,
+   아이폰과 PC 모두 `[사업자등록번호]`가 `사업사능목번호`로 잘렸다).
+   그래서 여기서는 "이 자리가 가려졌다"는 옅은 표시만 하고, 무엇으로 가렸는지는
+   사본에 이미 찍혀 있는 라벨이 그대로 읽히게 둔다. */
 .image-hit--redacted {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
+  border: 1px solid color-mix(in srgb, #1a5a86 35%, transparent);
   border-radius: 3px;
-  background: #e6f0fa;
-  color: #1a5a86;
-  font-size: 10px;
-  font-weight: var(--font-weight-bold);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: visible;
+  background: color-mix(in srgb, #1a5a86 12%, transparent);
+  /* 사본에 찍힌 라벨이 이 표시 밑에서 그대로 읽혀야 한다. */
+  mix-blend-mode: multiply;
 }
 
 .image-preview__note {
@@ -1248,6 +1251,8 @@
 
 .rendered-page__stage {
   position: relative;
+  /* 안에 올리는 탐지 상자·가림 라벨이 쪽 그림의 폭(cqw)을 기준으로 크기를 잡는다. */
+  container-type: inline-size;
   border: 1px solid var(--color-border);
   background: #fff;
   box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
@@ -1396,6 +1401,24 @@
   overflow-wrap: anywhere;
 }
 
+/* 좁은 화면에서는 칸 하나가 상자 폭을 거의 다 먹어서 한 열밖에 안 보였다(실측
+   2026-09-20, 아이폰 고객명단.xlsx: 스크롤 상자 262px에 칸 최소폭 112px + 여백 24px).
+   표는 "어느 칸에 무엇이 있었나"를 보여주는 것이 목적이라 글자를 조금 줄이고
+   여백을 좁혀 한 화면에 더 담는다. */
+@media (max-width: 767px) {
+  .sheet-grid {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .sheet-grid th,
+  .sheet-grid td {
+    min-width: 4.5rem;
+    max-width: 11rem;
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
 .sheet-grid thead th {
   position: sticky;
   top: 0;
@@ -1501,6 +1524,21 @@
   color: var(--color-risk-high) !important;
   opacity: 1 !important;
   letter-spacing: normal !important;
+  /* 줄 높이도 같이 되돌린다. 글자만 키우면 원본의 line-height(실측: 1.33px)가 남아서
+     줄이 줄끼리 겹쳐 찍힌다. */
+  line-height: 1.5 !important;
+}
+
+/* DOCX에서만 한 줄을 통째로 차지하게 한다.
+   숨긴 명령은 0pt짜리 span 안에 들어 있어서, 그 줄 상자의 높이가 0이고 폭이 32px다(실측
+   2026-09-20, 숨은명령.docx). 글자를 읽을 수 있게 키우면 206px짜리 글이 그 0짜리 자리에
+   얹혀 위아래 표를 덮어썼다. 블록으로 만들면 자기 높이만큼 자리를 차지해 뒤 내용을 밀어낸다. */
+.docx-preview-host .hit--hidden {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-1) 0;
+  overflow-wrap: anywhere;
 }
 
 .hit--other {

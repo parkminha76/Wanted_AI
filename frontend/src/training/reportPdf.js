@@ -352,7 +352,7 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   page.drawText('훈련 정보', { x: infoX, y: 699, size: 8.5, font, color: COLORS.text })
   const compactDate = generatedDate.replace(/\s/g, '')
   const trainingInfo = [
-    `훈련 레벨 : Level ${report.level}`,
+    `훈련 Case : Case ${report.level}`,
     `시나리오 : ${report.scenario_title || '-'}`,
     `점수 : ${scoreLabel}`,
     `등급 : ${report.grade || '-'}`,
@@ -368,8 +368,8 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   drawVerticalDivider(page, 220, 565, 58)
   drawVerticalDivider(page, 392, 565, 58)
   const centers = [133, 306, 470]
-  const values = [`Level ${report.level}`, scoreLabel, report.grade || '-']
-  const labels = ['훈련 레벨', '점수', '등급']
+  const values = [`Case ${report.level}`, scoreLabel, report.grade || '-']
+  const labels = ['훈련 Case', '점수', '등급']
   values.forEach((value, index) => {
     const valueColor = index === 2 ? (GRADE_TONE[report.grade] || COLORS.muted) : index === 1 ? COLORS.cyanStrong : COLORS.text
     drawCenteredText(page, font, value, {
@@ -432,7 +432,7 @@ function drawConversationHeader(page, font, logo, report) {
     color: COLORS.text,
   })
   const scenario = report.scenario_title || '시나리오 정보 없음'
-  drawWordSpacedText(page, font, `Level ${report.level} · ${scenario}`, {
+  drawWordSpacedText(page, font, `Case ${report.level} · ${scenario}`, {
     x: MARGIN,
     y: 679,
     size: 9.5,
@@ -619,7 +619,7 @@ export async function createTrainingReportPdf(report, fontBytes) {
   const pages = pdfDoc.getPages()
   pages.forEach((page, index) => drawFooter(page, font, index + 1, pages.length))
 
-  pdfDoc.setTitle(`DocX-ray Training Level ${report.level} Result`)
+  pdfDoc.setTitle(`DocX-ray Training Case ${report.level} Result`)
   pdfDoc.setAuthor('DocX-ray')
   pdfDoc.setSubject('AI Security Training Report')
 
@@ -635,7 +635,7 @@ export async function downloadTrainingReportPdf(report) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `DocX-ray_Training_Level${report.level}_Result.pdf`
+  link.download = `DocX-ray_Training_Case${report.level}_Result.pdf`
   document.body.appendChild(link)
   link.click()
   link.remove()

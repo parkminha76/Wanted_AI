@@ -748,13 +748,33 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
             )
         )
 
-    occupied = {(sheet, column, row) for sheet, column, row, _ in cells}
     headers: dict[tuple[str, str], list[tuple[int, str]]] = {}
     for sheet, column, row, span in cells:
         risk_type = _XLSX_SENSITIVE_HEADERS.get(span.text.strip())
         if risk_type is None:
             continue
         headers.setdefault((sheet, column), []).append((row, risk_type))
+
+    # 열 안에 빈 줄(구멍)이 있으면 헤더가 그 뒤 셀까지 이어진다고 보지 않는다
+    # (아래 range 검사). 실측(2026-09-20, 5만 셀짜리 XLSX): 행마다 "헤더 다음 줄부터
+    # 지금 줄까지 전부 채워져 있는지"를 매번 range()로 다시 훑어(occupied 집합
+    # 조회 자체는 O(1)이지만 훑는 길이가 헤더로부터의 거리만큼 늘어나) 10,000행에서
+    # 330초가 걸렸다(누적하면 O(행 수²)). 열별로 채워진 행 번호를 한 번만 정렬해
+    # 두면, "그 구간 안에 채워진 행이 몇 개인지"를 이진 탐색 두 번으로 세서
+    # (구간 길이와 같은지 비교) 같은 결과를 O(log n)에 낸다.
+    occupied_rows_by_col: dict[tuple[str, str], list[int]] = {}
+    for sheet, column, row, _ in cells:
+        occupied_rows_by_col.setdefault((sheet, column), []).append(row)
+    for rows in occupied_rows_by_col.values():
+        rows.sort()
+
+    def _column_fully_occupied(sheet: str, column: str, after_row: int, through_row: int) -> bool:
+        if through_row <= after_row:
+            return True
+        rows = occupied_rows_by_col.get((sheet, column), [])
+        lo = bisect.bisect_right(rows, after_row)
+        hi = bisect.bisect_right(rows, through_row)
+        return (hi - lo) == (through_row - after_row)
 
     findings = []
     for sheet, column, row, span in cells:
@@ -763,7 +783,7 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
         value = span.text.strip()
         if header is None or not value:
             continue
-        if not all((sheet, column, current) in occupied for current in range(header[0] + 1, row + 1)):
+        if not _column_fully_occupied(sheet, column, header[0], row):
             continue
         if header[1] == "person" and not _PLAUSIBLE_PERSON_NAME.match(value):
             continue
@@ -789,11 +809,30 @@ def _xlsx_ner_input(text: str, spans, findings: list[Finding]) -> str:
     사람명·회사명·장소가 자유 문장에 들어 있을 수 있으므로 그대로 둔다. 문자열
     길이와 줄/탭 위치는 바꾸지 않아 NER offset은 원문 기준으로 유지된다.
     """
-    covered = [(item.start, item.end) for item in findings]
+    # 실측(2026-09-20, 셀 5만 개짜리 XLSX): span마다 covered(이미 확정된 findings)
+    # 전체를 선형으로 훑어(O(span 수 × findings 수)) 10,000행에서 330초가 걸렸다
+    # (rules.find_all의 not_overlapping과 같은 패턴 — 그쪽 수정과 동일하게 고친다).
+    # covered를 시작 위치로 정렬하고 접두사 최댓값을 이진 탐색하면 span마다
+    # O(log n)으로 줄어든다.
+    covered = sorted((item.start, item.end) for item in findings)
+    covered_starts = [s for s, _ in covered]
+    covered_prefix_max_end = []
+    running_max = float("-inf")
+    for _, e in covered:
+        running_max = max(running_max, e)
+        covered_prefix_max_end.append(running_max)
+
+    def _fully_covered(span_start: int, span_end: int) -> bool:
+        # covered 중 start <= span_start인 것들 안에서 end >= span_end인 게 있는지
+        # 찾는다. start <= span_start인 항목은 정렬된 목록의 앞쪽 [0, upper)에
+        # 몰려 있고, 그 구간의 가장 먼 end는 이미 접두사 최댓값으로 갖고 있다.
+        upper = bisect.bisect_right(covered_starts, span_start)
+        return upper > 0 and covered_prefix_max_end[upper - 1] >= span_end
+
     masked = list(text)
     for span in spans:
         value = span.text
-        already_found = any(start <= span.start and span.end <= end for start, end in covered)
+        already_found = _fully_covered(span.start, span.end)
         needs_ner = not already_found and bool(re.search(r"[가-힣]", value))
         if needs_ner:
             continue
@@ -822,12 +861,15 @@ def scan_text(
     # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다. 텍스트가 너무 크면
     # (로그·CSV 등) 사람·회사명 탐지를 포기하고 규칙 기반 탐지만 돈다 —
     # _NER_MAX_TEXT_LENGTH 주석 참고.
+    ner_skipped_for_size = False
     if ner is not None and hasattr(ner, "detect"):
         ner_text = text
         if meta.get("file_type") == "xlsx" and meta.get("spans"):
             ner_text = _xlsx_ner_input(text, meta["spans"], findings)
         if len(ner_text) <= _NER_MAX_TEXT_LENGTH:
             findings += [_raw_to_finding(d, "ner") for d in ner.detect(ner_text)]
+        else:
+            ner_skipped_for_size = True
 
     # 3. 숨은 텍스트. 파서가 준 서식 정보(spans)가 있으면 흰 글씨·0pt·숨김 속성까지
     # 보고, 없으면(훈련 모드의 실시간 답장 스캔) 문자열만으로 제로폭·Bidi·태그
@@ -873,6 +915,15 @@ def scan_text(
         findings=findings,
         filtered_out=filtered_out,
     )
+    # 검사 자체는 정상적으로 끝났으니 error가 아니라 notice — action_guide를 지우지
+    # 않는다. 정규식 기반 탐지(전화번호·이메일·주민등록번호 등)는 그대로 다 돌았고,
+    # 사람·회사명·비정형 주소처럼 문맥으로 판단하는 항목만 못 봤다는 사실만 알린다.
+    if ner_skipped_for_size:
+        result.notice = (
+            "텍스트가 커서(100KB 초과) 정규식으로 찾는 개인정보(전화번호·이메일·"
+            "주민등록번호 등)는 그대로 검사했지만, 문맥으로 판단하는 사람·회사명 "
+            "탐지는 생략했습니다."
+        )
 
     # 마스킹 사본 — masking 모듈이 아직 없으면 원문 그대로 둔다.
     if mask is not None and hasattr(mask, "build"):
@@ -927,6 +978,36 @@ def _scan_image(doc) -> ScanResult:
     # 비어 있으므로 doc.path로 떨어진다.
     image_paths = getattr(doc, "image_paths", None) or [doc.path]
 
+    # 스캔본 PDF가 페이지 상한(parse.py의 _PDF_SCANNED_MAX_PAGES)을 넘으면 parse.py가
+    # 뒤쪽 쪽을 아예 안 굽는다(렌더링·OCR 비용을 안 들이려고). 검사 안 한 쪽을
+    # 조용히 "안전"으로 보이면 안 되므로 결과에 남긴다. error가 아니라 notice로
+    # 남기는 이유: 앞쪽 쪽의 검사 자체는 정상적으로 끝났고 그 결과도 믿을 수
+    # 있으므로(quality_errors의 "여러 얼굴"과 달리 검사 품질 문제가 아니다),
+    # action_guide(우선 조치 카드)를 지울 이유가 없다.
+    skipped_pages = getattr(doc, "skipped_page_count", 0)
+    if skipped_pages:
+        result.notice = f"OCR이 필요한 PDF는 처음 {len(image_paths)}쪽까지만 분석합니다(뒤 {skipped_pages}쪽 제외)."
+
+    # 사용자가 올린 사진이 해상도 상한을 넘어 축소한 뒤 검사됐으면(parse.py의
+    # _downscale_image_if_oversized), CNN/OCR이 돌려주는 bbox는 축소본 픽셀
+    # 좌표다. 마스킹(mask.build_file)은 화질 손실 없이 **원본 파일**을 그대로
+    # 칠하므로, 좌표를 원본 해상도 기준으로 되돌려 두지 않으면 엉뚱한(더 작고
+    # 왼쪽 위로 치우친) 자리를 지운다 — 스캔본 PDF는 반대로 mask.py가 CNN이 본
+    # 그림을 그대로 칠하므로("좌표 환산이 없다") 이 되돌림이 필요 없다(그쪽은
+    # image_downscale_ratio가 1.0으로 남는다).
+    downscale_ratio = getattr(doc, "image_downscale_ratio", 1.0)
+    if downscale_ratio != 1.0:
+        result.notice = (
+            "고해상도 이미지는 빠르고 안정적인 검사를 위해 장변 1,400px 기준으로 "
+            "축소해 분석했습니다."
+        )
+
+    def _rescale(raw: dict) -> dict:
+        bbox = raw.get("bbox")
+        if downscale_ratio != 1.0 and bbox:
+            raw = {**raw, "bbox": tuple(coord * downscale_ratio for coord in bbox)}
+        return raw
+
     if id_detector is not None and hasattr(id_detector, "detect"):
         have_detector = True
         id_checked = True
@@ -949,6 +1030,7 @@ def _scan_image(doc) -> ScanResult:
                 # page를 1로 고정해 돌려주므로 여기서 실제 쪽 번호로 덮어쓴다 —
                 # 안 그러면 3쪽의 주민번호가 화면에서 1쪽으로 표시되고, 마스킹도
                 # 엉뚱한 페이지를 지운다.
+                raw = _rescale(raw)
                 raw["page"] = page_number
                 findings.append(_raw_to_finding(raw, "cnn"))
 
@@ -977,6 +1059,7 @@ def _scan_image(doc) -> ScanResult:
         have_detector = True
         for page_number, image_path in enumerate(image_paths, start=1):
             for raw in text_ocr.detect(image_path):
+                raw = _rescale(raw)
                 raw["page"] = page_number
                 # text_ocr이 실제 판정 단계("rule"/"ner"/"classifier")를 함께 돌려준다
                 # (scan_text를 그대로 태운 결과이기 때문이다). 없으면 "rule"로 둔다.

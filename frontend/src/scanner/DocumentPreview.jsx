@@ -551,14 +551,16 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
                       // "[유형]" 글자를 그 위에 올린다 — 유형별 색·선택 강조는 원문 보기에서만
                       // 의미가 있어 그대로 두지 않는다(값 자체를 다시 드러내지는 않는다).
                       return masked ? (
+                        // 라벨 글자는 그리지 않는다 — 마스킹 사본 자체에 서버가 칸 너비에
+                        // 맞춰 [회사]·[전화] 같은 짧은 라벨을 이미 그려 넣었다(mask.py의
+                        // _PDF_PLACEHOLDERS). 그 위에 같은 뜻의 라벨을 한 번 더 얹으면서
+                        // 칸보다 커져 잘리고 옆 줄까지 덮었다(실측 2026-09-20, 아이폰·PC 둘 다).
                         <span
                           key={finding.id}
                           className="image-hit image-hit--redacted"
                           style={boxStyle}
                           aria-label={`${finding.label} 가려짐`}
-                        >
-                          [{finding.label}]
-                        </span>
+                        />
                       ) : (
                         <mark
                           key={finding.id}
@@ -735,12 +737,35 @@ function fitDocxToContainer(container) {
   const wrapper = container.querySelector('.docx-preview-wrapper')
   const page = container.querySelector('.docx-preview')
   if (!wrapper || !page) return
+  // 다시 재기 전에 지난번에 건 축소를 모두 푼다 — 안 그러면 이미 줄어든 크기를 기준으로
+  // 또 줄여서 갈수록 작아진다.
   wrapper.style.zoom = ''
+  wrapper.style.transform = ''
+  wrapper.style.transformOrigin = ''
+  wrapper.style.width = ''
+  wrapper.style.height = ''
+
   const availableWidth = container.clientWidth
   const pageWidth = page.offsetWidth
   if (!availableWidth || !pageWidth) return
   const scale = Math.min(1, (availableWidth - 4) / pageWidth)
+  if (scale >= 1) return
+
+  const naturalHeight = wrapper.offsetHeight
   wrapper.style.zoom = String(scale)
+
+  // zoom이 실제로 먹었는지 재서 확인한다. 안 먹는 브라우저에서는 A4 폭(약 794px)짜리
+  // 문서가 그대로 좁은 상자 안에 들어가, 표의 칸이 한 글자씩 세로로 쪼개지고 문서 끝의
+  // 숨은 명령이 서로 겹쳐 읽을 수 없었다(실측 2026-09-20, 아이폰 숨은명령.docx).
+  if (page.getBoundingClientRect().width <= availableWidth) return
+
+  // transform은 그려지는 크기만 줄이고 레이아웃 크기는 원래대로 남긴다 — 스크롤 영역이
+  // 원본 크기로 잡히지 않도록 줄어든 크기를 직접 적어 준다.
+  wrapper.style.zoom = ''
+  wrapper.style.transformOrigin = 'top left'
+  wrapper.style.transform = `scale(${scale})`
+  wrapper.style.width = `${pageWidth * scale}px`
+  if (naturalHeight) wrapper.style.height = `${naturalHeight * scale}px`
 }
 
 // 렌더된 문서 텍스트 안에서 각 finding이 실제로 나온 자리를 찾는다. finding.start(raw_text
@@ -919,9 +944,7 @@ function ImagePreview({ title, file, findings, filteredOut = [], selectedId, mas
                 className="image-hit image-hit--redacted"
                 style={boxStyle}
                 aria-label={`${finding.label} 가려짐`}
-              >
-                [{finding.label}]
-              </span>
+              />
             ) : (
               <mark
                 key={finding.id}

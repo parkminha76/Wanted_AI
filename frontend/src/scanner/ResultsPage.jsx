@@ -115,6 +115,14 @@ export default function ResultsPage({ batch, file, fileIndex, onSelectFile, onSe
           {file.error}
         </p>
       )}
+      {/* notice: 검사는 정상적으로 끝났지만 범위가 줄었다는 사실만 알리는 안내다(예: 고해상도
+          이미지 축소 분석, 스캔본 PDF 일부 쪽만 OCR, 대용량 텍스트 이름·회사명 탐지 생략).
+          error와 달리 판정(verdict)은 그대로 믿을 수 있으므로 옅은 톤(alert--info)으로 구분한다. */}
+      {file.notice && (
+        <p className="alert alert--info">
+          {file.notice}
+        </p>
+      )}
 
       {/* ① 판정. 문구는 서버가 만든다(schema.build_action_guide) — 화면마다 다른 말을 하지 않게. */}
       <section id="verdict" className={`verdict verdict--${clean ? 'low' : file.level} rv`} aria-label="검사 판정">
