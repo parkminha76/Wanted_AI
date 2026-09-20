@@ -1211,26 +1211,19 @@
    자리"라는 하나의 뜻을 서로 다르게 표시하는 셈이라 통일한다). 원본 글자 상자보다
    라벨이 넓을 수 있어(전화번호 상자는 좁은데 "[전화번호]"는 김) overflow를 열어 상자
    밖으로 자연스럽게 삐져나오게 한다. */
+/* 가려진 자리 표시 — 글자는 넣지 않는다.
+   마스킹 사본 자체에 서버가 칸 너비에 맞춰 [회사]·[전화] 같은 짧은 라벨을 이미 그려
+   넣는다(mask.py의 _PDF_PLACEHOLDERS, _pdf_font_size). 그 위에 화면에서 같은 뜻의
+   라벨을 한 번 더 얹었더니 칸보다 커져서 잘리고 옆 줄까지 덮었다(실측 2026-09-20,
+   아이폰과 PC 모두 `[사업자등록번호]`가 `사업사능목번호`로 잘렸다).
+   그래서 여기서는 "이 자리가 가려졌다"는 옅은 표시만 하고, 무엇으로 가렸는지는
+   사본에 이미 찍혀 있는 라벨이 그대로 읽히게 둔다. */
 .image-hit--redacted {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
+  border: 1px solid color-mix(in srgb, #1a5a86 35%, transparent);
   border-radius: 3px;
-  background: #e6f0fa;
-  color: #1a5a86;
-  /* 가림 상자는 형광펜이 아니라 덮개다 — .image-hit의 multiply를 물려받으면 안 된다. */
-  mix-blend-mode: normal;
-  /* 라벨 크기는 쪽 그림의 실제 폭을 따라간다. 10px 고정이던 시절에는 모바일처럼
-     쪽이 작게 그려질수록 라벨만 상대적으로 커져서, `[사업자등록번호]` 하나가 표의
-     옆 줄까지 덮어 원문을 읽을 수 없었다(실측 2026-09-20, 아이폰 계약서.pdf).
-     상자를 넘치던 overflow: visible도 같은 이유로 잘라낸다 — 가린 자리를 알리는
-     것이 목적이지, 라벨이 옆 내용을 가리면서까지 다 보일 필요는 없다. */
-  font-size: clamp(7px, 2.4cqw, 10px);
-  font-weight: var(--font-weight-bold);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
+  background: color-mix(in srgb, #1a5a86 12%, transparent);
+  /* 사본에 찍힌 라벨이 이 표시 밑에서 그대로 읽혀야 한다. */
+  mix-blend-mode: multiply;
 }
 
 .image-preview__note {
@@ -1531,6 +1524,21 @@
   color: var(--color-risk-high) !important;
   opacity: 1 !important;
   letter-spacing: normal !important;
+  /* 줄 높이도 같이 되돌린다. 글자만 키우면 원본의 line-height(실측: 1.33px)가 남아서
+     줄이 줄끼리 겹쳐 찍힌다. */
+  line-height: 1.5 !important;
+}
+
+/* DOCX에서만 한 줄을 통째로 차지하게 한다.
+   숨긴 명령은 0pt짜리 span 안에 들어 있어서, 그 줄 상자의 높이가 0이고 폭이 32px다(실측
+   2026-09-20, 숨은명령.docx). 글자를 읽을 수 있게 키우면 206px짜리 글이 그 0짜리 자리에
+   얹혀 위아래 표를 덮어썼다. 블록으로 만들면 자기 높이만큼 자리를 차지해 뒤 내용을 밀어낸다. */
+.docx-preview-host .hit--hidden {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-1) 0;
+  overflow-wrap: anywhere;
 }
 
 .hit--other {
