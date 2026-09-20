@@ -71,10 +71,10 @@ export default function SimulationPage({ training, navigate }) {
       <div className="container simulation-page">
         <Card
           title="진행 중인 훈련이 없습니다"
-          description="훈련 모드에서 레벨을 선택해 시작해 주세요."
+          description="훈련 모드에서 상황을 선택해 시작해 주세요."
         >
           <Button onClick={() => navigate('training')}>
-            레벨 고르러 가기
+            상황 고르러 가기
           </Button>
         </Card>
       </div>
@@ -166,7 +166,7 @@ export default function SimulationPage({ training, navigate }) {
           <p className="eyebrow">AI SECURITY TRAINING</p>
 
           <h1 className="page-title">
-            Level {training.level} · {levelInfo.title}
+            Case {training.level} · {levelInfo.title}
           </h1>
 
           <p className="page-desc">
@@ -183,7 +183,7 @@ export default function SimulationPage({ training, navigate }) {
 
         <div className="sim-progress">
           <p>
-            <b>Level {training.level}</b> / 5
+            <b>Case {training.level}</b> / 5
           </p>
 
           <p>
