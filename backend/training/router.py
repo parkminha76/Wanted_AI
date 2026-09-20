@@ -20,6 +20,7 @@ from backend.training.training_service import (
     calculate_training_score,
     finish_training,
     grade_training_score,
+    finish_unscored_training,
 )
 
 
@@ -121,6 +122,35 @@ def _complete_training(
     return report
 
 
+def _complete_unscored_training(
+    *,
+    db: Session,
+    training_progress_id: int,
+    session: dict,
+) -> dict:
+    finish_unscored_training(db, training_progress_id)
+    report = {
+        "training_progress_id": training_progress_id,
+        "level": session["level"],
+        "scenario_id": session["scenario_id"],
+        "scenario_title": session["scenario"]["name"] if session.get("scenario") else None,
+        "score": None,
+        "grade": "평가 불가",
+        "evaluation_status": "insufficient_responses",
+        "risky_actions": [],
+        "good_actions": [],
+        "improvements": ["실제 상황에서 취할 대응을 문장으로 입력한 뒤 다시 훈련해 보세요."],
+        "summary": "의미 있는 답변이 충분하지 않아 이번 훈련은 점수를 산정하지 않았습니다.",
+        "conversation": [
+            {"role": message["role"], "content": message["content"]}
+            for message in session["history"]
+        ],
+    }
+    _training_reports[training_progress_id] = report
+    _training_sessions.pop(training_progress_id, None)
+    return report
+
+
 @router.post("/start")
 def start_training_api(
     request: TrainingStartRequest,
@@ -191,12 +221,13 @@ def reply_training_api(
 
     try:
         # Defender 호출만 실패한 경우 사용자가 같은 원문을 다시 보낼 필요 없이 재시도한다.
-        if session["status"] == "awaiting_report":
-            _complete_training(
-                db=db,
-                training_progress_id=training_progress_id,
-                session=session,
+        if session["status"] in {"awaiting_report", "awaiting_unscored_report"}:
+            complete = (
+                _complete_unscored_training
+                if session["status"] == "awaiting_unscored_report"
+                else _complete_training
             )
+            complete(db=db, training_progress_id=training_progress_id, session=session)
             return {
                 "training_progress_id": training_progress_id,
                 "turn_no": session["turn_no"],
@@ -206,9 +237,15 @@ def reply_training_api(
 
         turn_no = session["turn_no"]
         result = process_user_reply(session=session, user_reply=request.text)
-        _record_training_event(db, training_progress_id, turn_no, result["shared_fields"])
+        if result["is_evaluable"]:
+            _record_training_event(db, training_progress_id, turn_no, result["shared_fields"])
         if result["is_finished"]:
-            _complete_training(
+            complete = (
+                _complete_unscored_training
+                if result["evaluation_status"] == "insufficient_responses"
+                else _complete_training
+            )
+            complete(
                 db=db,
                 training_progress_id=training_progress_id,
                 session=session,
@@ -230,6 +267,8 @@ def reply_training_api(
             "turn_no": result["turn_no"],
             "is_finished": result["is_finished"],
             "attacker_message": next_message,
+            "evaluation_status": result["evaluation_status"],
+            "invalid_reply_count": result["invalid_reply_count"],
         }
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -261,9 +300,14 @@ def get_training_report_api(
         return report
 
     session = _training_sessions.get(training_progress_id)
-    if session and session["status"] == "awaiting_report":
+    if session and session["status"] in {"awaiting_report", "awaiting_unscored_report"}:
         try:
-            return _complete_training(
+            complete = (
+                _complete_unscored_training
+                if session["status"] == "awaiting_unscored_report"
+                else _complete_training
+            )
+            return complete(
                 db=db,
                 training_progress_id=training_progress_id,
                 session=session,
@@ -313,6 +357,7 @@ def get_training_stats(
         .filter(
             TrainingProgress.level == level,
             TrainingProgress.completed_at.isnot(None),
+            TrainingProgress.status == "완료",
         )
         .all()
     ]
