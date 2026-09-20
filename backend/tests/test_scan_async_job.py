@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 import time
 import unittest
 from unittest.mock import patch
@@ -37,7 +38,7 @@ def _fake_scan_files(paths, **kwargs):
 
 class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        main._scan_jobs.clear()
+        shutil.rmtree(main._SCAN_JOB_DIR, ignore_errors=True)
 
     async def test_submit_then_poll_returns_the_same_shape_as_sync_scan(self) -> None:
         upload = UploadFile(io.BytesIO(b"hello world"), filename="a.txt")
@@ -59,11 +60,43 @@ class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status["result"]["results"][0]["filename"], "a.txt")
         self.assertIn("masking_policy", status["result"])
 
+    async def test_job_is_visible_without_any_in_process_state(self) -> None:
+        """실측(2026-09-20, 배포 직후): Dockerfile이 uvicorn을 --workers 4로 띄우는데,
+        job 상태를 프로세스 dict에 두면 접수 요청과 상태 조회 요청이 서로 다른 워커로
+        갈 때 방금 만든 job을 못 찾아 404("작업을 찾을 수 없습니다")가 났다. 상태를
+        디스크 파일로 저장해 워커 프로세스가 달라도 보이는지 확인한다 — 이 테스트는
+        접수 워커의 메모리를 흉내 낼 방법이 없으므로, 대신 디스크에 남은 파일만으로
+        상태를 다시 읽어 올 수 있는지로 같은 계약을 검증한다.
+        """
+        upload = UploadFile(io.BytesIO(b"hello world"), filename="a.txt")
+        with patch.object(main.scan, "scan_files", side_effect=_fake_scan_files):
+            submitted = await main.scan_upload_async([upload], masking_policy_json=None, create_masked_copy=False)
+        job_id = submitted["job_id"]
+
+        deadline = time.time() + 5
+        while main._read_scan_job(job_id)["status"] == "running" and time.time() < deadline:
+            time.sleep(0.05)
+
+        # 프로세스 메모리를 전혀 거치지 않고 디스크에서 새로 읽는다 — 다른 워커
+        # 프로세스가 상태 조회를 처리하는 상황과 같다.
+        job = main._read_scan_job(job_id)
+        self.assertIsNotNone(job)
+        self.assertEqual(job["status"], "done")
+
     def test_unknown_job_id_returns_404(self) -> None:
         from fastapi import HTTPException
 
         with self.assertRaises(HTTPException) as ctx:
             main.scan_job_status("no-such-job")
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_path_traversal_job_id_is_rejected_not_found(self) -> None:
+        """job_id는 URL 경로에서 그대로 온다 — uuid4().hex 모양이 아니면 파일 경로로
+        조립하지 않는다(디스크 job 저장소로 바꾸며 새로 생긴 표면)."""
+        from fastapi import HTTPException
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.scan_job_status("../../etc/passwd")
         self.assertEqual(ctx.exception.status_code, 404)
 
     async def test_scan_failure_is_reported_as_error_status(self) -> None:

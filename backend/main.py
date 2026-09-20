@@ -38,6 +38,7 @@ from __future__ import annotations
 import logging
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -345,24 +346,71 @@ def _sweep_expired() -> None:
 # 타임아웃(5분) 둘 다 그보다 짧아 동기 응답으로는 절대 끝을 볼 수 없다. 요청을
 # 즉시 접수만 하고(job_id 발급) 실제 검사는 백그라운드에서 돌리며, 화면은
 # job_id로 상태를 주기적으로 물어본다(GET /scan/async/{job_id}).
+#
+# 상태를 프로세스 메모리(dict)에 두면 안 된다 — Dockerfile이 uvicorn을
+# --workers 4로 띄우므로 워커마다 별도 프로세스·별도 메모리다. 접수 요청과
+# 상태 조회 요청이 로드밸런서를 통해 서로 다른 워커로 가면(실측 2026-09-20,
+# 배포 직후: 제출은 성공했는데 곧바로 상태 조회가 "작업을 찾을 수 없습니다"
+# 404) 방금 만든 job을 다른 워커는 전혀 모른다. 컨테이너 안 모든 워커가
+# 공유하는 디스크에 파일로 써서 이 문제를 피한다.
+
+_SCAN_JOB_DIR = os.path.join(tempfile.gettempdir(), "infoguard_scan_jobs")
 
 
-@dataclass
-class _ScanJob:
-    status: Literal["running", "done", "error"]
-    created_at: float
-    result: dict | None = None
-    detail: str | None = None
+_SCAN_JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")  # uuid4().hex의 모양
 
 
-_scan_jobs: dict[str, _ScanJob] = {}
+def _scan_job_path(job_id: str) -> str:
+    # job_id는 GET /scan/async/{job_id}로 사용자 입력이 그대로 들어온다("../../etc/passwd" 등).
+    # uuid4().hex 모양이 아니면 경로를 조립하지 않는다.
+    if not _SCAN_JOB_ID_PATTERN.match(job_id):
+        raise ValueError("invalid job id")
+    return os.path.join(_SCAN_JOB_DIR, f"{job_id}.json")
+
+
+def _write_scan_job(job_id: str, status: str, result: dict | None = None, detail: str | None = None) -> None:
+    os.makedirs(_SCAN_JOB_DIR, exist_ok=True)
+    payload = {"status": status, "created_at": time.time(), "result": result, "detail": detail}
+    # 임시 파일에 먼저 쓰고 rename한다 — 다른 워커가 상태 조회 중에 쓰다 만 JSON을
+    # 읽지 않게 한다(os.replace는 같은 파일시스템 안에서 원자적이다).
+    tmp_path = _scan_job_path(job_id) + f".tmp{os.getpid()}"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    # Windows는 대상 파일을 다른 스레드가 마침 읽는 중이면 잠깐 rename을 거부한다
+    # (POSIX에서는 문제없이 원자적이다). 그 순간은 아주 짧으므로 몇 번만 재시도한다.
+    for attempt in range(5):
+        try:
+            os.replace(tmp_path, _scan_job_path(job_id))
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.05)
+
+
+def _read_scan_job(job_id: str) -> dict | None:
+    try:
+        path = _scan_job_path(job_id)
+    except ValueError:
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
 
 
 def _sweep_expired_jobs() -> None:
     deadline = time.time() - SCAN_JOB_TTL_SECONDS
-    for job_id, job in list(_scan_jobs.items()):
-        if job.created_at < deadline:
-            _scan_jobs.pop(job_id, None)
+    if not os.path.isdir(_SCAN_JOB_DIR):
+        return
+    for name in os.listdir(_SCAN_JOB_DIR):
+        path = os.path.join(_SCAN_JOB_DIR, name)
+        try:
+            if os.path.getmtime(path) < deadline:
+                _remove_quietly(path)
+        except OSError:
+            pass
 
 
 def _sweep_orphan_dirs() -> int:
@@ -684,7 +732,7 @@ async def scan_upload_async(
         raise
 
     job_id = uuid.uuid4().hex
-    _scan_jobs[job_id] = _ScanJob(status="running", created_at=time.time())
+    _write_scan_job(job_id, "running")
     file_count = len(files)
 
     def _worker() -> None:
@@ -693,9 +741,9 @@ async def scan_upload_async(
                 paths, display_name, file_types, input_bytes,
                 selected_policy, create_masked_copy, started, file_count,
             )
-            _scan_jobs[job_id] = _ScanJob(status="done", created_at=time.time(), result=body)
+            _write_scan_job(job_id, "done", result=body)
         except Exception:  # noqa: BLE001 — 백그라운드 스레드라 여기서 잡지 않으면 조용히 사라진다
-            _scan_jobs[job_id] = _ScanJob(status="error", created_at=time.time(), detail="검사 중 오류가 발생했습니다")
+            _write_scan_job(job_id, "error", detail="검사 중 오류가 발생했습니다")
         finally:
             # 제품 원칙: 업로드 원본은 저장하지 않는다. 스캔이 실패해도 지운다.
             shutil.rmtree(upload_dir, ignore_errors=True)
@@ -707,14 +755,14 @@ async def scan_upload_async(
 @app.get("/scan/async/{job_id}")
 def scan_job_status(job_id: str) -> dict:
     """진행 상태를 돌려준다. done이면 /scan과 같은 모양의 결과가 result에 들어 있다."""
-    job = _scan_jobs.get(job_id)
+    job = _read_scan_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="검사 작업을 찾을 수 없습니다")
-    body: dict = {"status": job.status}
-    if job.status == "done":
-        body["result"] = job.result
-    elif job.status == "error":
-        body["detail"] = job.detail
+    body: dict = {"status": job["status"]}
+    if job["status"] == "done":
+        body["result"] = job["result"]
+    elif job["status"] == "error":
+        body["detail"] = job["detail"]
     return body
 
 
