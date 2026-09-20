@@ -130,11 +130,14 @@ class ParsedDoc:
     # 구조적으로 생기지 않는다 (2026-09-12에 mask.py의 여러 쪽 빗장을 푼 근거다).
     image_paths: list[str] = field(default_factory=list)
 
-    # 구울 때 쓴 배율 = 그림 1픽셀당 PDF 좌표 몇 pt인지의 역수.
+    # 구울 때 쓴 배율(참고용) = 그림 1픽셀당 PDF 좌표 몇 pt인지의 역수.
     #
-    # CNN이 돌려주는 bbox는 **구워 낸 그림의 픽셀 좌표**라서, 그 PDF에 마스킹하려면
-    # 이 값으로 나눠 PDF 좌표(pt)로 되돌려야 한다. 이 숫자가 없으면 마스킹이 배율만큼
-    # 어긋난 자리를 지운다. masking/mask.py가 읽는다.
+    # masking/mask.py는 이 값을 실제로 읽지 않는다 — `_mask_scanned_pdf`가
+    # "CNN이 본 그림을 그대로 칠한 뒤 그 그림으로 페이지를 다시 만드는" 방식이라
+    # PDF 좌표(pt)로 되돌리는 계산 자체가 없다(그 함수의 "좌표 환산이 없다" 문단
+    # 참고). 2026-09-20부터 페이지가 크면 페이지별로 배율을 줄이므로(스캔본 PDF
+    # 문서 참고) 이 값은 "기본으로 쓰려던 배율"일 뿐, 실제 각 페이지의 배율과
+    # 다를 수 있다.
     image_scale: float = 1.0
 
 
@@ -182,6 +185,16 @@ _PDF_SCANNED_TEXT_THRESHOLD = 20
 # "640px는 넘는다"는 조건은 1.5배로 이미 충분히 만족하므로, 더 올려서 얻는
 # 탐지 이득 없이 OCR 시간만 낭비하고 있었다.
 _PDF_SCANNED_RENDER_ZOOM = 1.5
+
+# 렌더링 결과(긴 변 기준)의 절대 상한. 실측(2026-09-20, 원본 페이지 1600x2000
+# 문서): 배율만 고정해 두면 원본이 큰 만큼 렌더링 결과도 그만큼 커져(2400x3000,
+# 720만 픽셀) OCR이 한 페이지에 112초까지 걸렸다.
+#
+# A4 **세로**(842pt)를 1.5배 하면 1263px다 — 처음에 1200으로 잡았다가 A4 세로
+# 문서까지 살짝 깎이는 걸 테스트로 발견했다(848px로, 1.5배가 아니라 약
+# 1.425배가 됨). "흔한 문서 크기는 이 상한에 안 걸려야 한다"는 원래 의도를
+# 지키려면 A4 세로의 1263px보다는 커야 해서 1400으로 올렸다.
+_PDF_SCANNED_RENDER_MAX_DIMENSION = 1400
 
 # 구워 낸 페이지 그림을 담는 임시 폴더의 이름 앞머리.
 #
@@ -653,10 +666,25 @@ def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
         import pymupdf
 
         out_dir = tempfile.mkdtemp(prefix=_SCANNED_DIR_PREFIX)
-        matrix = pymupdf.Matrix(_PDF_SCANNED_RENDER_ZOOM, _PDF_SCANNED_RENDER_ZOOM)
         rendered: list[str] = []
         with pymupdf.open(path) as document:
             for number, page in enumerate(document, start=1):
+                # 원본 페이지 자체가 큰 스캔본(예: 고해상도로 찍은 사진을 그대로
+                # PDF에 박은 경우)은 고정 배율(1.5)을 그대로 곱하면 렌더링 결과가
+                # 수백만 픽셀까지 커진다. 실측(2026-09-20): 원본 페이지가 1600x2000인
+                # 문서가 1.5배로 2400x3000까지 커져, OCR 한 페이지에 112초가 걸렸다
+                # (같은 OCR이 800x400 원본에서는 몇 초면 끝난다 — 해상도가 문제다).
+                # id_detector(YOLO)가 필요로 하는 조건은 "긴 변이 640px는 넘어야
+                # 한다"이지 "배율이 몇 배여야 한다"가 아니므로, 배율 대신 렌더링
+                # 결과의 긴 변 상한을 직접 정하고 그 안에서 배율을 역산한다 — 원본이
+                # 작으면 기존처럼 1.5배 그대로, 원본이 크면 상한에 맞춰 배율을
+                # 줄인다. mask.py는 "CNN이 본 그림을 그대로 칠하는" 구조라(좌표
+                # 환산이 없다) 페이지마다 배율이 달라져도 안전하다.
+                page_long_side = max(page.rect.width, page.rect.height)
+                zoom = _PDF_SCANNED_RENDER_ZOOM
+                if page_long_side * zoom > _PDF_SCANNED_RENDER_MAX_DIMENSION:
+                    zoom = _PDF_SCANNED_RENDER_MAX_DIMENSION / page_long_side
+                matrix = pymupdf.Matrix(zoom, zoom)
                 target = os.path.join(out_dir, f"page{number:03d}.png")
                 page.get_pixmap(matrix=matrix).save(target)
                 rendered.append(target)
@@ -666,6 +694,9 @@ def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
     if not rendered:
         return
     doc.image_paths = rendered
+    # 참고용 값이다 — 페이지가 크면 위에서 페이지별로 배율을 줄이므로 실제 배율과
+    # 다를 수 있다. mask.py는 이 값을 좌표 환산에 쓰지 않는다("좌표 환산이 없다"
+    # 참고) — CNN이 본 그림을 그대로 칠하므로 페이지별 실제 배율과 무관하게 안전하다.
     doc.image_scale = _PDF_SCANNED_RENDER_ZOOM
     # `path`는 "그림 경로 하나"를 기대하는 쪽을 위한 자리다. 스캔본 PDF의 검사는
     # image_paths를 도는 쪽이 담당하므로 여기 담긴 첫 장은 대표값에 가깝다.
