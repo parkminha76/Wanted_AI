@@ -887,6 +887,10 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                   OCR이 필요한 PDF(스캔본)는 처음 8쪽까지 분석합니다.
                 </p>
               )}
+              <p className="dropzone-card__note">
+                텍스트가 100KB를 넘으면 전화번호·이메일·주민등록번호 등은 그대로 검사하되, 사람·회사명
+                탐지는 생략합니다.
+              </p>
 
               <div className="sample-cta" ref={sampleRef}>
                 <p className="sample-cta__text">문서가 없어도 바로 체험해 보기</p>
