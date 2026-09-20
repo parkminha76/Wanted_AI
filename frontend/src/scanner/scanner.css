@@ -1104,12 +1104,14 @@
 .docx-preview-host .hit {
   background: #fbe4e1;
   color: #8a2c22 !important;
+  color: #8a2c22 !important;
 }
 
 .paper__body .hit--hidden,
 .sheet-grid .hit--hidden,
 .docx-preview-host .hit--hidden {
   background: #fbe8cf;
+  color: #8a5a12 !important;
   color: #8a5a12 !important;
 }
 
@@ -1118,6 +1120,13 @@
 .docx-preview-host .hit--other {
   background: #e7e7e5;
   color: #3a352c !important;
+}
+
+/* 부분 마스킹 미리보기(.hit--standard)는 자기 !important로 위 규칙을 이기고 있었다.
+   위에 !important가 붙으면서 특이도가 낮은 쪽이 지므로 같은 자리에 다시 적어 둔다. */
+.paper__body .hit--standard,
+.sheet-grid .hit--standard {
+  color: var(--color-risk-medium) !important;
 }
 
 .paper__body .hit-excluded {
