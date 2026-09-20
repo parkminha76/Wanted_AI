@@ -17,6 +17,10 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 //
 // selection: { [finding.id]: 'full' | 'standard' } — 목록에 없는 항목은 가리지 않는다.
 // pages: 서버 ScanResult.pages([{ page, start, end, label }]). 2개 이상이면 쪽 카드로 나누고 쪽 이동 버튼을 붙인다.
+// 기본값으로 매번 새 []를 만들면 참조가 달라져서, 이 값을 의존성으로 쓰는 효과(DocxPreview)가
+// 부모가 렌더될 때마다 다시 돈다. 빈 배열은 하나만 만들어 돌려쓴다.
+const NO_FINDINGS = []
+
 export default function DocumentPreview({
   title,
   text = '',
@@ -32,7 +36,7 @@ export default function DocumentPreview({
   // 오탐으로 제외한 항목(위험도 점수엔 안 넣는 값들). 원문 보기(칠하기)에는 안 쓰지만, 마스킹
   // 사본은 서버가 이 값들도 같이 가려서 만든다 — 미리보기도 다운로드 사본과 같아지도록 마스킹
   // 대상에는 findings와 함께 포함한다.
-  filteredOut = [],
+  filteredOut = NO_FINDINGS,
 }) {
   const bodyRef = useRef(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
@@ -98,11 +102,23 @@ export default function DocumentPreview({
   }, [pagedSegments])
 
   // 항목을 고르면 그 위치로 미리보기 안에서만 스크롤한다(페이지 전체는 움직이지 않게).
+  //
+  // 이미 그 항목으로 옮겨 놨으면 다시 움직이지 않는다. masked가 의존성에 있어서 "원문 보기"를
+  // 누를 때도 이 효과가 같이 도는데, 그때 다시 스크롤하면 마스킹 보기에서 내려 읽던 자리를
+  // 잃는다. 특히 문서 앞쪽 항목이 골라져 있으면 Math.max(0, ...)가 0이 되어 맨 위로 튄다.
+  // masked를 의존성에서 빼지는 않는다 — 마스킹 보기에서 항목을 고르면 여기서 한 번 걸러지고,
+  // 원문으로 돌아올 때 그 항목으로 옮겨 주어야 한다.
+  const scrolledToRef = useRef(null)
   useEffect(() => {
     const box = bodyRef.current
     if (masked || !selectedId || !box) return
+    if (scrolledToRef.current === selectedId) return
+    // 표시가 아직 안 그려졌으면 기록하지 않는다 — 기록부터 하면 "이미 옮겼다"고 쳐서
+    // 정작 다음 렌더에서 건너뛰고, 항목 이동이 한 박자씩 밀린다.
     const mark = box.querySelector(`[data-finding-id="${selectedId}"]`)
-    if (mark) box.scrollTo({ top: Math.max(0, mark.offsetTop - box.clientHeight / 3), behavior: 'smooth' })
+    if (!mark) return
+    scrolledToRef.current = selectedId
+    box.scrollTo({ top: Math.max(0, mark.offsetTop - box.clientHeight / 3), behavior: 'smooth' })
   }, [selectedId, masked])
 
   function jumpToPageIndex(index) {
@@ -137,8 +153,8 @@ export default function DocumentPreview({
   // 직접 업로드한 원본은 브라우저 메모리에만 보관한다. 샘플 문서는 sampleFilename으로 받아 온
   // Blob이 여기 들어온다. PDF/DOCX도 이 File을 바로 렌더링하므로 서버에 미리보기 이미지를
   // 새로 저장하지 않는다. masked=true일 때도 같은 원본을 그대로 그리고, 탐지 위치만 다르게
-  // 표시한다(PDF는 검게 칠하고, DOCX는 텍스트를 [유형]으로 바꿔 끼운다) — 원문 보기와 같은
-  // 문서 형태를 유지하기 위해서다.
+  // 표시한다(PDF는 자리를 파란 태그로 칠하고, DOCX는 텍스트를 [유형]으로 바꿔 끼운다) —
+  // 원문 보기와 같은 문서 형태를 유지하기 위해서다.
   if (fileType === 'pdf' && effectiveSourceFile) {
     return (
       <PdfPreview
@@ -381,13 +397,43 @@ export default function DocumentPreview({
                     <div>{page.segments.map(renderSegment)}</div>
                   </section>
                 )))
-              : (fileType === 'csv'
-                ? renderSpreadsheetPage({ page: 1, label: 'CSV 데이터', segments }, 0, true)
+              // 쪽이 하나뿐인 XLSX(작은 파일이라 서버가 안 나눈 경우)도 CSV처럼 표로 그린다.
+              // 안 그러면 이 파일만 .paper__body--sheet(흰 상자를 지우고 안쪽 .sheet-scroll의
+              // 흰 배경에 기대는 모드)로 표시되면서 정작 표가 없어 안쪽 흰 배경도 없이 — 뒤에
+              // 비치는 어두운 앱 배경 그대로 "검게 나오는" 화면 전용 버그가 있었다.
+              : (fileType === 'csv' || fileType === 'xlsx'
+                ? renderSpreadsheetPage(
+                  { page: 1, label: fileType === 'csv' ? 'CSV 데이터' : '시트 데이터', segments },
+                  0,
+                  fileType === 'csv',
+                )
                 : segments.map(renderSegment)))}
         </div>
       </article>
     </div>
   )
+}
+
+// bbox는 원본 문서 좌표계를 그대로 쓴다. "PDF 페이지 밖 텍스트"처럼 일부러 페이지 경계
+// 바깥에 숨겨 둔 값은 bbox도 페이지 폭·높이를 벗어나서, 그대로 %로 바꾸면 100%를 넘어
+// 미리보기 상자 밖으로 삐져나오고 가로 스크롤이 생긴다(실측 2026-09-20). 화면에 보이는
+// 페이지 안쪽으로 잘라서 그린다 — 실제로 얼마나 벗어나 있었는지는 [유형] 라벨이 이미
+// 알려주므로, 상자 자체가 페이지 밖까지 넓어질 필요는 없다.
+function clampPercent(ratio) {
+  return Math.min(100, Math.max(0, ratio * 100))
+}
+
+function clampedBoxStyle(x0, y0, x1, y1, width, height) {
+  const left = clampPercent(x0 / width)
+  const top = clampPercent(y0 / height)
+  const right = clampPercent(x1 / width)
+  const bottom = clampPercent(y1 / height)
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    width: `${Math.max(0, right - left)}%`,
+    height: `${Math.max(0, bottom - top)}%`,
+  }
 }
 
 function PdfPreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
@@ -500,14 +546,19 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
                     <img src={page.image} alt={`${page.pageNumber}쪽 원본`} />
                     {boxes.map((finding) => {
                       const [x0, y0, x1, y1] = finding.bbox
-                      const boxStyle = {
-                        left: `${(x0 / page.width) * 100}%`, top: `${(y0 / page.height) * 100}%`,
-                        width: `${((x1 - x0) / page.width) * 100}%`, height: `${((y1 - y0) / page.height) * 100}%`,
-                      }
-                      // masked일 때는 실제 마스킹 사본처럼 위치만 검게 칠한다(유형별 색·선택 강조는
-                      // 원문 보기에서만 의미가 있다 — 가린 자리에는 "무엇인지"를 다시 드러내지 않는다).
+                      const boxStyle = clampedBoxStyle(x0, y0, x1, y1, page.width, page.height)
+                      // masked일 때는 DOCX/XLSX와 같은 파란 태그 배색으로 자리를 칠하고
+                      // "[유형]" 글자를 그 위에 올린다 — 유형별 색·선택 강조는 원문 보기에서만
+                      // 의미가 있어 그대로 두지 않는다(값 자체를 다시 드러내지는 않는다).
                       return masked ? (
-                        <span key={finding.id} className="image-hit image-hit--redacted" style={boxStyle} aria-label="가려진 영역" />
+                        <span
+                          key={finding.id}
+                          className="image-hit image-hit--redacted"
+                          style={boxStyle}
+                          aria-label={`${finding.label} 가려짐`}
+                        >
+                          [{finding.label}]
+                        </span>
                       ) : (
                         <mark
                           key={finding.id}
@@ -525,15 +576,18 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
           </div>
         )}
         <p className="image-preview__note">
-          {masked ? '검게 칠해진 영역이 가려진 개인정보입니다.' : '색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.'}
+          {masked ? '파란 태그로 바뀐 영역이 가려진 개인정보입니다.' : '색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.'}
         </p>
       </article>
     </div>
   )
 }
 
-function DocxPreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
+function DocxPreview({ title, file, findings, filteredOut = NO_FINDINGS, selectedId, masked = false }) {
   const containerRef = useRef(null)
+  // 같은 문서를 다시 그리는 것인지(토글·선택 바뀜) 다른 문서로 갈아탄 것인지(FileSwitcher) 가른다.
+  // 같은 문서일 때만 보던 자리를 되돌린다 — 새 문서는 첫 쪽 맨 위에서 시작해야 한다.
+  const lastFileRef = useRef(null)
   const [error, setError] = useState('')
   const [pageCount, setPageCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -542,30 +596,64 @@ function DocxPreview({ title, file, findings, filteredOut = [], selectedId, mask
     let cancelled = false
     let resizeObserver = null
     async function render() {
+      const container = containerRef.current
+      if (!container) return
+      // "원문 보기"를 누르면 masked가 바뀌어 이 효과가 다시 돈다. 상자를 곧바로 비우고
+      // renderDocx를 await 하면 .docx-preview-host(max-height 68vh, 고정 높이 아님)가 0으로
+      // 접혀서 문서 전체가 짧아지고, 브라우저는 줄어든 높이에 맞춰 창 스크롤을 끌어올린 채로
+      // 남는다. 그리는 동안만 높이를 붙잡아 두고, 상자 안에서 보던 위치도 같이 되돌린다.
+      const sameFile = lastFileRef.current === file
+      lastFileRef.current = file
+      const keptHeight = container.offsetHeight
+      const keptScrollTop = sameFile ? container.scrollTop : 0
+      container.style.minHeight = `${keptHeight}px`
+
+      // renderDocx()는 completion까지 시간이 걸리는데(개발 모드 StrictMode는 effect를 두 번
+      // 돌리기도 하고, selectedId가 마운트 직후 한 번 더 바뀌기도 한다), 그 사이 이 effect가
+      // cleanup되고 새 실행이 같은 container에 또 렌더링을 시작할 수 있다. container에 바로
+      // 그리면 두 실행이 끝나는 순서에 따라 옛 실행의 결과(칠하기 전 원문)가 새 실행의 결과 뒤에
+      // 끼어들어 "가끔 칠해지지 않은 것처럼" 보이는 화면 전용 경쟁 상태가 생긴다. 그래서 각
+      // 실행은 자기만의 조각(scratch)에 렌더링해 두고, 끝까지 취소되지 않은 실행만 그 조각을
+      // container에 옮겨 붙인다 — 쪽 나누기 계산에 실제 레이아웃이 필요해서 scratch도 화면에
+      // 붙여 두되(다른 형제 뒤에 조용히 쌓인다), 최종 결과가 갈리는 그 짧은 순간은 다음 페인트
+      // 전에 정리되어 눈에 보이지 않는다. (container.replaceChildren()으로 먼저 비우면 scratch를
+      // 자기 손으로 지우는 꼴이 되니, 비우는 건 "이겼다"고 확정된 뒤 옛 조각만 골라 치운다.)
+      const scratch = window.document.createElement('div')
+      container.appendChild(scratch)
       try {
-        const container = containerRef.current
-        if (!container) return
-        container.replaceChildren()
-        await renderDocx(file, container, undefined, {
+        await renderDocx(file, scratch, undefined, {
           className: 'docx-preview', breakPages: true, ignoreLastRenderedPageBreak: false,
           renderHeaders: true, renderFooters: true, useBase64URL: true,
         })
-        if (cancelled) return
+        if (cancelled) {
+          scratch.remove()
+          return
+        }
+        // 이 실행이 이겼다 — 같은 container 안에 남아 있을 수 있는 다른(취소됐거나 옛) 조각을 치운다.
+        for (const child of Array.from(container.children)) {
+          if (child !== scratch) child.remove()
+        }
         // masked일 때는 실제 마스킹 사본에 있는 텍스트(binary)가 브라우저에 없어서(서버만 갖고
         // 있다) 원본 문서를 그대로 그린 다음 탐지된 텍스트만 [유형]으로 바꿔 끼운다 — 표·글꼴 등
         // 문서 형태는 원문 보기와 같게 유지된다.
         // 마스킹 사본은 서버가 오탐 제외 항목까지 가려서 만든다 — 미리보기도 같은 자리를
         // [유형]으로 바꾸도록 마스킹 대상에는 filteredOut을 같이 넣는다.
-        if (masked) maskDocxFindings(container, [...findings, ...filteredOut])
-        else highlightDocxFindings(container, findings, selectedId)
+        if (masked) maskDocxFindings(scratch, [...findings, ...filteredOut])
+        else highlightDocxFindings(scratch, findings, selectedId)
         // docx-preview는 실제 A4 폭(고정 px)으로 그려서, 좁은 상자 안에서는 한쪽이 잘려
         // 줌인한 것처럼 보인다. 상자 너비에 맞춰 페이지 전체를 축소해 한눈에 보이게 한다.
         fitDocxToContainer(container)
         resizeObserver = new ResizeObserver(() => fitDocxToContainer(container))
         resizeObserver.observe(container)
-        setPageCount(container.querySelectorAll('.docx-preview').length)
-        setCurrentPage(1)
+        container.style.minHeight = ''
+        container.scrollTop = keptScrollTop
+        const count = container.querySelectorAll('.docx-preview').length
+        setPageCount(count)
+        // 보던 쪽을 유지한다 — 스크롤을 되돌려 놨는데 인디케이터만 1쪽으로 돌아가면 어긋난다.
+        setCurrentPage((current) => (sameFile && current <= count ? current : 1))
       } catch (caught) {
+        scratch.remove()
+        if (containerRef.current) containerRef.current.style.minHeight = ''
         if (!cancelled) setError('DOCX 원본을 화면에 표시하지 못했습니다.')
       }
     }
@@ -661,6 +749,25 @@ function fitDocxToContainer(container) {
 // 몇 개 있든 매번 문서의 첫 자리만 찾아서, 두 번째부터는 원문 그대로 노출되는 화면 전용 버그가
 // 있었다(다운로드 사본은 서버가 오프셋으로 처리해서 문제없었다). finding 배열 순서가 뒤섞여
 // 와도 정확히 대응하도록 start로 다시 정렬한 뒤 커서를 진행한다.
+// docx-preview는 서식이 있는 런(run)마다 인라인 style(배경색·글자색·밑줄)이 붙은 <span>으로
+// 감싸서 그린다. 우리가 만든 <mark>가 그 span 안에 들어가면 span의 배경·글자색·밑줄이 우리
+// 강조색 위에 그대로 남아 "검게 칠해진 것처럼" 보이거나 밑줄만 도드라져 보인다 — 특히 원본이
+// "흰 글자 + 검은 배경"처럼 숨김 트릭을 쓴 자리일수록 더 두드러진다. 개인정보를 가리키는 우리
+// 강조색이 항상 또렷이 보이도록, mark를 감싼 런 span의 배경·글자색·밑줄만 지운다(굵게 등 다른
+// 서식은 남긴다). 문단(<p>) 이상은 건드리지 않는다 — 런 단위 서식이 아니라 문단·표 배경이라
+// 훨씬 넓은 범위에 영향을 줄 수 있어서다.
+function clearConflictingRunStyle(mark) {
+  let ancestor = mark.parentElement
+  while (ancestor && ancestor.tagName === 'SPAN' && ancestor.hasAttribute('style')) {
+    ancestor.style.removeProperty('background-color')
+    ancestor.style.removeProperty('background')
+    ancestor.style.removeProperty('color')
+    ancestor.style.removeProperty('text-decoration')
+    ancestor.style.removeProperty('text-decoration-color')
+    ancestor = ancestor.parentElement
+  }
+}
+
 function locateDocxMatches(text, findings) {
   const sorted = [...findings].filter((finding) => finding.text).sort((a, b) => (a.start ?? 0) - (b.start ?? 0))
   const cursors = new Map()
@@ -708,6 +815,7 @@ function highlightDocxFindings(container, findings, selectedId) {
         mark.dataset.findingId = finding.id
         mark.className = `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
         range.surroundContents(mark)
+        clearConflictingRunStyle(mark)
       }
       remaining -= to - from
       offset = nextOffset
@@ -759,6 +867,7 @@ function maskDocxFindings(container, findings) {
           placeholder.className = 'mask-token'
           placeholder.textContent = `[${finding.label}]`
           range.insertNode(placeholder)
+          clearConflictingRunStyle(placeholder)
           placed = true
         }
       }
@@ -800,16 +909,19 @@ function ImagePreview({ title, file, findings, filteredOut = [], selectedId, mas
           )}
           {size && boxes.map((finding) => {
             const [x0, y0, x1, y1] = finding.bbox
-            const boxStyle = {
-              left: `${(x0 / size.width) * 100}%`,
-              top: `${(y0 / size.height) * 100}%`,
-              width: `${((x1 - x0) / size.width) * 100}%`,
-              height: `${((y1 - y0) / size.height) * 100}%`,
-            }
-            // masked일 때는 실제 마스킹 사본처럼 위치만 검게 칠한다(유형별 색·선택 강조는
-            // 원문 보기에서만 의미가 있다 — 가린 자리에는 "무엇인지"를 다시 드러내지 않는다).
+            const boxStyle = clampedBoxStyle(x0, y0, x1, y1, size.width, size.height)
+            // masked일 때는 DOCX/XLSX와 같은 파란 태그 배색으로 자리를 칠하고
+            // "[유형]" 글자를 그 위에 올린다 — 유형별 색·선택 강조는 원문 보기에서만
+            // 의미가 있어 그대로 두지 않는다(값 자체를 다시 드러내지는 않는다).
             return masked ? (
-              <span key={finding.id} className="image-hit image-hit--redacted" style={boxStyle} aria-label="가려진 영역" />
+              <span
+                key={finding.id}
+                className="image-hit image-hit--redacted"
+                style={boxStyle}
+                aria-label={`${finding.label} 가려짐`}
+              >
+                [{finding.label}]
+              </span>
             ) : (
               <mark
                 key={finding.id}
@@ -822,7 +934,7 @@ function ImagePreview({ title, file, findings, filteredOut = [], selectedId, mas
           })}
         </div>
         <p className="image-preview__note">
-          {masked ? '검게 칠해진 영역이 가려진 개인정보입니다.' : '색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.'}
+          {masked ? '파란 태그로 바뀐 영역이 가려진 개인정보입니다.' : '색칠된 영역은 탐지된 정보이며, 진한 테두리는 현재 선택한 항목입니다.'}
         </p>
       </article>
     </div>

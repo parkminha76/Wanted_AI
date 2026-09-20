@@ -28,6 +28,7 @@ field 값은 backend/shared/schema.py의 RiskType 문자열을 그대로 쓴다 
 받는 타입과 위험점수표(RISK_WEIGHTS)가 어긋난다.
 """
 
+import bisect
 import datetime
 import re
 
@@ -241,7 +242,15 @@ def find_birth_dates(text: str) -> list[dict]:
 # 라벨과 값 사이에 공백이나 구분자가 없으면 "성명란은"처럼 라벨에 붙은 다음
 # 음절을 이름으로 잘못 캡처한다(실측: "성명란은"의 "란은"이 이름으로 잡힘).
 # 그래서 `\s*` 대신 최소 한 칸 이상의 공백이나 `:`/`|`을 반드시 요구한다.
-_PERSON_NAME_LABEL_PATTERN = re.compile(r"성\s*명(?:\s*[:|]\s*|\s+)([가-힣]{2,4})(?=[\s,:|]|$)")
+#
+# 공백 구분자에서 탭(\t)은 뺀다 — XLSX 원문은 같은 행의 셀을 탭으로 이어 붙인다
+# (parser/parse.py). "성명\t연락처"처럼 "성명"이 헤더 행의 열 제목일 뿐인데 바로
+# 다음 칸도 헤더 라벨(예: 연락처, 이메일)이면, 탭 하나만 사이에 있다는 이유로 그
+# 다음 헤더 단어를 이름 값으로 잘못 캡처했다(실측 2026-09-20: "연락처"가
+# person으로 잡혀 마스킹됨). 이 규칙이 원래 겨냥한 "성 명 이수인 성별 여" 같은
+# 표 라벨 한 줄은 보통 칸(space)으로 이어 붙으므로 탭만 빼도 원래 사례는 그대로
+# 잡힌다.
+_PERSON_NAME_LABEL_PATTERN = re.compile(r"성\s*명(?:\s*[:|]\s*|[^\S\t]+)([가-힣]{2,4})(?=[\s,:|]|$)")
 
 
 def find_person_names_after_label(text: str) -> list[dict]:
@@ -338,8 +347,15 @@ IP_ADDRESS_PATTERN = re.compile(
 # (진짜 원인은 더미 값 길이 실수라 sample_data 쪽도 36자로 맞췄다) — 그와 별개로,
 # sk-처럼 최소 길이만 보게 바꾼다(`{36,}`). 실제 유출된 토큰 뒤에 문자가 더 붙어
 # 있어도(공백 없이 다른 값과 이어 쓴 경우 등) 놓치지 않는 쪽이 안전하다.
+#
+# sk-(OpenAI, 하이픈)만 있고 sk_live_/sk_test_(Stripe, 밑줄) 계열은 빠져 있었다
+# (실측 2026-09-20, 점검용_위탁계약서.pdf: "API_KEY=sk_live_a97a11cecb5a2ddd"가
+# 마스킹 사본에도 그대로 남아 있었다 — 탐지 자체가 안 됐다). Stripe는 공개키(pk_)·
+# 제한키(rk_)도 같은 접두어 규칙을 쓰므로 셋 다 넣는다. 길이는 다른 항목과 같은
+# 이유로 최소값만 본다.
 API_KEY_OR_TOKEN_PATTERN = re.compile(
     r"sk-[A-Za-z0-9]{20,}"
+    r"|(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}"
     r"|ghp_[A-Za-z0-9]{36,}"
     r"|AKIA[0-9A-Z]{16}"
     r"|AIza[0-9A-Za-z_\-]{35}"
@@ -964,11 +980,37 @@ def find_all(text: str) -> list[dict]:
         + find_person_names_after_label(text)
     )
     def not_overlapping(candidates: list[dict], claimed: list[tuple[int, int]]) -> list[dict]:
-        return [
-            m
-            for m in candidates
-            if not any(m["start"] < end and start < m["end"] for start, end in claimed)
-        ]
+        """claimed(다른 탐지기가 이미 잡은 구간)와 하나도 안 겹치는 후보만 남긴다.
+
+        실측(2026-09-20, DocXray_합성데이터_5MB.log 2MB 슬라이스): 후보(계좌번호
+        9,941건)마다 claimed 전체(16,723건)를 선형으로 훑어(O(후보 수 × claimed
+        수)) 19.00초가 걸렸다 — 전체 파일(4.4MB) 기준으로는 이게 rules.find_all
+        105초 중 대부분을 차지했다. claimed를 시작 위치로 한 번만 정렬하고, 각
+        위치까지의 "가장 먼 끝"(prefix_max_end)을 함께 누적해 두면, 후보마다
+        이진 탐색 한 번으로 "겹치는 게 있는지"만 확인할 수 있다(어느 것과
+        겹쳤는지는 이 함수가 필요로 하지 않는다) — O((후보 수 + claimed 수)
+        log claimed 수)로 줄어든다.
+        """
+        if not claimed:
+            return list(candidates)
+        ordered = sorted(claimed)
+        starts = [s for s, _ in ordered]
+        prefix_max_end = []
+        running_max = float("-inf")
+        for _, e in ordered:
+            running_max = max(running_max, e)
+            prefix_max_end.append(running_max)
+
+        kept = []
+        for m in candidates:
+            # claimed_start < m["end"]인 것들은 정렬된 목록의 앞쪽 [0, upper)에
+            # 몰려 있다. 그중 claimed_end > m["start"]인 게 하나라도 있으면 겹친다
+            # — prefix_max_end가 그 구간의 최댓값을 이미 들고 있어 하나씩 볼 필요가 없다.
+            upper = bisect.bisect_left(starts, m["end"])
+            if upper > 0 and prefix_max_end[upper - 1] > m["start"]:
+                continue
+            kept.append(m)
+        return kept
 
     claimed = [(m["start"], m["end"]) for m in findings]
 

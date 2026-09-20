@@ -11,6 +11,7 @@ from backend.db.tables import TrainingEvent, TrainingProgress
 from backend.shared.logging_config import get_logger, log_event
 from backend.training.defender import generate_defender_report
 from backend.training.scenarios import select_random_scenario
+from backend.training.session_store import TrainingJsonStore
 from backend.training.training_flow import (
     create_training_session,
     generate_attacker_message,
@@ -37,9 +38,10 @@ class TrainingReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
 
 
-# MVP 제한: 서버 재시작 시 진행 세션과 상세 리포트는 사라진다.
-_training_sessions: dict[int, dict] = {}
-_training_reports: dict[int, dict] = {}
+# Uvicorn worker들은 메모리를 공유하지 않는다. 시작과 답장 요청이 서로
+# 다른 worker에 배정되어도 이어지도록 컨테이너 공용 임시 디스크에 저장한다.
+_training_sessions = TrainingJsonStore("infoguard_training_sessions")
+_training_reports = TrainingJsonStore("infoguard_training_reports")
 
 
 def _record_training_event(
@@ -253,6 +255,9 @@ def reply_training_api(
             next_message = None
         else:
             next_message = generate_attacker_message(session)
+            # File-backed store returns a detached value, unlike the old dict.
+            # Persist mutations made by process_user_reply/generate_attacker_message.
+            _training_sessions[training_progress_id] = session
 
         log_event(
             logger,

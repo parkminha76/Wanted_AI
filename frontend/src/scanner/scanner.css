@@ -1092,22 +1092,41 @@
   background: transparent;
 }
 
+/* .hit 계열 기본 색(tokens.css --color-hit-*)은 어두운 배경 전용이다. 미리보기 상자를
+   전부 흰 "종이" 배경으로 바꾼 뒤에도 이 규칙들의 color가 .hit의 `!important`(1453행 근처,
+   DOCX 원본 인라인 색을 이기려고 넣은 것)에 밀려 안 먹히고 있었다 — 그래서 밝은 배경 위에
+   여전히 어두운 배경/밝은 글자 조합(예: #3a211c 위 #f3c3b8)이 그대로 남아, DOCX에서는
+   "검게 칠해진 것처럼", TXT/CSV/XLSX에서는 연한 글자가 연한 배경 위에 겹쳐 잘 안 보였다.
+   .docx-preview-host도 같은 흰 배경이라 이 세 곳(.paper__body/.sheet-grid/.docx-preview-host)
+   모두에 같은 밝은 배색을 !important로 적용한다. */
 .paper__body .hit,
-.sheet-grid .hit {
+.sheet-grid .hit,
+.docx-preview-host .hit {
   background: #fbe4e1;
-  color: #8a2c22;
+  color: #8a2c22 !important;
+  color: #8a2c22 !important;
 }
 
 .paper__body .hit--hidden,
-.sheet-grid .hit--hidden {
+.sheet-grid .hit--hidden,
+.docx-preview-host .hit--hidden {
   background: #fbe8cf;
-  color: #8a5a12;
+  color: #8a5a12 !important;
+  color: #8a5a12 !important;
 }
 
 .paper__body .hit--other,
-.sheet-grid .hit--other {
+.sheet-grid .hit--other,
+.docx-preview-host .hit--other {
   background: #e7e7e5;
-  color: #3a352c;
+  color: #3a352c !important;
+}
+
+/* 부분 마스킹 미리보기(.hit--standard)는 자기 !important로 위 규칙을 이기고 있었다.
+   위에 !important가 붙으면서 특이도가 낮은 쪽이 지므로 같은 자리에 다시 적어 둔다. */
+.paper__body .hit--standard,
+.sheet-grid .hit--standard {
+  color: var(--color-risk-medium) !important;
 }
 
 .paper__body .hit-excluded {
@@ -1183,11 +1202,25 @@
   outline-offset: 1px;
 }
 
-/* 마스킹된 문서 보기 전용 — 실제 마스킹 사본처럼 자리를 완전히 검게 칠한다(유형 구분 없음). */
+/* 마스킹된 문서 보기 전용 — DOCX/XLSX·TXT 등에서 쓰는 .mask-token과 같은 옅은 파란
+   태그 배색으로 자리를 칠하고, 그 위에 "[유형]" 글자를 올린다(2026-09-20 피드백: 검은
+   박스는 다른 형식의 파란 태그와 달라 보였다 — 형식마다 마스킹 색이 다르면 "가려진
+   자리"라는 하나의 뜻을 서로 다르게 표시하는 셈이라 통일한다). 원본 글자 상자보다
+   라벨이 넓을 수 있어(전화번호 상자는 좁은데 "[전화번호]"는 김) overflow를 열어 상자
+   밖으로 자연스럽게 삐져나오게 한다. */
 .image-hit--redacted {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
-  border-radius: 1px;
-  background: #000;
+  border-radius: 3px;
+  background: #e6f0fa;
+  color: #1a5a86;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .image-preview__note {
@@ -1262,10 +1295,6 @@
 .docx-preview-host .docx-preview {
   margin: 0 auto var(--space-4);
   box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
-}
-
-.docx-preview-host .hit {
-  color: inherit;
 }
 
 /* 여러 쪽짜리 문서(DOCX/PDF/XLSX 등) 쪽 이동 — "‹ 1 / 4 ›" 모양 인디케이터로 통일한다.

@@ -81,6 +81,19 @@ class NerContractClauseLabelExclusionTest(unittest.TestCase):
         org_values = [f["value"] for f in findings if f["field"] == "org"]
         self.assertNotIn("대상 환경", org_values)
 
+    def test_loanword_jargon_is_not_flagged_as_org(self) -> None:
+        """실측(2026-09-20): "레거시"(0.91~0.92)·"스프린트"(0.919)도 회사명으로
+        잘못 잡혔다 — 둘 다 외래어 차용어라 실제로 음역된 회사명(네이버·구글 등)과
+        모델 입장에서 형태가 비슷해 confidence로는 못 가른다."""
+        text = (
+            "레거시 주문번호 419503-3127627 이관 완료\n"
+            "신규 기능 배포 일정은 다음 스프린트 계획 회의에서 확정합니다."
+        )
+        findings = ner.detect(text)
+        org_values = [f["value"] for f in findings if f["field"] == "org"]
+        self.assertNotIn("레거시", org_values)
+        self.assertNotIn("스프린트", org_values)
+
     def test_real_company_names_survive_the_blocklist(self) -> None:
         """새로 추가한 단어들이 진짜 회사명까지 같이 죽이면 안 된다(회귀 방지)."""
         text = "발주사 블루웨이브 솔루션 주식회사"
