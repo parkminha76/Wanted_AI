@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 
 from backend.scanner.detectors import models, rules
 from backend.shared import schema
@@ -866,6 +867,18 @@ def _page_ranges(doc) -> list[dict]:
     return ranges
 
 
+# Railway Hobby 요금제는 CPU가 1개뿐이다. 실측(2026-09-20 배포 로그): 컨테이너
+# 재시작 직후 검사 요청 6개(문서 4개+이미지 2개)가 거의 동시에 들어오자, 원래
+# 1초 안팎이면 끝날 검사들이 전부 CPU 하나를 서로 뺏어가며 최대 370초(6분)까지
+# 늘어졌다. 스레드를 더 만들어도 코어가 하나뿐이라 진짜 병렬 처리가 안 되고
+# 컨텍스트 스위칭 비용만 늘어난다 — 무거운 검사(scan_file)를 한 번에 하나씩만
+# 처리하도록 줄을 세우면, 먼저 온 요청은 그대로 빠르고 뒤에 온 요청은 기다리는
+# 대신 자기 차례가 오면 빠르게 끝난다(전부 다 같이 느려지는 것보다 낫다).
+# scan_text를 직접 부르는 훈련 모드 실시간 답장(짧은 문장)은 이 병목의 대상이
+# 아니라서 여기 포함하지 않는다.
+_SCAN_FILE_SEMAPHORE = threading.Semaphore(1)
+
+
 def scan_file(
     path: str,
     masking_policy: dict | None = None,
@@ -874,10 +887,28 @@ def scan_file(
 ) -> ScanResult:
     """파일 1개를 파싱해서 검사하고, 마스킹된 파일 사본까지 만든다.
 
-    parse.load()가 형식을 판단해서 텍스트(pdf/docx/xlsx/txt)와 이미지(사진, 텍스트
-    레이어가 없는 스캔본 PDF)로 갈라주고, 이 함수가 그 kind를 보고 텍스트
-    파이프라인과 이미지 파이프라인으로 분기한다. parse가 없는 환경에서는 UTF-8
-    텍스트로 직접 읽는 경로로 떨어진다.
+    CPU 자원을 두고 다른 검사와 경쟁하지 않도록 `_SCAN_FILE_SEMAPHORE`로 줄을
+    세운다 — 실제 파싱·탐지 로직은 `_scan_file_locked`에 있다.
+    """
+    with _SCAN_FILE_SEMAPHORE:
+        return _scan_file_locked(
+            path,
+            masking_policy=masking_policy,
+            masking_selection=masking_selection,
+            create_masked_copy=create_masked_copy,
+        )
+
+
+def _scan_file_locked(
+    path: str,
+    masking_policy: dict | None = None,
+    masking_selection: list[dict] | None = None,
+    create_masked_copy: bool = True,
+) -> ScanResult:
+    """`scan_file`의 실제 구현. parse.load()가 형식을 판단해서 텍스트(pdf/docx/
+    xlsx/txt)와 이미지(사진, 텍스트 레이어가 없는 스캔본 PDF)로 갈라주고, 이
+    함수가 그 kind를 보고 텍스트 파이프라인과 이미지 파이프라인으로 분기한다.
+    parse가 없는 환경에서는 UTF-8 텍스트로 직접 읽는 경로로 떨어진다.
     """
     if masking_policy is not None and masking_selection is not None:
         raise ValueError("유형별 정책과 항목별 선택을 동시에 적용할 수 없습니다")
