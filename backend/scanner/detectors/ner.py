@@ -119,8 +119,23 @@ def _get_pipeline():
     return _pipeline
 
 
+_HANGUL_PATTERN = re.compile(r"[가-힣]")
+
+
 def _iter_segment_chunks(text: str, segment_start: int, segment_end: int):
-    """탭·줄바꿈으로 분리된 한 구간을 모델 입력 크기에 맞춰 나눈다."""
+    """탭·줄바꿈으로 분리된 한 구간을 모델 입력 크기에 맞춰 나눈다.
+
+    한글이 한 글자도 없는 조각은 건너뛴다. 실측(2026-09-20, 4,442,184자·2만
+    5천 줄짜리 로그 파일): request_id·client_ip·phone·email 같은 필드가
+    반복되는 줄마다 NER 입력이 하나씩 생겨(줄당 약 176자, 줄바꿈이 강제
+    경계라) 배치 추론이 3천 번 넘게 돌아 180초를 넘겼다. 이 모델이 사람
+    이름·회사명으로 잡는 값은 이 프로젝트가 다루는 문서에서 전부 한글이
+    섞여 있다(외국 회사명도 "Liceria & Co. 비 디자인 디자인팀"처럼 한글
+    문맥과 같이 나온다 — 실측 사례). 전화번호·이메일·IP처럼 형식이 고정된
+    값은 이 필터와 무관하게 rules.py가 정규식으로 전체 파일을 그대로
+    훑으므로(NER을 거치지 않는다), 한글 없는 로그 줄을 건너뛰어도 그
+    탐지에는 영향이 없다.
+    """
     start = segment_start
     while start < segment_end:
         end = min(start + _MAX_CHARS_PER_CHUNK, segment_end)
@@ -131,7 +146,7 @@ def _iter_segment_chunks(text: str, segment_start: int, segment_end: int):
             if boundary > start:
                 end = boundary + 1
         chunk = text[start:end]
-        if chunk.strip():
+        if chunk.strip() and _HANGUL_PATTERN.search(chunk):
             yield chunk, start
         start = end
 
@@ -186,7 +201,74 @@ def _is_education_institution(text: str, start: int, end: int) -> bool:
 # 확신도 기준을 올리면 진짜 회사명까지 함께 놓친다. "공인"은 "공인중개사"·
 # "공인회계사"처럼 항상 뒤에 명사가 붙어야 뜻이 서는 말이라, 그 자체로 단독
 # 개체(회사명)가 되는 일이 사실상 없다 — 값이 정확히 이 목록과 같을 때만 뺀다.
-_ORG_STANDALONE_MODIFIERS = {"공인"}
+#
+# 2026-09-20 실측(docX-ray 배포본, 계약서류 여러 건): 파인튜닝 모델이 표 라벨·
+# 마크다운 메타데이터·법률 조항 제목("제1조 (목적)", "제2조 (정산)") 같은 자리에
+# 오는 짧은 한국어 업무 용어를 회사명으로 반복해서 오탐했다 — 매번 신뢰도가
+# 0.94~0.98로 높아 _FINETUNED_ORG_MIN_CONFIDENCE로도 못 거르고, 문서 구조가
+# 표/목록/조항 제목 등으로 계속 바뀌어 학습 데이터에 패턴을 추가해도 다음 구조에서
+# 또 나왔다(법인카드→검수→한함→대상 환경→목적/정산 순으로 계속 발견됨). 재학습을
+# 반복하는 대신, 실제로 회사명이 될 수 없는 흔한 업무 용어를 여기 직접 등록해
+# 구조와 무관하게 확정적으로 막는다. "공인"과 같은 기준 — 값이 정확히 일치할
+# 때만 뺀다(값 일부로 포함된 진짜 회사명까지 지우지 않도록).
+_ORG_STANDALONE_MODIFIERS = {
+    "공인",
+    "목적", "정산", "검수", "승인", "접수", "발주", "납품", "비밀유지",
+    "법인카드", "정보보호", "한함", "해당사항", "특이사항",
+    "대상 환경", "문서 상태", "작업 일시", "작성자", "검토자", "버전",
+    "하이픈 없는",
+    # 2026-09-20 추가 실측: "레거시"(0.91~0.92)·"스프린트"(0.919)도 위와 같은 이유로
+    # 회사명으로 잘못 잡혔다. 둘 다 외래어 차용어라 실제 회사명(네이버·구글처럼 음역된
+    # 이름)과 모델 입장에서 형태가 비슷해서 confidence로는 못 가른다.
+    "레거시", "스프린트",
+}
+
+# 한국 사람 이름의 모양. 성 한 글자 + 이름 1~3글자라 2~4자를 벗어나지 않는다.
+#
+# 왜 형태로 거르나: 확신도로는 못 가른다. 실측(2026-09-20, 데모 문서 4종)에서
+# 보통명사 '오류율'·'시연용'이 0.99로 잡혔는데 진짜 이름 '박진우'도 0.99였다.
+# 같은 자리에 있어서 문턱을 올리면 진짜 이름이 먼저 떨어진다.
+_PERSON_NAME_LENGTH = (2, 4)
+
+# 흔한 한국 성. NER이 보통명사를 이름으로 내놓을 때 첫 글자가 성이 아닌 경우가 많다
+# (실측: '시연용'의 시, '별지'의 별). 성으로 시작하지 않으면 이름으로 보지 않는다.
+_KOREAN_SURNAMES = frozenset(
+    "김이박최정강조윤장임한오서신권황안송전홍고문손양배백허남심노하곽성차주우구"
+    "라민유진지엄채원천방공현함변염여추도소석선설마길연위표명반왕금옥육인맹제탁국어편"
+)
+
+# 이름 끝에 거의 오지 않으면서 보통명사를 만드는 꼬리. 실측에서 걸린 '기준일'·
+# '정산기준일'의 일, '시연용'의 용이 여기 해당한다.
+#
+# '율'은 일부러 뺐다 — '하율'·'서율'·'채율'처럼 요즘 흔한 이름의 끝 글자라,
+# 넣으면 진짜 이름을 놓친다. 그래서 '오류율'은 이 규칙으로 못 거른다(아래 보고 참고).
+_PERSON_NOUN_TAIL = ("일", "용", "함")
+
+
+def _looks_like_person_name(value: str) -> bool:
+    """사람 이름의 모양을 갖췄는가. 한글 이름만 판단하고 그 외는 그대로 통과시킨다.
+
+    한글이 하나도 없으면(외국어 이름 등) 이 규칙으로 판단하지 않고 통과시킨다. 하지만
+    한글에 공백·숫자 등 다른 문자가 섞여 있으면(진짜 이름이면 있을 수 없는 모양) 그대로
+    통과시키지 않고 거른다 — 실측(2026-09-20): "성 명"/"주 소"처럼 자간을 벌린 서식
+    라벨을 모델이 confidence 0.9대로 사람 이름으로 잘못 읽었는데, 예전 코드는 "한글만은
+    아니다"를 "외국어 이름"과 똑같이 취급해 그대로 통과시켰다.
+    """
+    value = value.strip()
+    if not value:
+        return True
+    has_korean = any("가" <= ch <= "힣" for ch in value)
+    if not has_korean:
+        return True  # 외국어 이름 등은 이 규칙으로 판단하지 않는다
+    if not all("가" <= ch <= "힣" for ch in value):
+        return False  # 한글에 공백 등이 섞여 있으면 이름 모양이 아니다
+    low, high = _PERSON_NAME_LENGTH
+    if not low <= len(value) <= high:
+        return False
+    if value[0] not in _KOREAN_SURNAMES:
+        return False
+    return not value.endswith(_PERSON_NOUN_TAIL)
+
 
 _ORG_SUFFIX_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
@@ -194,6 +276,41 @@ _ORG_SUFFIX_PATTERN = re.compile(
     r"\s+(?:솔루션|테크놀로지|테크|글로벌|그룹)"
     r"(?:\s+주식회사)?(?![가-힣A-Za-z0-9])"
 )
+
+
+# 회사임을 스스로 밝히는 표기. 한글·영문 양쪽을 본다.
+_ORG_EVIDENCE_WORDS = (
+    "주식회사", "㈜", "솔루션", "테크놀로지", "테크", "글로벌", "그룹", "코퍼레이션", "홀딩스",
+    "Co", "Inc", "Ltd", "LLC", "Corp", "Company", "GmbH", "PLC",
+)
+
+
+def _drop_latin_orgs_without_marker(findings: list[dict]) -> list[dict]:
+    """한글이 하나도 없는 조직명 후보는 회사 표기가 붙어 있을 때만 남긴다.
+
+    실측(2026-09-20, 데모 문서 4종): 'PDF'(0.92)·'DOCX'(0.97)·'docX'(0.92)·
+    'health'(0.98)가 조직명으로 잡혔다. 전부 파일 형식이나 경로 조각이다. 확신도는
+    진짜 회사명과 같은 자리에 있어서 문턱으로는 못 가른다.
+
+    한글 문서에 섞인 짧은 영문 토큰은 회사명보다 약어·파일 형식일 때가 훨씬 많다.
+    그래서 영문만으로 된 후보는 'Co.'·'Inc.' 같은 표기를 달고 있을 때만 받는다 —
+    'Liceria & Co.'는 남고 'PDF'는 빠진다.
+
+    한글이 섞인 후보는 건드리지 않는다. '카카오'처럼 꼬리말 없이도 회사명인 경우가
+    흔해서(test_ner_org_standalone_modifiers) 같은 잣대를 들이대면 진짜 회사명이 죽는다.
+
+    남는 한계: '마스킹'·'한함'처럼 한글 보통명사가 조직명으로 잡히는 것은 이 규칙으로
+    못 거른다. person/org를 오탐 제거 분류기에 학습시키는 것이 제대로 된 해법이다.
+    """
+    kept = []
+    for item in findings:
+        value = item["value"].strip()
+        if item["field"] != "org" or any("가" <= ch <= "힣" for ch in value):
+            kept.append(item)
+            continue
+        if any(word.lower() in value.lower() for word in _ORG_EVIDENCE_WORDS):
+            kept.append(item)
+    return kept
 
 
 def _expand_repeated_entities(text: str, findings: list[dict]) -> list[dict]:
@@ -260,6 +377,9 @@ def detect(text: str) -> list[dict]:
                     if text[start:end].endswith(suffix):
                         end -= len(suffix)
                         break
+                # 사람 이름의 모양을 갖추지 못한 보통명사를 뺀다(_looks_like_person_name).
+                if not _looks_like_person_name(text[start:end]):
+                    continue
 
             # 영문 토큰 중간에서 시작·끝난 조직명(InfoGuard -> foGuard)은 모델의
             # 토큰 경계 오류다. 한 글자 조직명 "주"도 회사명으로 쓰지 않는다.
@@ -318,4 +438,4 @@ def detect(text: str) -> list[dict]:
             merged[-1]["confidence"] = max(merged[-1]["confidence"], item["confidence"])
         else:
             merged.append(dict(item))
-    return _expand_repeated_entities(text, merged)
+    return _expand_repeated_entities(text, _drop_latin_orgs_without_marker(merged))

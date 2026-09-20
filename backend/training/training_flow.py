@@ -11,6 +11,7 @@ from backend.training.state_machine import (
 
 
 MAX_USER_TURNS = 5
+MAX_INVALID_REPLIES = 3
 
 
 def create_training_session(level: int, scenario: dict | None = None) -> dict:
@@ -23,6 +24,7 @@ def create_training_session(level: int, scenario: dict | None = None) -> dict:
         "history": [],
         "shared_fields": [],
         "status": "in_progress",
+        "invalid_reply_count": 0,
     }
 
 
@@ -40,6 +42,7 @@ def generate_attacker_message(session: dict) -> str:
         level=session["level"],
         scenario=session["scenario"],
         messages=messages,
+        invalid_reply_count=session["invalid_reply_count"],
     )
     session["history"].append(
         {"role": "assistant", "content": attacker_message}
@@ -64,21 +67,31 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         dict.fromkeys([*session["shared_fields"], *new_fields])
     )
 
-    # 구두점만 입력한 답변은 실제 보안 행동을 나타내지 않는다. 대화 기록에는
-    # 남겨 자연스러운 재질문에 활용하되, 상태/유효 턴/점수는 진행시키지 않는다.
-    reached_limit = is_evaluable and processed_turn >= MAX_USER_TURNS
-    if not is_evaluable:
-        next_state = current_state
-    else:
+    if is_evaluable:
+        session["invalid_reply_count"] = 0
+        reached_limit = processed_turn >= MAX_USER_TURNS
         next_state = (
             STATE_END
             if reached_limit
             else get_next_state(current_state, sanitized_text)
         )
+    else:
+        session["invalid_reply_count"] += 1
+        reached_limit = False
+        next_state = current_state
+
+    insufficient_responses = (
+        not is_evaluable
+        and session["invalid_reply_count"] >= MAX_INVALID_REPLIES
+    )
+    if insufficient_responses:
+        next_state = STATE_END
     session["state"] = next_state
     session["turn_no"] = processed_turn + 1 if is_evaluable else processed_turn
 
-    if next_state == STATE_END:
+    if insufficient_responses:
+        session["status"] = "awaiting_unscored_report"
+    elif next_state == STATE_END:
         session["status"] = "awaiting_report"
 
     return {
@@ -87,5 +100,11 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         "turn_no": session["turn_no"],
         "is_finished": next_state == STATE_END,
         "is_evaluable": is_evaluable,
+        "invalid_reply_count": session["invalid_reply_count"],
+        "evaluation_status": (
+            "insufficient_responses"
+            if insufficient_responses
+            else "evaluable" if is_evaluable else "not_evaluable"
+        ),
         "shared_fields": new_fields,
     }

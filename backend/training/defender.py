@@ -61,17 +61,11 @@ def _contains_korean(value: str) -> bool:
 
 
 _NON_DISCLOSURE_PHRASES = (
-    "제공하지 않",
-    "공유하지 않",
-    "전달하지 않",
-    "알려주지 않",
-    "응하지 않",
-    "거부",
+    "제공하지 않", "공유하지 않", "전달하지 않", "알려주지 않", "응하지 않", "거부",
 )
 
 
 def _describes_non_disclosure(value: str) -> bool:
-    """Detect feedback that praises withholding requested information."""
     return any(phrase in value for phrase in _NON_DISCLOSURE_PHRASES)
 
 
@@ -80,22 +74,16 @@ def _deduplicate(items: list[str]) -> list[str]:
 
 
 def _remove_completed_improvements(report: dict) -> None:
-    """Drop recommendations for verification steps already completed."""
     improvements = report["improvements"]
     if report["verified_identity"]:
         improvements = [
-            item
-            for item in improvements
+            item for item in improvements
             if not ("신원" in item and any(word in item for word in ("확인", "검증")))
         ]
     if report["used_official_channel"]:
         improvements = [
-            item
-            for item in improvements
-            if not (
-                "공식" in item
-                and any(word in item for word in ("채널", "연락처", "대표번호"))
-            )
+            item for item in improvements
+            if not ("공식" in item and any(word in item for word in ("채널", "연락처", "대표번호")))
         ]
     report["improvements"] = improvements
 
@@ -137,8 +125,6 @@ def _ensure_korean_feedback(report: dict) -> dict:
     else:
         generated_improvements.append("급한 요청일수록 멈추고 확인 절차를 유지하세요.")
 
-    # 모델이 "요청받았으나 제공하지 않음"을 위험 행동으로 잘못 표현하는
-    # 경우가 있다. 비공개·거부는 안전 행동이므로 의미를 기준으로 이동시킨다.
     moved_to_good = [
         item for item in report["risky_actions"] if _describes_non_disclosure(item)
     ]

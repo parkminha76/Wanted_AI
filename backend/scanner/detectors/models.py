@@ -500,3 +500,65 @@ def filter_false_positive(
         getattr(model, "operating_threshold", FALSE_POSITIVE_THRESHOLD)
     )
     return (probability >= threshold, round(probability, 3))
+
+
+def filter_false_positive_many(
+    items: list[tuple[str, str, str, int | None]],
+) -> list[tuple[bool, float]]:
+    """filter_false_positive를 여러 건 한 번에 판정한다.
+
+    items의 각 원소는 (text, context, risk_type, value_start) — filter_false_positive와
+    같은 인자 순서다. 반환 순서도 items와 같다.
+
+    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 학습된 타입
+    (account 등)마다 filter_false_positive를 건별로 불렀더니 249.87초가 걸렸다.
+    is_injection_many(인젝션 분류기)는 이미 sklearn Pipeline에 문자열 목록을
+    한 번에 넘겨 벡터화·예측하는데, 오탐 제거 분류기는 그 배치 경로가 없어서
+    건마다 벡터화 오버헤드를 반복했다. FalsePositiveFilter.predict_proba_many가
+    이미 있어(평가 코드가 쓰던 것) 그걸 그대로 쓴다 — 새 모델 학습이나 시그니처
+    변경 없이 호출 방식만 배치로 바꾼다.
+
+    시그니처를 고정한 filter_false_positive(9/9 합의, 위 docstring 참고)는 그대로
+    두고 이 함수를 새로 추가했다 — 기존 호출부(A가 만든 평가 스크립트 등)에
+    영향이 없다.
+    """
+    results: list[tuple[bool, float] | None] = [None] * len(items)
+
+    # emp_no의 "이건 예시다" 규칙은 모델보다 먼저, 모델 없이 본다(단건 경로와 동일).
+    pending_indices = []
+    for i, (text, context, risk_type, value_start) in enumerate(items):
+        if risk_type == "emp_no" and _declares_example(text, context, value_start):
+            results[i] = (False, _EMPLOYEE_EXAMPLE_PROBABILITY)
+        else:
+            pending_indices.append(i)
+
+    model = _get_false_positive_model()
+    if model is None:
+        for i in pending_indices:
+            results[i] = (True, 1.0)
+        return results  # type: ignore[return-value]
+
+    trained_types = getattr(model, "risk_types", None) or ()
+    model_indices = []
+    batch_data = []
+    for i in pending_indices:
+        text, context, risk_type, value_start = items[i]
+        if risk_type not in trained_types:
+            results[i] = (True, 1.0)
+            continue
+        sentence = context if text and text in context else f"{context}{text}"
+        start = _value_position(text, sentence, value_start)
+        if start < 0:
+            start = 0
+        end = start + len(text)
+        model_indices.append(i)
+        batch_data.append({"text": sentence, "type": risk_type, "start": start, "end": end})
+
+    if batch_data:
+        probabilities = model.predict_proba_many(batch_data)
+        threshold = float(getattr(model, "operating_threshold", FALSE_POSITIVE_THRESHOLD))
+        for i, probability in zip(model_indices, probabilities):
+            probability = float(probability)
+            results[i] = (probability >= threshold, round(probability, 3))
+
+    return results  # type: ignore[return-value]

@@ -297,6 +297,58 @@ def gen_hard_negative_table_label() -> tuple[str, list]:
     return "".join(parts), entities
 
 
+# 실측(2026-09-20, docX-ray 배포본): 숨은명령.docx 표("단계 | 일정 | 협력사 조치 |
+# 담당")의 "협력사 조치"란 값 "변경 건에 한함"에서 "한함"만 떼어져 회사명(OG)으로
+# 잡혔다 — 신뢰도 0.976으로, 임계값(0.90)을 훌쩍 넘는 높은 확신도라 그 안전장치로도
+# 못 거른다. 위 하드 네거티브는 표의 "라벨 자리"만 다뤘지, "값 자리"에 오는 짧은
+# 한국어 관용구(계약서·업무 문서에 흔한 "~에 한함" 류 마감구)는 안 가르쳤던 게
+# 원인으로 보인다 — 대칭으로 넣는다.
+_TABLE_VALUE_PHRASE_HARD_NEGATIVES = [
+    "변경 건에 한함", "해당 항목에 한함", "신규 계약에 한함", "1회에 한함",
+    "해당사항 없음", "변경 사항 없음", "특이사항 없음", "이전과 동일함",
+    "별도 협의사항 없음", "추가 비용 없음", "기존과 동일", "해당 없음",
+    "협의 후 결정", "추후 안내 예정", "별지 참조", "본문 참조",
+]
+
+
+def gen_hard_negative_table_value_phrase() -> tuple[str, list]:
+    """실측 재현: 표 값 자리의 짧은 한국어 관용구("변경 건에 한함")가 회사명으로
+    오탐되던 것 — 라벨 자리와 대칭으로, 값 자리에도 이런 구절이 온다고 가르친다."""
+    parts: list[str] = []
+    entities: list[list] = []
+    sep = random.choice(["\t", " | "])
+    label = random.choice(["협력사 조치", "비고", "처리 결과", "적용 범위", "특이사항"])
+    phrase = random.choice(_TABLE_VALUE_PHRASE_HARD_NEGATIVES)
+    _mark(parts, entities, label + sep + phrase, None)
+    return "".join(parts), entities
+
+
+# 실측(2026-09-20, docX-ray 배포본): 개발문서.md "**대상 환경:** staging" 같은
+# 마크다운 굵은 라벨 줄에서 "대상 환경"이 회사명(OG)으로 0.973의 높은 확신도로
+# 잡혔다. gen_org_only_row가 "거래처: 대한소프트"류 일반 텍스트 라벨은 가르쳤지만
+# **마크다운 굵게** 표시가 붙은 메타데이터 라벨(문서 상태·작성자·버전 등)은 학습에
+# 없었다 — 그 형태만 대칭으로 넣는다.
+_MARKDOWN_METADATA_LABELS = [
+    "대상 환경", "문서 상태", "작업 일시", "작성자", "검토자", "버전",
+    "배포 대상", "적용 범위", "우선순위", "담당 조직", "최종 수정일",
+]
+_MARKDOWN_METADATA_VALUES = [
+    "staging", "production", "배포 승인 대기", "2026-09-13 20:00 KST",
+    "v1.2.0", "높음", "전체 사용자", "검토 완료",
+]
+
+
+def gen_hard_negative_markdown_label() -> tuple[str, list]:
+    """실측 재현: "**대상 환경:** staging" 같은 마크다운 메타데이터 줄의 굵은
+    라벨이 회사명으로 오탐되던 것."""
+    parts: list[str] = []
+    entities: list[list] = []
+    label = random.choice(_MARKDOWN_METADATA_LABELS)
+    value = random.choice(_MARKDOWN_METADATA_VALUES)
+    _mark(parts, entities, f"**{label}:** {value}", None)
+    return "".join(parts), entities
+
+
 _GENERATORS = [
     (gen_csv_row, 20),
     (gen_numbered_list_with_org, 20),
@@ -307,6 +359,8 @@ _GENERATORS = [
     (gen_natural_sentence, 15),
     (gen_hard_negative_csv_row, 8),
     (gen_hard_negative_table_label, 12),
+    (gen_hard_negative_table_value_phrase, 12),
+    (gen_hard_negative_markdown_label, 12),
     (gen_career_entry, 14),
 ]
 

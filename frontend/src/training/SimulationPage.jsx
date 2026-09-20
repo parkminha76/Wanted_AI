@@ -53,6 +53,7 @@ export default function SimulationPage({ training, navigate }) {
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [finished, setFinished] = useState(false)
+  const [evaluationStatus, setEvaluationStatus] = useState(null)
 
   const nextId = useRef(2)
   const threadRef = useRef(null)
@@ -70,10 +71,10 @@ export default function SimulationPage({ training, navigate }) {
       <div className="container simulation-page">
         <Card
           title="진행 중인 훈련이 없습니다"
-          description="훈련 모드에서 레벨을 선택해 시작해 주세요."
+          description="훈련 모드에서 케이스를 선택해 시작해 주세요."
         >
           <Button onClick={() => navigate('training')}>
-            레벨 고르러 가기
+            케이스 고르러 가기
           </Button>
         </Card>
       </div>
@@ -124,6 +125,7 @@ export default function SimulationPage({ training, navigate }) {
       const done = Boolean(response.is_finished)
 
       setTurnNo(response.turn_no)
+      setEvaluationStatus(response.evaluation_status ?? null)
 
       if (!done && response.attacker_message) {
         setThread((prev) => [
@@ -164,7 +166,7 @@ export default function SimulationPage({ training, navigate }) {
           <p className="eyebrow">AI SECURITY TRAINING</p>
 
           <h1 className="page-title">
-            Level {training.level} · {levelInfo.title}
+            Case {training.level} · {levelInfo.title}
           </h1>
 
           <p className="page-desc">
@@ -181,7 +183,7 @@ export default function SimulationPage({ training, navigate }) {
 
         <div className="sim-progress">
           <p>
-            <b>Level {training.level}</b> / 5
+            <b>Case {training.level}</b> / 5
           </p>
 
           <p>
@@ -278,12 +280,15 @@ export default function SimulationPage({ training, navigate }) {
               </span>
 
               <h2 className="sim-complete__title">
-                훈련이 종료되었습니다.
+                {evaluationStatus === 'insufficient_responses'
+                  ? '훈련을 평가할 수 없습니다.'
+                  : '훈련이 종료되었습니다.'}
               </h2>
 
               <p>
-                방금 대화에서 어떤 판단을 했는지
-                AI 분석 결과를 확인해 보세요.
+                {evaluationStatus === 'insufficient_responses'
+                  ? '의미 있는 답변이 충분하지 않아 점수를 산정하지 않습니다.'
+                  : '방금 대화에서 어떤 판단을 했는지 AI 분석 결과를 확인해 보세요.'}
               </p>
 
               <Button

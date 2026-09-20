@@ -55,5 +55,55 @@ class NerOrgStandaloneModifierExclusionTest(unittest.TestCase):
         self.assertNotIn("공인중개사", ner._ORG_STANDALONE_MODIFIERS)
 
 
+class NerContractClauseLabelExclusionTest(unittest.TestCase):
+    """실측(2026-09-20, docX-ray 배포본): 계약서류 곳곳에서 짧은 업무 용어가
+    회사명으로 반복 오탐됐다 — 표 라벨("법인카드"·"검수"), 표 값("변경 건에
+    한함"), 마크다운 메타데이터("**대상 환경:** staging"), 법률 조항 제목
+    ("제1조 (목적)", "제2조 (정산)") 순으로 문서 구조를 바꿔가며 계속
+    발견됐다(매번 신뢰도 0.90 이상이라 확신도 문턱도 못 거름). 재학습으로
+    구조 하나씩 쫓는 대신 확정 오탐 단어를 직접 차단한다."""
+
+    def test_contract_article_title_words_are_not_flagged_as_org(self) -> None:
+        text = (
+            "제1조 (목적)\n"
+            "본 계약은 갑(위탁자)과 을(수탁자) 사이의 데이터 처리 위탁 업무 범위와 "
+            "책임을 정하는 것을 목적으로 한다.\n"
+            "제2조 (정산)\n"
+            "정산은 매월 말일을 기준으로 산정하며, 익월 10일에 위 계좌로 지급한다."
+        )
+        findings = ner.detect(text)
+        org_values = [f["value"] for f in findings if f["field"] == "org"]
+        self.assertNotIn("목적", org_values)
+        self.assertNotIn("정산", org_values)
+
+    def test_markdown_metadata_label_is_not_flagged_as_org(self) -> None:
+        findings = ner.detect("**대상 환경:** staging")
+        org_values = [f["value"] for f in findings if f["field"] == "org"]
+        self.assertNotIn("대상 환경", org_values)
+
+    def test_loanword_jargon_is_not_flagged_as_org(self) -> None:
+        """실측(2026-09-20): "레거시"(0.91~0.92)·"스프린트"(0.919)도 회사명으로
+        잘못 잡혔다 — 둘 다 외래어 차용어라 실제로 음역된 회사명(네이버·구글 등)과
+        모델 입장에서 형태가 비슷해 confidence로는 못 가른다."""
+        text = (
+            "레거시 주문번호 419503-3127627 이관 완료\n"
+            "신규 기능 배포 일정은 다음 스프린트 계획 회의에서 확정합니다."
+        )
+        findings = ner.detect(text)
+        org_values = [f["value"] for f in findings if f["field"] == "org"]
+        self.assertNotIn("레거시", org_values)
+        self.assertNotIn("스프린트", org_values)
+
+    def test_real_company_names_survive_the_blocklist(self) -> None:
+        """새로 추가한 단어들이 진짜 회사명까지 같이 죽이면 안 된다(회귀 방지)."""
+        text = "발주사 블루웨이브 솔루션 주식회사"
+        findings = ner.detect(text)
+        org_values = [f["value"] for f in findings if f["field"] == "org"]
+        self.assertTrue(
+            any("블루웨이브" in value for value in org_values),
+            f"회사명이 필터에 같이 걸러졌다: {org_values}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

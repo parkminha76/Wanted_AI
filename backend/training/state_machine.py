@@ -18,12 +18,7 @@ _FINAL_REFUSALS = (
 
 
 def is_evaluable_reply(user_message: str) -> bool:
-    """Return whether a reply contains content that can be evaluated.
-
-    Punctuation-only placeholders such as ``.``, ``...`` or ``?`` are part of
-    the conversation, but they do not express a security decision. They must
-    therefore neither advance the attack state nor consume a scored turn.
-    """
+    """구두점뿐인 답변처럼 보안 행동을 판단할 수 없는 입력을 제외한다."""
     return re.search(r"[0-9A-Za-z가-힣]", user_message) is not None
 
 

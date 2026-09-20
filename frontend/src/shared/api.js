@@ -21,8 +21,12 @@ export const UPLOAD_LIMITS = {
 
 const TIMEOUT_MS = {
   default: 30_000,
-  // 첫 검사는 NER 모델을 불러오느라 수십 초 걸릴 수 있다. 파일이 여러 개면 더 걸린다.
+  // /scan/text, /samples, /mask는 아직 동기 응답이다(첫 검사는 NER 모델을
+  // 불러오느라 수십 초 걸릴 수 있고, 파일이 여러 개면 더 걸린다).
   scan: 180_000,
+  // /scan/async 접수는 검사를 기다리지 않고 파일을 서버로 올리기만 한다(느린
+  // 회선에서 파일이 여러 개·큰 경우를 대비해 기본값보다는 넉넉히 잡는다).
+  scanSubmit: 60_000,
   // 훈련 모드는 외부 AI(Attacker/Defender) 응답을 기다린다.
   training: 90_000,
 }
@@ -75,15 +79,39 @@ async function request(path, { method = 'GET', json, body, timeoutMs = TIMEOUT_M
   return data
 }
 
+// POST /scan/async가 돌려준 job_id를 완료될 때까지 물어본다.
+// 동기 fetch 하나로 다 기다리면 브라우저 타임아웃·Railway 프록시 타임아웃을
+// 넘길 수 있어(대용량 로그·CSV) 접수와 대기를 분리했다.
+//
+// maxWaitMs는 180초다(기존 동기 /scan이 쓰던 상한과 같다) — NER을 100KB
+// 넘는 텍스트에서 건너뛰고(scan.py _NER_MAX_TEXT_LENGTH), 오탐 제거 분류기를
+// 배치 호출로 바꾸고(models.filter_false_positive_many), 문장 문맥 탐색과
+// 겹침 정리(_dedupe)를 이진 탐색으로 바꾼 뒤 실측(2026-09-20,
+// DocXray_합성데이터_5MB.log — 4,442,184자·25,146줄, findings 37,931건):
+// 475.57초 -> 135.73초로 180초 안에 들어왔다. 이 상한을 넘기면 화면에
+// 타임아웃을 보여준다 — 그보다 오래 걸리는 파일은 사용자가 기다릴 만한
+// 크기가 아니라는 판단이다.
+async function pollScanJob(jobId, { intervalMs = 2000, maxWaitMs = 180_000 } = {}) {
+  const deadline = Date.now() + maxWaitMs
+  while (Date.now() < deadline) {
+    const status = await request(`/scan/async/${jobId}`)
+    if (status.status === 'done') return status.result
+    if (status.status === 'error') throw new ApiError(status.detail || '검사 중 오류가 발생했습니다.')
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+  throw new ApiError('검사가 너무 오래 걸립니다. 잠시 후 다시 시도해 주세요.')
+}
+
 export const api = {
   /** GET /health — { status, schema_version, training_mode: 'on' | 'off' } */
   health: () => request('/health'),
 
-  /** POST /scan — 파일 여러 개. 응답 ScanBatch: { batch_id, results[], total_files, total_findings }. results는 서버가 위험도 순으로 정렬해 준다. */
-  scanFiles(files) {
+  /** POST /scan/async로 접수하고 완료될 때까지 기다린다. 응답 ScanBatch: { batch_id, results[], total_files, total_findings }. results는 서버가 위험도 순으로 정렬해 준다. */
+  async scanFiles(files) {
     const form = new FormData()
     for (const file of files) form.append('files', file) // 서버 인자 이름이 files다
-    return request('/scan', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scan })
+    const submitted = await request('/scan/async', { method: 'POST', body: form, timeoutMs: TIMEOUT_MS.scanSubmit })
+    return pollScanJob(submitted.job_id)
   },
 
   /** POST /scan/text — 문장 하나. 응답 ScanResult(file_id 없음, masked_text 있음). */

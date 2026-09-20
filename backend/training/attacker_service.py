@@ -13,10 +13,12 @@ class AttackerService:
         level: int,
         scenario: dict,
         messages: list[dict],
+        invalid_reply_count: int = 0,
     ) -> str:
         system_prompt = build_attacker_prompt(
             state=state,
             level=level,
             scenario=scenario,
+            invalid_reply_count=invalid_reply_count,
         )
         return self.llm.generate(system_prompt=system_prompt, messages=messages)
