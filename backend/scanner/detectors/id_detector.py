@@ -168,6 +168,37 @@ def _drop_stray_low_confidence_addresses(findings: list[dict]) -> list[dict]:
     ]
 
 
+def _drop_low_confidence_addresses_above_name(findings: list[dict]) -> list[dict]:
+    """이름보다 위쪽에서 잡힌 낮은 확신도 주소 후보를 버린다.
+
+    실측(2026-09-20, 실제 운전면허증 사진): "2종보통 2종소형 원동기"·"특수(대형견인,
+    소형견인, 구난)" 같은 면허 종별 줄이 0.087~0.183 확신도로 주소(address)로
+    잡혀 마스킹됐다. `_drop_stray_low_confidence_addresses`는 확신도 높은 주소가
+    이미 있을 때만 동작하는데, 이 사진은 진짜 주소 자체가 높은 확신도로 안 잡혀서
+    (기준점이 없어) 그 안전장치가 작동하지 않았다.
+
+    한국 신분증·면허증 서식에서 주소는 항상 이름보다 아래에 인쇄된다(면허 종별·
+    발급 조건 같은 장식 항목이 이름 위쪽에 있는 경우는 있어도 그 반대는 없다).
+    이름이 확실히 잡혔을 때만, 그보다 위쪽에서 낮은 확신도로 잡힌 주소 후보를
+    버린다 — 이름 자체가 안 잡힌 사진(예: 이름 없이 주소만 있는 서류)에는
+    손대지 않는다.
+    """
+    names = [item for item in findings if item.get("evidence", {}).get("cnn_class") == "name"]
+    if not names:
+        return findings
+    name_top = min(item["bbox"][1] for item in names)
+
+    def is_stray_above_name(item: dict) -> bool:
+        if item.get("evidence", {}).get("cnn_class") != "address":
+            return False
+        if item["confidence"] >= CONFIDENCE_THRESHOLD:
+            return False
+        bottom = item["bbox"][3]
+        return bottom <= name_top
+
+    return [item for item in findings if not is_stray_above_name(item)]
+
+
 # 주소 박스를 늘릴 때 기준으로 삼는 "한 줄짜리 글자 필드"들. 이들은 카드에서 주소와
 # 같은 방향으로 인쇄되고 끝까지 또렷하게 잡히는 편이라 폭의 기준이 된다.
 _TEXT_EXTENT_CLASSES = {"license_number", "resident_number", "passport_number", "name"}
@@ -365,6 +396,7 @@ def _detect_rotated(path: str) -> list[dict] | None:
         found, width, height = _detect_frame(rotated)
         found = _filter_passport_incompatible(found)
         found = _drop_stray_low_confidence_addresses(found)
+        found = _drop_low_confidence_addresses_above_name(found)
         found = _widen_address_to_text_extent(found)
         found = _add_license_secondary_face(found, width, height)
         if _has_anchor(found):
@@ -432,6 +464,7 @@ def detect(path: str) -> list[dict]:
     findings, image_width, image_height = _detect_frame(path)
     findings = _filter_passport_incompatible(findings)
     findings = _drop_stray_low_confidence_addresses(findings)
+    findings = _drop_low_confidence_addresses_above_name(findings)
     findings = _widen_address_to_text_extent(findings)
     findings = _add_license_secondary_face(findings, image_width, image_height)
 
