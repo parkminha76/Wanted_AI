@@ -192,7 +192,12 @@ export default function MaskPage({
     </>
   )
   const stopped = picked.length === 0 || blocked.length > 0 || Boolean(busy)
-  const zipStopped = rows.length === 0 || allBlocked.length > 0 || Boolean(busy)
+  // ZIP은 담는 내용이 목록 전체다. 그래서 **전체를 골랐을 때만** 누를 수 있게 한다 —
+  // 일부만 고른 채로 눌러서 안 고른 파일까지 딸려 오면 체크 칸이 거짓말이 된다.
+  // 일부만 받고 싶으면 옆의 "선택 파일 다운받기"가 그 역할이다.
+  // 파일이 한 개뿐일 때도 막는다. 묶을 것이 없어서 ZIP으로 받을 이유가 없다.
+  const zipStopped =
+    rows.length < 2 || picked.length !== rows.length || allBlocked.length > 0 || Boolean(busy)
 
   return (
     <div className="container mask-page">
