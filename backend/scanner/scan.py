@@ -245,17 +245,27 @@ def _find_injections(text: str) -> list[Finding]:
     return findings
 
 
-def _sentence_index(text: str) -> list[tuple[str, int, int]]:
-    """`_iter_sentences`를 한 번만 돌려 (문장, 시작, 끝) 목록으로 굳힌다.
+def _sentence_index(text: str) -> tuple[list[tuple[str, int, int]], list[int]]:
+    """`_iter_sentences`를 한 번만 돌려 (문장, 시작, 끝) 목록과, 그 시작 위치만 뽑은
+    목록을 함께 굳힌다.
 
-    `_sentence_around`를 값 개수만큼 부르면서 매번 이 목록을 새로 만들면 다시
-    O(값 개수 × 문장 수)가 된다 — 호출부가 한 번 만들어 재사용해야 한다.
+    `_sentence_around`를 값 개수만큼 부르면서 매번 문장 목록을 새로 만들면(예전
+    실수: 이 함수는 호출부가 한 번만 부르게 고쳤는데, `_sentence_around` 안에서
+    시작 위치 목록 `starts`를 매번 다시 뽑고 있었다 — 실측 2026-09-20,
+    4,442,184자짜리 로그: 오탐 제거 대상 21,552건 처리에 142.43초, 문장 10만여
+    개짜리 목록을 21,552번 다시 훑은 것과 같다) O(값 개수 × 문장 수)로 되돌아간다.
+    시작 위치 목록까지 여기서 한 번만 뽑아, 호출부가 매 호출 그대로 재사용한다.
     """
-    return list(_iter_sentences(text))
+    sentences = list(_iter_sentences(text))
+    starts = [s for _, s, _ in sentences]
+    return sentences, starts
 
 
 def _sentence_around(
-    text: str, start: int, end: int, sentences: list[tuple[str, int, int]] | None = None
+    text: str,
+    start: int,
+    end: int,
+    index: tuple[list[tuple[str, int, int]], list[int]] | None = None,
 ) -> tuple[str, int]:
     """오프셋 구간이 들어 있는 문장과, 그 문장이 원문에서 시작하는 자리를 돌려준다.
 
@@ -267,15 +277,15 @@ def _sentence_around(
     같은 값이 한 문장에 두 번 나오면 문장만으로는 어느 쪽인지 알 수 없다.
     호출부가 f.start - 시작 자리로 문장 안 위치를 바로 계산해 넘긴다.
 
-    `sentences`(=`_sentence_index(text)`)를 넘기면 문장 목록을 다시 만들지 않고
-    이진 탐색으로 찾는다 — 값이 많은 대용량 텍스트에서 이 함수를 값 개수만큼
-    부를 때 실측(2026-09-20, 4,442,184자짜리 로그, 계좌번호 3,593건) O(n²)에
-    가까운 지연을 냈다. 안 넘기면(기존 호출부·테스트 호환) 이 호출 한정으로
-    한 번 만든다 — 여러 값을 처리할 때는 반드시 미리 만들어 넘겨야 한다.
+    `index`(=`_sentence_index(text)`)를 넘기면 문장 목록도, 시작 위치 목록도 다시
+    만들지 않고 이진 탐색만 한다 — 값이 많은 대용량 텍스트에서 이 함수를 값
+    개수만큼 부를 때 실측으로 확인된 지연(주석 위 `_sentence_index` 참고)을 피한다.
+    안 넘기면(기존 호출부·테스트 호환) 이 호출 한정으로 한 번 만든다 — 여러 값을
+    처리할 때는 반드시 미리 만들어 넘겨야 한다.
     """
-    if sentences is None:
-        sentences = _sentence_index(text)
-    starts = [s for _, s, _ in sentences]
+    if index is None:
+        index = _sentence_index(text)
+    sentences, starts = index
     # start보다 시작 위치가 크지 않은 마지막 문장 하나만 후보다 — 문장은 서로
     # 겹치지 않으므로 그 문장에 안 들어가면 다른 어느 문장에도 안 들어간다.
     idx = bisect.bisect_right(starts, start) - 1
@@ -424,9 +434,10 @@ def _apply_classifier_filters(
     decisions: list[tuple[str, Finding, int]] = []
     pending_args: list[tuple[str, str, str, int | None]] = []  # filter_false_positive_many 입력
     pending_indices: list[int] = []  # decisions 안에서 각 pending 항목의 자리
-    # _sentence_around에 넘길 문장 목록. 학습된 타입(account 등) finding을 만나야만
-    # 필요하므로 그때 딱 한 번만 만든다 — 학습 안 한 타입뿐인 문서라면 아예 안 만든다.
-    sentences: list[tuple[str, int, int]] | None = None
+    # _sentence_around에 넘길 문장 색인(문장 목록 + 시작 위치 목록). 학습된 타입
+    # (account 등) finding을 만나야만 필요하므로 그때 딱 한 번만 만든다 — 학습 안
+    # 한 타입뿐인 문서라면 아예 안 만든다.
+    sentence_index: tuple[list[tuple[str, int, int]], list[int]] | None = None
 
     for f in findings:
         if f.type == "injection":
@@ -448,9 +459,9 @@ def _apply_classifier_filters(
         if not models.false_positive_model_ready(f.type):
             decisions.append(("keep", f, 0))
             continue
-        if sentences is None:
-            sentences = _sentence_index(raw_text)
-        context, context_start = _sentence_around(raw_text, f.start, f.end, sentences)
+        if sentence_index is None:
+            sentence_index = _sentence_index(raw_text)
+        context, context_start = _sentence_around(raw_text, f.start, f.end, sentence_index)
         pending_indices.append(len(decisions))
         decisions.append(("pending", f, context_start))
         pending_args.append((f.text, context, f.type, f.start - context_start))
