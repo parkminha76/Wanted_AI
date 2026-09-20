@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import re
 import statistics
+import threading
 from dataclasses import dataclass
 
 # 한국어 문서이므로 한국어를 기본으로 하되 영어 라벨(Invoice, CHOI-TAEO 등)도
@@ -388,16 +389,23 @@ def _union(a: tuple, b: tuple) -> tuple:
 
 
 _reader = None
+_reader_lock = threading.Lock()
 
 
 def _get_reader():
     """첫 호출 때 한 번만 모델을 불러와 캐싱한다. import 시점에 불러오면 모델 파일이
-    없는 환경에서 `import text_ocr` 자체가 실패해 scan.py 전체가 멎는다."""
+    없는 환경에서 `import text_ocr` 자체가 실패해 scan.py 전체가 멎는다.
+
+    락으로 감싸는 이유는 ner.py의 `_get_pipeline` 주석 참고 — 락 없이 동시
+    요청이 들어오면 콜드 스타트 직후 EasyOCR을 여러 번 동시에 새로 불러와
+    작은 인스턴스에서 서로 CPU를 뺏어가며 응답이 몇 분씩 늘어진다."""
     global _reader
     if _reader is None:
-        import easyocr
+        with _reader_lock:
+            if _reader is None:
+                import easyocr
 
-        _reader = easyocr.Reader(_EASYOCR_LANGS, gpu=False)
+                _reader = easyocr.Reader(_EASYOCR_LANGS, gpu=False)
     return _reader
 
 

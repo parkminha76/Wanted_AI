@@ -15,6 +15,7 @@ CNN은 OCR이 아니라 객체 탐지다 — "여기에 주민등록번호가 �
 from __future__ import annotations
 
 import os
+import threading
 
 MODEL_PATH = os.path.join("ml", "models", "infoguard_cnn_v1.pt")
 
@@ -87,6 +88,7 @@ _CLASS_LABELS: dict[str, str] = {
 }
 
 _model = None
+_model_lock = threading.Lock()
 
 
 def _class_threshold(class_name: str) -> float:
@@ -217,12 +219,17 @@ def _require_anchor_evidence(findings: list[dict]) -> list[dict]:
 
 def _get_model():
     """첫 호출 때 한 번만 로드하고 캐싱한다. import 시점에 불러오면 모델 파일이
-    없는 환경에서 `import id_detector` 자체가 실패해 scan.py 전체가 멎는다."""
+    없는 환경에서 `import id_detector` 자체가 실패해 scan.py 전체가 멎는다.
+
+    락으로 감싸는 이유는 ner.py의 `_get_pipeline` 주석 참고 — 동시 요청이
+    콜드 스타트 직후 이 모델을 여러 번 동시에 새로 불러오는 걸 막는다."""
     global _model
     if _model is None:
-        from ultralytics import YOLO
+        with _model_lock:
+            if _model is None:
+                from ultralytics import YOLO
 
-        _model = YOLO(MODEL_PATH)
+                _model = YOLO(MODEL_PATH)
     return _model
 
 

@@ -39,6 +39,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from pathlib import Path
 
 _BASE_MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
@@ -88,18 +89,33 @@ _TAG_TO_RISK_TYPE: dict[str, str] = {
 }
 
 _pipeline = None
+_pipeline_lock = threading.Lock()
 
 
 def _get_pipeline():
+    """모델을 한 번만 불러와 캐싱한다.
+
+    2026-09-20 실측(Railway 배포): 락 없이 `if _pipeline is None`만 보면,
+    콜드 스타트 직후 여러 요청(XLSX는 셀마다 detect()를 부른다)이 거의 동시에
+    들어올 때 전부 캐시가 비어 있는 걸 보고 각자 모델을 처음부터 새로
+    불러온다 — 배포 로그에 "Loading weights: 0%"가 같은 몇 초 사이 수십 번
+    반복해서 시작되는 것으로 확인됐다. 작은 인스턴스에서 이게 동시에 겹치면
+    CPU를 서로 뺏어가며 몇 초면 끝날 로딩이 수 분으로 늘어나고, `/samples`
+    처럼 여러 파일을 한 요청 안에서 훑는 경로는 아예 Railway의 프록시 타임아웃
+    (5분)을 넘겨버린다. 락으로 첫 스레드만 실제로 불러오고 나머지는 그 결과를
+    기다리게 한다.
+    """
     global _pipeline
     if _pipeline is None:
-        from transformers import pipeline
+        with _pipeline_lock:
+            if _pipeline is None:
+                from transformers import pipeline
 
-        _pipeline = pipeline(
-            "token-classification",
-            model=MODEL_NAME,
-            aggregation_strategy="simple",
-        )
+                _pipeline = pipeline(
+                    "token-classification",
+                    model=MODEL_NAME,
+                    aggregation_strategy="simple",
+                )
     return _pipeline
 
 
