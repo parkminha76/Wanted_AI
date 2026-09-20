@@ -140,12 +140,46 @@ class ParsedDoc:
     # 다를 수 있다.
     image_scale: float = 1.0
 
+    # 스캔본 PDF의 원래 쪽수가 _PDF_SCANNED_MAX_PAGES를 넘어 뒤쪽을 안 구운 경우,
+    # 안 구운 쪽수. 0이면 전부 구웠다. scan.py가 이 값을 보고 "일부만 검사했다"는
+    # 안내를 결과에 남긴다 — 검사 안 한 쪽을 조용히 "안전"으로 표시하지 않기 위해서다.
+    skipped_page_count: int = 0
+
 
 class ParseError(Exception):
     """파일을 열거나 읽을 수 없다. scan.py가 잡아서 ScanResult.error로 옮긴다.
 
     메시지에 파일 내용을 넣지 않는다 (로그에 원문을 남기지 않는다 — 팀 규칙 2).
     """
+
+
+# DOCX·XLSX는 둘 다 zip이다. 업로드 상한(MAX_UPLOAD_BYTES, main.py)은 **압축된**
+# 크기만 막는다 — 압축률이 높은 내용이면 20MB짜리 zip 안에 수 GB로 풀리는
+# 파일을 넣을 수 있다("zip bomb"). 실측은 안 했지만(성능이 아니라 보안 문제라
+# 사전 방어가 원칙이다), 정상 오피스 문서의 압축률(보통 2~10배)을 훨씬 넘는
+# 극단적인 비율만 걸러내도록 넉넉히 잡는다 — 진짜 문서를 오탐으로 막지 않는
+# 선에서 최대한 낮춘 상한이다.
+_ZIP_BOMB_MAX_UNCOMPRESSED_BYTES = 300 * 1024 * 1024  # 300MB
+_ZIP_BOMB_MAX_ENTRY_COUNT = 10_000
+
+
+def _reject_zip_bomb(path: str, file_label: str) -> None:
+    """DOCX/XLSX를 실제로 열기(압축 해제) 전에 central directory만 읽어 검사한다.
+
+    zipfile.ZipFile을 여는 것 자체는 각 항목의 압축 해제 없이 central directory
+    (파일 끝의 목차)만 읽으므로 빠르고 안전하다 — 실제 내용을 펼치는 건
+    python-docx/openpyxl이 다음 단계에서 하는 일이라, 그 전에 여기서 걸러낸다.
+    """
+    try:
+        with zipfile.ZipFile(path) as archive:
+            infos = archive.infolist()
+            if len(infos) > _ZIP_BOMB_MAX_ENTRY_COUNT:
+                raise ParseError(f"{file_label} 내부 파일 수가 비정상적으로 많다")
+            total_uncompressed = sum(info.file_size for info in infos)
+            if total_uncompressed > _ZIP_BOMB_MAX_UNCOMPRESSED_BYTES:
+                raise ParseError(f"{file_label} 압축 해제 크기가 상한을 넘는다")
+    except zipfile.BadZipFile as exc:
+        raise ParseError(f"{file_label}를 열 수 없다: {type(exc).__name__}") from exc
 
 
 # 확장자 -> file_type. 여기 없는 확장자는 ParseError다.
@@ -195,6 +229,16 @@ _PDF_SCANNED_RENDER_ZOOM = 1.5
 # 1.425배가 됨). "흔한 문서 크기는 이 상한에 안 걸려야 한다"는 원래 의도를
 # 지키려면 A4 세로의 1263px보다는 커야 해서 1400으로 올렸다.
 _PDF_SCANNED_RENDER_MAX_DIMENSION = 1400
+
+# 스캔본 PDF에서 실제로 구워서(렌더링 + OCR/CNN) 검사할 쪽수 상한.
+#
+# 실측(2026-09-20, 장변 1400px로 캡한 해상도 기준): 신분증 CNN + OCR을 합쳐
+# 페이지당 약 21초(콜드스타트 제외). 10쪽을 실측하면 211.20초로 비동기 처리의
+# 180초 목표를 넘긴다. 180 / 21 ≈ 8.5쪽이라 8쪽으로 잡는다 — 이 상한을 넘는
+# 문서는 뒤쪽 쪽을 안 구워서(렌더링 자체를 건너뛰어 그 비용도 안 든다)
+# 처리 시간을 붙잡아 둔다. 안 구운 쪽수는 ParsedDoc.skipped_page_count에 남겨
+# scan.py가 "일부만 검사했다"는 안내를 결과에 붙인다.
+_PDF_SCANNED_MAX_PAGES = 8
 
 # 구워 낸 페이지 그림을 담는 임시 폴더의 이름 앞머리.
 #
@@ -667,8 +711,14 @@ def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
 
         out_dir = tempfile.mkdtemp(prefix=_SCANNED_DIR_PREFIX)
         rendered: list[str] = []
+        skipped = 0
         with pymupdf.open(path) as document:
+            total_pages = document.page_count
+            if total_pages > _PDF_SCANNED_MAX_PAGES:
+                skipped = total_pages - _PDF_SCANNED_MAX_PAGES
             for number, page in enumerate(document, start=1):
+                if number > _PDF_SCANNED_MAX_PAGES:
+                    break
                 # 원본 페이지 자체가 큰 스캔본(예: 고해상도로 찍은 사진을 그대로
                 # PDF에 박은 경우)은 고정 배율(1.5)을 그대로 곱하면 렌더링 결과가
                 # 수백만 픽셀까지 커진다. 실측(2026-09-20): 원본 페이지가 1600x2000인
@@ -694,6 +744,7 @@ def _render_scanned_pdf(doc: ParsedDoc, path: str) -> None:
     if not rendered:
         return
     doc.image_paths = rendered
+    doc.skipped_page_count = skipped
     # 참고용 값이다 — 페이지가 크면 위에서 페이지별로 배율을 줄이므로 실제 배율과
     # 다를 수 있다. mask.py는 이 값을 좌표 환산에 쓰지 않는다("좌표 환산이 없다"
     # 참고) — CNN이 본 그림을 그대로 칠하므로 페이지별 실제 배율과 무관하게 안전하다.
@@ -923,6 +974,8 @@ def docx_text_nodes(document) -> list:
 
 def _load_docx(path: str) -> ParsedDoc:
     import docx
+
+    _reject_zip_bomb(path, "DOCX")
 
     try:
         document = docx.Document(path)
@@ -1177,6 +1230,8 @@ def cell_text(value) -> str:
 
 def _load_xlsx(path: str) -> ParsedDoc:
     from openpyxl import load_workbook
+
+    _reject_zip_bomb(path, "XLSX")
 
     try:
         # data_only=True는 수식의 계산 결과를 준다. 결과가 저장돼 있지 않은 파일

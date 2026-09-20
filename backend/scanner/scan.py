@@ -966,6 +966,16 @@ def _scan_image(doc) -> ScanResult:
     # 비어 있으므로 doc.path로 떨어진다.
     image_paths = getattr(doc, "image_paths", None) or [doc.path]
 
+    # 스캔본 PDF가 페이지 상한(parse.py의 _PDF_SCANNED_MAX_PAGES)을 넘으면 parse.py가
+    # 뒤쪽 쪽을 아예 안 굽는다(렌더링·OCR 비용을 안 들이려고). 검사 안 한 쪽을
+    # 조용히 "안전"으로 보이면 안 되므로 결과에 남긴다 — id_detector 판정
+    # 이전에 넣어야 아래 "여러 얼굴" 안내와 합쳐질 때도 순서가 자연스럽다.
+    skipped_pages = getattr(doc, "skipped_page_count", 0)
+    if skipped_pages:
+        quality_errors.append(
+            f"페이지가 많아 앞 {len(image_paths)}쪽만 검사했습니다(뒤 {skipped_pages}쪽 제외)."
+        )
+
     if id_detector is not None and hasattr(id_detector, "detect"):
         have_detector = True
         id_checked = True
