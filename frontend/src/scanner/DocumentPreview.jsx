@@ -542,22 +542,39 @@ function DocxPreview({ title, file, findings, filteredOut = [], selectedId, mask
     let cancelled = false
     let resizeObserver = null
     async function render() {
+      const container = containerRef.current
+      if (!container) return
+      // renderDocx()는 completion까지 시간이 걸리는데(개발 모드 StrictMode는 effect를 두 번
+      // 돌리기도 하고, selectedId가 마운트 직후 한 번 더 바뀌기도 한다), 그 사이 이 effect가
+      // cleanup되고 새 실행이 같은 container에 또 렌더링을 시작할 수 있다. container를 바로
+      // 쓰면 두 실행이 끝나는 순서에 따라 옛 실행의 결과(칠하기 전 원문)가 새 실행의 결과 뒤에
+      // 끼어들어 "가끔 칠해지지 않은 것처럼" 보이는 화면 전용 경쟁 상태가 생긴다. 그래서 각
+      // 실행은 자기만의 조각(scratch)에 렌더링해 두고, 끝까지 취소되지 않은 실행만 그 조각을
+      // container에 옮겨 붙인다 — 쪽 나누기 계산에 실제 레이아웃이 필요해서 scratch도 화면에
+      // 붙여 두되(다른 형제 뒤에 조용히 쌓인다), 최종 결과가 갈리는 그 짧은 순간은 다음 페인트
+      // 전에 정리되어 눈에 보이지 않는다.
+      const scratch = window.document.createElement('div')
+      container.appendChild(scratch)
       try {
-        const container = containerRef.current
-        if (!container) return
-        container.replaceChildren()
-        await renderDocx(file, container, undefined, {
+        await renderDocx(file, scratch, undefined, {
           className: 'docx-preview', breakPages: true, ignoreLastRenderedPageBreak: false,
           renderHeaders: true, renderFooters: true, useBase64URL: true,
         })
-        if (cancelled) return
+        if (cancelled) {
+          scratch.remove()
+          return
+        }
+        // 이 실행이 이겼다 — 같은 container 안에 남아 있을 수 있는 다른(취소됐거나 옛) 조각을 치운다.
+        for (const child of Array.from(container.children)) {
+          if (child !== scratch) child.remove()
+        }
         // masked일 때는 실제 마스킹 사본에 있는 텍스트(binary)가 브라우저에 없어서(서버만 갖고
         // 있다) 원본 문서를 그대로 그린 다음 탐지된 텍스트만 [유형]으로 바꿔 끼운다 — 표·글꼴 등
         // 문서 형태는 원문 보기와 같게 유지된다.
         // 마스킹 사본은 서버가 오탐 제외 항목까지 가려서 만든다 — 미리보기도 같은 자리를
         // [유형]으로 바꾸도록 마스킹 대상에는 filteredOut을 같이 넣는다.
-        if (masked) maskDocxFindings(container, [...findings, ...filteredOut])
-        else highlightDocxFindings(container, findings, selectedId)
+        if (masked) maskDocxFindings(scratch, [...findings, ...filteredOut])
+        else highlightDocxFindings(scratch, findings, selectedId)
         // docx-preview는 실제 A4 폭(고정 px)으로 그려서, 좁은 상자 안에서는 한쪽이 잘려
         // 줌인한 것처럼 보인다. 상자 너비에 맞춰 페이지 전체를 축소해 한눈에 보이게 한다.
         fitDocxToContainer(container)
@@ -566,6 +583,7 @@ function DocxPreview({ title, file, findings, filteredOut = [], selectedId, mask
         setPageCount(container.querySelectorAll('.docx-preview').length)
         setCurrentPage(1)
       } catch (caught) {
+        scratch.remove()
         if (!cancelled) setError('DOCX 원본을 화면에 표시하지 못했습니다.')
       }
     }
@@ -661,6 +679,25 @@ function fitDocxToContainer(container) {
 // 몇 개 있든 매번 문서의 첫 자리만 찾아서, 두 번째부터는 원문 그대로 노출되는 화면 전용 버그가
 // 있었다(다운로드 사본은 서버가 오프셋으로 처리해서 문제없었다). finding 배열 순서가 뒤섞여
 // 와도 정확히 대응하도록 start로 다시 정렬한 뒤 커서를 진행한다.
+// docx-preview는 서식이 있는 런(run)마다 인라인 style(배경색·글자색·밑줄)이 붙은 <span>으로
+// 감싸서 그린다. 우리가 만든 <mark>가 그 span 안에 들어가면 span의 배경·글자색·밑줄이 우리
+// 강조색 위에 그대로 남아 "검게 칠해진 것처럼" 보이거나 밑줄만 도드라져 보인다 — 특히 원본이
+// "흰 글자 + 검은 배경"처럼 숨김 트릭을 쓴 자리일수록 더 두드러진다. 개인정보를 가리키는 우리
+// 강조색이 항상 또렷이 보이도록, mark를 감싼 런 span의 배경·글자색·밑줄만 지운다(굵게 등 다른
+// 서식은 남긴다). 문단(<p>) 이상은 건드리지 않는다 — 런 단위 서식이 아니라 문단·표 배경이라
+// 훨씬 넓은 범위에 영향을 줄 수 있어서다.
+function clearConflictingRunStyle(mark) {
+  let ancestor = mark.parentElement
+  while (ancestor && ancestor.tagName === 'SPAN' && ancestor.hasAttribute('style')) {
+    ancestor.style.removeProperty('background-color')
+    ancestor.style.removeProperty('background')
+    ancestor.style.removeProperty('color')
+    ancestor.style.removeProperty('text-decoration')
+    ancestor.style.removeProperty('text-decoration-color')
+    ancestor = ancestor.parentElement
+  }
+}
+
 function locateDocxMatches(text, findings) {
   const sorted = [...findings].filter((finding) => finding.text).sort((a, b) => (a.start ?? 0) - (b.start ?? 0))
   const cursors = new Map()
@@ -708,6 +745,7 @@ function highlightDocxFindings(container, findings, selectedId) {
         mark.dataset.findingId = finding.id
         mark.className = `hit hit--${groupOf(finding.type)}${finding.id === selectedId ? ' is-selected' : ''}`
         range.surroundContents(mark)
+        clearConflictingRunStyle(mark)
       }
       remaining -= to - from
       offset = nextOffset
@@ -759,6 +797,7 @@ function maskDocxFindings(container, findings) {
           placeholder.className = 'mask-token'
           placeholder.textContent = `[${finding.label}]`
           range.insertNode(placeholder)
+          clearConflictingRunStyle(placeholder)
           placed = true
         }
       }
