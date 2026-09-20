@@ -206,7 +206,10 @@ def reply_training_api(
 
         turn_no = session["turn_no"]
         result = process_user_reply(session=session, user_reply=request.text)
-        _record_training_event(db, training_progress_id, turn_no, result["shared_fields"])
+        # 평가 불가 응답은 턴 번호를 소비하지 않으므로 DB의 턴별 평가 이벤트에도
+        # 넣지 않는다. 이후 실제 답변이 같은 턴 번호로 정상 기록될 수 있어야 한다.
+        if result["is_evaluable"]:
+            _record_training_event(db, training_progress_id, turn_no, result["shared_fields"])
         if result["is_finished"]:
             _complete_training(
                 db=db,
@@ -223,6 +226,7 @@ def reply_training_api(
             "training.reply.processed",
             turn_no=result["turn_no"],
             training_status="finished" if result["is_finished"] else "in_progress",
+            is_evaluable=result["is_evaluable"],
             shared_field_types=result["shared_fields"],
         )
         return {

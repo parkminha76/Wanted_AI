@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from backend.training.attacker_service import AttackerService
 from backend.training.sanitizer import sanitize_training_text
-from backend.training.state_machine import STATE_END, STATE_S1, get_next_state
+from backend.training.state_machine import (
+    STATE_END,
+    STATE_S1,
+    get_next_state,
+    is_evaluable_reply,
+)
 
 
 MAX_USER_TURNS = 5
@@ -51,6 +56,7 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
     new_fields = list(sanitized["shared_fields"])
     current_state = session["state"]
     processed_turn = session["turn_no"]
+    is_evaluable = is_evaluable_reply(sanitized_text)
 
     # 원문은 이 지점 이후 참조하거나 저장하지 않는다.
     session["history"].append({"role": "user", "content": sanitized_text})
@@ -58,13 +64,19 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         dict.fromkeys([*session["shared_fields"], *new_fields])
     )
 
-    reached_limit = processed_turn >= MAX_USER_TURNS
-    next_state = STATE_END if reached_limit else get_next_state(
-        current_state,
-        sanitized_text,
-    )
+    # 구두점만 입력한 답변은 실제 보안 행동을 나타내지 않는다. 대화 기록에는
+    # 남겨 자연스러운 재질문에 활용하되, 상태/유효 턴/점수는 진행시키지 않는다.
+    reached_limit = is_evaluable and processed_turn >= MAX_USER_TURNS
+    if not is_evaluable:
+        next_state = current_state
+    else:
+        next_state = (
+            STATE_END
+            if reached_limit
+            else get_next_state(current_state, sanitized_text)
+        )
     session["state"] = next_state
-    session["turn_no"] = processed_turn + 1
+    session["turn_no"] = processed_turn + 1 if is_evaluable else processed_turn
 
     if next_state == STATE_END:
         session["status"] = "awaiting_report"
@@ -74,5 +86,6 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         "next_state": next_state,
         "turn_no": session["turn_no"],
         "is_finished": next_state == STATE_END,
+        "is_evaluable": is_evaluable,
         "shared_fields": new_fields,
     }

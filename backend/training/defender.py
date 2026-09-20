@@ -60,8 +60,49 @@ def _contains_korean(value: str) -> bool:
     return any("가" <= char <= "힣" for char in value)
 
 
+_NON_DISCLOSURE_PHRASES = (
+    "제공하지 않",
+    "공유하지 않",
+    "전달하지 않",
+    "알려주지 않",
+    "응하지 않",
+    "거부",
+)
+
+
+def _describes_non_disclosure(value: str) -> bool:
+    """Detect feedback that praises withholding requested information."""
+    return any(phrase in value for phrase in _NON_DISCLOSURE_PHRASES)
+
+
+def _deduplicate(items: list[str]) -> list[str]:
+    return list(dict.fromkeys(item.strip() for item in items if item.strip()))
+
+
+def _remove_completed_improvements(report: dict) -> None:
+    """Drop recommendations for verification steps already completed."""
+    improvements = report["improvements"]
+    if report["verified_identity"]:
+        improvements = [
+            item
+            for item in improvements
+            if not ("신원" in item and any(word in item for word in ("확인", "검증")))
+        ]
+    if report["used_official_channel"]:
+        improvements = [
+            item
+            for item in improvements
+            if not (
+                "공식" in item
+                and any(word in item for word in ("채널", "연락처", "대표번호"))
+            )
+        ]
+    report["improvements"] = improvements
+
+
 def _ensure_korean_feedback(report: dict) -> dict:
     """모델이 영문 키/문장을 반환해도 화면용 피드백은 한국어로 고정한다."""
+    _remove_completed_improvements(report)
     generated_good = []
     generated_risky = []
     generated_improvements = []
@@ -79,6 +120,8 @@ def _ensure_korean_feedback(report: dict) -> dict:
     if report["shared_personal_info"]:
         generated_risky.append("발신자를 확인하기 전에 개인정보를 공유했습니다.")
         generated_improvements.append("신원이 확인되기 전에는 개인정보를 제공하지 마세요.")
+    else:
+        generated_good.append("개인정보나 연락처 요청에 응하지 않고 정보를 제공하지 않았습니다.")
     if report["shared_auth_info"]:
         generated_risky.append("비밀번호나 인증정보를 공유했습니다.")
         generated_improvements.append("인증정보는 누구에게도 전달하지 마세요.")
@@ -94,6 +137,17 @@ def _ensure_korean_feedback(report: dict) -> dict:
     else:
         generated_improvements.append("급한 요청일수록 멈추고 확인 절차를 유지하세요.")
 
+    # 모델이 "요청받았으나 제공하지 않음"을 위험 행동으로 잘못 표현하는
+    # 경우가 있다. 비공개·거부는 안전 행동이므로 의미를 기준으로 이동시킨다.
+    moved_to_good = [
+        item for item in report["risky_actions"] if _describes_non_disclosure(item)
+    ]
+    if moved_to_good:
+        report["risky_actions"] = [
+            item for item in report["risky_actions"] if item not in moved_to_good
+        ]
+        report["good_actions"] = [*report["good_actions"], *moved_to_good]
+
     replacements = {
         "risky_actions": generated_risky,
         "good_actions": generated_good,
@@ -102,6 +156,7 @@ def _ensure_korean_feedback(report: dict) -> dict:
     for key, fallback in replacements.items():
         if any(not _contains_korean(item) for item in report[key]):
             report[key] = fallback
+        report[key] = _deduplicate(report[key])
 
     if not _contains_korean(report["summary"]):
         if generated_risky:
@@ -137,6 +192,9 @@ def generate_defender_report(
 다음 보안 훈련 대화를 고정 Rubric으로 판정하세요.
 대화의 마커([PHONE], [EMAIL], [ACCOUNT], [CARD], [RRN])는 사용자가 실제 정보를 공유했다는 뜻입니다.
 점수나 등급은 만들지 마세요. 각 boolean은 대화에서 확인되는 행동만 근거로 판정하세요.
+마침표나 물음표 등 구두점만 있는 사용자 응답은 어떤 행동의 근거로도 사용하지 마세요.
+개인정보·담당자 성함·직통 연락처 등을 요청받았지만 제공하지 않은 행동은 위험 행동이 아니라 잘한 행동입니다.
+요청받았다는 사실과 사용자가 실제로 제공했다는 사실을 구분하세요.
 모든 risky_actions, good_actions, improvements, summary 값은 자연스러운 한국어 문장으로 작성하세요.
 영어 문장이나 verified_identity 같은 필드명을 배열 값으로 사용하지 마세요.
 
