@@ -339,6 +339,7 @@ function drawSectionCard(page, font, { x, y, width, height, title, icon, items, 
 }
 
 function drawPageOne(page, font, logo, report, generatedDate) {
+  const scoreLabel = report.score == null ? '점수 없음' : `${report.score} / 100`
   drawHeader(page, font, logo)
   drawWordSpacedText(page, font, '사기 대응 훈련 결과', {
     x: MARGIN, y: 691, size: 25, color: COLORS.text,
@@ -353,7 +354,7 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   const trainingInfo = [
     `훈련 레벨 : Level ${report.level}`,
     `시나리오 : ${report.scenario_title || '-'}`,
-    `점수 : ${report.score} / 100`,
+    `점수 : ${scoreLabel}`,
     `등급 : ${report.grade || '-'}`,
     `리포트 생성일 : ${compactDate}`,
   ]
@@ -367,7 +368,7 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   drawVerticalDivider(page, 220, 565, 58)
   drawVerticalDivider(page, 392, 565, 58)
   const centers = [133, 306, 470]
-  const values = [`Level ${report.level}`, `${report.score} / 100`, report.grade || '-']
+  const values = [`Level ${report.level}`, scoreLabel, report.grade || '-']
   const labels = ['훈련 레벨', '점수', '등급']
   values.forEach((value, index) => {
     const valueColor = index === 2 ? (GRADE_TONE[report.grade] || COLORS.muted) : index === 1 ? COLORS.cyanStrong : COLORS.text
@@ -389,14 +390,16 @@ function drawPageOne(page, font, logo, report, generatedDate) {
   drawWordSpacedText(page, font, '잘한 행동', { x: 103, y: 372, size: 14, color: COLORS.cyanStrong })
   drawWordSpacedText(page, font, '이런 대응이 안전한 선택입니다!', { x: 103, y: 355, size: 8, color: COLORS.cyanStrong })
   drawCardList(page, font, report.good_actions, {
-    x: 72, y: 325, width: 188, height: 98, tone: 'green', emptyMessage: '확인된 항목이 없습니다.',
+    x: 72, y: 325, width: 188, height: 98, tone: 'green',
+    emptyMessage: report.score == null ? '유효 답변 부족으로 평가하지 않았습니다.' : '확인된 항목이 없습니다.',
   })
   drawRoundedRect(page, { x: 303, y: 232, width: 246, height: 172, radius: 12, color: COLORS.redSoft, borderColor: COLORS.redBorder, borderWidth: 0 })
   drawCircleIcon(page, font, { x: 333, y: 377, color: COLORS.red, symbol: '!', size: 15 })
   drawWordSpacedText(page, font, '주의가 필요한 행동', { x: 360, y: 372, size: 13.5, color: COLORS.red })
   drawWordSpacedText(page, font, '다음에는 이렇게 주의하세요!', { x: 360, y: 355, size: 8, color: COLORS.muted })
   drawCardList(page, font, report.risky_actions, {
-    x: 330, y: 325, width: 188, height: 98, tone: 'red', emptyMessage: '확인된 위험 행동이 없습니다.',
+    x: 330, y: 325, width: 188, height: 98, tone: 'red',
+    emptyMessage: report.score == null ? '유효 답변 부족으로 평가하지 않았습니다.' : '확인된 위험 행동이 없습니다.',
   })
 
   drawSectionCard(page, font, {

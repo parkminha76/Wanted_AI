@@ -1,3 +1,6 @@
+import re
+
+
 STATE_S1 = "S1_APPROACH"
 STATE_S2 = "S2_INFO_REQUEST"
 STATE_S3 = "S3_URGENCY_PRESSURE"
@@ -14,9 +17,17 @@ _FINAL_REFUSALS = (
 )
 
 
+def is_evaluable_reply(user_message: str) -> bool:
+    """구두점뿐인 답변처럼 보안 행동을 판단할 수 없는 입력을 제외한다."""
+    return re.search(r"[0-9A-Za-z가-힣]", user_message) is not None
+
+
 def get_next_state(current_state: str, user_message: str) -> str:
     """사용자의 의심·거부 행동에 따라 공격 단계를 조정한다."""
     normalized = user_message.lower().strip()
+
+    if not is_evaluable_reply(normalized):
+        return current_state
 
     if current_state == STATE_S1:
         if any(word in normalized for word in _SUSPICIOUS_WORDS):

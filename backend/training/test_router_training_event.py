@@ -145,6 +145,25 @@ class GetTrainingStatsTest(unittest.TestCase):
         self.assertEqual(result["completed_count"], 1)
         self.assertEqual(result["average_score"], 80.0)
 
+    def test_unscored_interrupted_training_is_excluded(self) -> None:
+        self._add_progress(1, level=3, score=80)
+        self.db.add(
+            TrainingProgress(
+                id=2,
+                user_id=1,
+                level=3,
+                status="중단",
+                score=0,
+                completed_at=datetime(2026, 9, 16),
+            )
+        )
+        self.db.commit()
+
+        result = get_training_stats(level=3, score=None, db=self.db)
+
+        self.assertEqual(result["completed_count"], 1)
+        self.assertEqual(result["average_score"], 80.0)
+
 
 if __name__ == "__main__":
     unittest.main()
