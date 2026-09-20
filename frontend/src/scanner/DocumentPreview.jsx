@@ -735,12 +735,35 @@ function fitDocxToContainer(container) {
   const wrapper = container.querySelector('.docx-preview-wrapper')
   const page = container.querySelector('.docx-preview')
   if (!wrapper || !page) return
+  // 다시 재기 전에 지난번에 건 축소를 모두 푼다 — 안 그러면 이미 줄어든 크기를 기준으로
+  // 또 줄여서 갈수록 작아진다.
   wrapper.style.zoom = ''
+  wrapper.style.transform = ''
+  wrapper.style.transformOrigin = ''
+  wrapper.style.width = ''
+  wrapper.style.height = ''
+
   const availableWidth = container.clientWidth
   const pageWidth = page.offsetWidth
   if (!availableWidth || !pageWidth) return
   const scale = Math.min(1, (availableWidth - 4) / pageWidth)
+  if (scale >= 1) return
+
+  const naturalHeight = wrapper.offsetHeight
   wrapper.style.zoom = String(scale)
+
+  // zoom이 실제로 먹었는지 재서 확인한다. 안 먹는 브라우저에서는 A4 폭(약 794px)짜리
+  // 문서가 그대로 좁은 상자 안에 들어가, 표의 칸이 한 글자씩 세로로 쪼개지고 문서 끝의
+  // 숨은 명령이 서로 겹쳐 읽을 수 없었다(실측 2026-09-20, 아이폰 숨은명령.docx).
+  if (page.getBoundingClientRect().width <= availableWidth) return
+
+  // transform은 그려지는 크기만 줄이고 레이아웃 크기는 원래대로 남긴다 — 스크롤 영역이
+  // 원본 크기로 잡히지 않도록 줄어든 크기를 직접 적어 준다.
+  wrapper.style.zoom = ''
+  wrapper.style.transformOrigin = 'top left'
+  wrapper.style.transform = `scale(${scale})`
+  wrapper.style.width = `${pageWidth * scale}px`
+  if (naturalHeight) wrapper.style.height = `${naturalHeight * scale}px`
 }
 
 // 렌더된 문서 텍스트 안에서 각 finding이 실제로 나온 자리를 찾는다. finding.start(raw_text
