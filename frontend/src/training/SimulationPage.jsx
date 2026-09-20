@@ -71,10 +71,10 @@ export default function SimulationPage({ training, navigate }) {
       <div className="container simulation-page">
         <Card
           title="진행 중인 훈련이 없습니다"
-          description="훈련 모드에서 케이스를 선택해 시작해 주세요."
+          description="훈련 모드에서 상황을 선택해 시작해 주세요."
         >
           <Button onClick={() => navigate('training')}>
-            케이스 고르러 가기
+            상황 고르러 가기
           </Button>
         </Card>
       </div>
