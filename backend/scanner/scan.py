@@ -748,13 +748,33 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
             )
         )
 
-    occupied = {(sheet, column, row) for sheet, column, row, _ in cells}
     headers: dict[tuple[str, str], list[tuple[int, str]]] = {}
     for sheet, column, row, span in cells:
         risk_type = _XLSX_SENSITIVE_HEADERS.get(span.text.strip())
         if risk_type is None:
             continue
         headers.setdefault((sheet, column), []).append((row, risk_type))
+
+    # 열 안에 빈 줄(구멍)이 있으면 헤더가 그 뒤 셀까지 이어진다고 보지 않는다
+    # (아래 range 검사). 실측(2026-09-20, 5만 셀짜리 XLSX): 행마다 "헤더 다음 줄부터
+    # 지금 줄까지 전부 채워져 있는지"를 매번 range()로 다시 훑어(occupied 집합
+    # 조회 자체는 O(1)이지만 훑는 길이가 헤더로부터의 거리만큼 늘어나) 10,000행에서
+    # 330초가 걸렸다(누적하면 O(행 수²)). 열별로 채워진 행 번호를 한 번만 정렬해
+    # 두면, "그 구간 안에 채워진 행이 몇 개인지"를 이진 탐색 두 번으로 세서
+    # (구간 길이와 같은지 비교) 같은 결과를 O(log n)에 낸다.
+    occupied_rows_by_col: dict[tuple[str, str], list[int]] = {}
+    for sheet, column, row, _ in cells:
+        occupied_rows_by_col.setdefault((sheet, column), []).append(row)
+    for rows in occupied_rows_by_col.values():
+        rows.sort()
+
+    def _column_fully_occupied(sheet: str, column: str, after_row: int, through_row: int) -> bool:
+        if through_row <= after_row:
+            return True
+        rows = occupied_rows_by_col.get((sheet, column), [])
+        lo = bisect.bisect_right(rows, after_row)
+        hi = bisect.bisect_right(rows, through_row)
+        return (hi - lo) == (through_row - after_row)
 
     findings = []
     for sheet, column, row, span in cells:
@@ -763,7 +783,7 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
         value = span.text.strip()
         if header is None or not value:
             continue
-        if not all((sheet, column, current) in occupied for current in range(header[0] + 1, row + 1)):
+        if not _column_fully_occupied(sheet, column, header[0], row):
             continue
         if header[1] == "person" and not _PLAUSIBLE_PERSON_NAME.match(value):
             continue
@@ -789,11 +809,30 @@ def _xlsx_ner_input(text: str, spans, findings: list[Finding]) -> str:
     사람명·회사명·장소가 자유 문장에 들어 있을 수 있으므로 그대로 둔다. 문자열
     길이와 줄/탭 위치는 바꾸지 않아 NER offset은 원문 기준으로 유지된다.
     """
-    covered = [(item.start, item.end) for item in findings]
+    # 실측(2026-09-20, 셀 5만 개짜리 XLSX): span마다 covered(이미 확정된 findings)
+    # 전체를 선형으로 훑어(O(span 수 × findings 수)) 10,000행에서 330초가 걸렸다
+    # (rules.find_all의 not_overlapping과 같은 패턴 — 그쪽 수정과 동일하게 고친다).
+    # covered를 시작 위치로 정렬하고 접두사 최댓값을 이진 탐색하면 span마다
+    # O(log n)으로 줄어든다.
+    covered = sorted((item.start, item.end) for item in findings)
+    covered_starts = [s for s, _ in covered]
+    covered_prefix_max_end = []
+    running_max = float("-inf")
+    for _, e in covered:
+        running_max = max(running_max, e)
+        covered_prefix_max_end.append(running_max)
+
+    def _fully_covered(span_start: int, span_end: int) -> bool:
+        # covered 중 start <= span_start인 것들 안에서 end >= span_end인 게 있는지
+        # 찾는다. start <= span_start인 항목은 정렬된 목록의 앞쪽 [0, upper)에
+        # 몰려 있고, 그 구간의 가장 먼 end는 이미 접두사 최댓값으로 갖고 있다.
+        upper = bisect.bisect_right(covered_starts, span_start)
+        return upper > 0 and covered_prefix_max_end[upper - 1] >= span_end
+
     masked = list(text)
     for span in spans:
         value = span.text
-        already_found = any(start <= span.start and span.end <= end for start, end in covered)
+        already_found = _fully_covered(span.start, span.end)
         needs_ner = not already_found and bool(re.search(r"[가-힣]", value))
         if needs_ner:
             continue
