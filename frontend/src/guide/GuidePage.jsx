@@ -10,7 +10,8 @@ const STEPS = [
     number: '01',
     Icon: FileUp,
     title: '문서 업로드',
-    copy: `PDF·Word·Excel·텍스트·이미지 파일을 한 번에 최대 ${UPLOAD_LIMITS.maxFiles}개, 파일당 ${UPLOAD_LIMITS.maxFileBytes / (1024 * 1024)}MB까지 업로드 가능합니다.`,
+    copy: `PDF·Word·Excel·텍스트 파일을 한 번에 최대 ${UPLOAD_LIMITS.maxFiles}개, 파일당 ${UPLOAD_LIMITS.maxFileBytes / (1024 * 1024)}MB까지 업로드 가능합니다.`,
+    note: '이미지는 신분증만 지원합니다.',
   },
   {
     number: '02',
@@ -147,6 +148,7 @@ export default function GuidePage({ navigate }) {
                 </div>
                 <h3 className="guide-step__title">{step.title}</h3>
                 <p className="guide-step__copy">{step.copy}</p>
+                {step.note ? <p className="guide-step__note">{step.note}</p> : null}
               </GlowCard>
             </li>
           ))}
@@ -154,7 +156,9 @@ export default function GuidePage({ navigate }) {
       </section>
 
       <section className="guide-section rv">
-        <SectionHead num="02" label="WHAT WE FIND">검사 항목</SectionHead>
+        <SectionHead num="02" label="WHAT WE FIND" note="이미지는 신분증(주민등록증 · 운전면허증 · 여권)에서만 검사합니다.">
+          검사 항목
+        </SectionHead>
         <div className="guide-targets">
           {SCAN_TARGETS.map((group) => (
             <article key={group.title} className="guide-target">

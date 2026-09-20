@@ -124,6 +124,15 @@
   word-break: keep-all;
 }
 
+/* 본문 아래 붙는 단서 한 줄(예: 이미지 지원 범위). 본문보다 한 단계 흐리게 둔다. */
+.guide-step__note {
+  margin-top: var(--space-2);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-body);
+  word-break: keep-all;
+}
+
 /* --- 검사 항목 --- */
 
 .guide-targets {

@@ -51,6 +51,18 @@ export default function App() {
     try {
       // 샘플은 files 자리에 고른 파일 이름(문자열)이 온다. 빈 배열이면 전체 샘플이다.
       const result = kind === 'samples' ? await api.samples(files) : await api.scanFiles(files)
+
+      // 검사 대상이 아닌 파일(신분증이 아닌 이미지 등)만 올라왔으면 결과 화면으로
+      // 넘기지 않는다. 검사를 안 했으니 위험도가 0이고, 결과 화면은 그 0을 초록불
+      // "안전"으로 그린다 — 지원하지 않는 형식을 안전하다고 표시하는 꼴이 된다.
+      // 업로드 화면에 그대로 남겨 안내만 띄운다(확장자가 안 맞을 때와 같은 자리다).
+      const scannable = result.results.filter((item) => !item.unsupported)
+      if (result.results.length > 0 && scannable.length === 0) {
+        setScanError(result.results.map((item) => item.error).filter(Boolean).join(' '))
+        navigate('', { replace: true })
+        return
+      }
+
       setBatch(result)
       // 검사가 성공했을 때만 바꾼다 — 실패했는데 바꾸면 이전 결과의 원본 File이 사라진다.
       setBatchSource(kind)

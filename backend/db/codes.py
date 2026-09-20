@@ -39,7 +39,15 @@ def derive_error_code(error_message: str | None) -> str | None:
     msg = error_message.lower()
     if "pars" in msg or "파싱" in error_message:  # parse/parsing 둘 다 매칭
         return "parse_failed"
-    if "format" in msg or "형식" in error_message or "unsupported" in msg:
+    # "지원하지 않는": 신분증이 아닌 이미지를 거부할 때의 문구(scan._scan_image)다.
+    # 확장자는 맞지만 받는 종류가 아니라는 뜻이라 형식 오류와 같은 칸에 넣는다 —
+    # 이게 없으면 unknown으로 떨어져 보존 통계에서 진짜 알 수 없는 오류와 섞인다.
+    if (
+        "format" in msg
+        or "형식" in error_message
+        or "unsupported" in msg
+        or "지원하지 않는" in error_message
+    ):
         return "unsupported_format"
     if "size" in msg or "크기" in error_message or "large" in msg:
         return "file_too_large"

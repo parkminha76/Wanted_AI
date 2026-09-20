@@ -718,6 +718,21 @@ def scan_text(
     return result.finalize()  # 8. 위험 점수 계산
 
 
+# id_detector._ANCHOR_CLASSES를 RiskType으로 옮긴 것이다. 같은 판정을 두 군데서
+# 따로 정의하면 한쪽만 고쳤을 때 조용히 갈라지므로, 그쪽을 고치면 여기도 같이 고친다.
+#   resident_number -> rrn / license_number -> driver_license
+#   passport_number, mrz -> passport
+# id_meta(발급일자·유효기간·성별)와 birth_date는 **일부러 뺐다.** 이력서·자기소개서에도
+# 생년월일과 발급일자 같은 값이 흔해서 "신분증이다"를 보장하지 못한다는 실측 결론이
+# id_detector.py에 적혀 있다(2026-09-17).
+_ID_CARD_EVIDENCE_TYPES = frozenset({"rrn", "driver_license", "passport"})
+
+
+def _has_id_card_evidence(findings: list[Finding]) -> bool:
+    """CNN이 신분증 고유 항목을 하나라도 찾았는가."""
+    return any(f.source == "cnn" and f.type in _ID_CARD_EVIDENCE_TYPES for f in findings)
+
+
 def _scan_image(doc) -> ScanResult:
     """텍스트 레이어가 없는 파일(신분증 사진, 스캔본 PDF, 일반 문서 사진)을
     이미지 파이프라인으로 보낸다.
@@ -739,6 +754,7 @@ def _scan_image(doc) -> ScanResult:
     findings: list[Finding] = []
     quality_errors: list[str] = []
     have_detector = False
+    id_checked = False
 
     # 스캔본 PDF는 페이지마다 그림이 하나씩 구워져 image_paths에 담겨 온다.
     # doc.path는 그중 첫 장이라, 그것만 넘기면 2쪽부터는 검사가 통째로 빠진다
@@ -748,6 +764,7 @@ def _scan_image(doc) -> ScanResult:
 
     if id_detector is not None and hasattr(id_detector, "detect"):
         have_detector = True
+        id_checked = True
         for page_number, image_path in enumerate(image_paths, start=1):
             page_findings = id_detector.detect(image_path)
 
@@ -769,6 +786,27 @@ def _scan_image(doc) -> ScanResult:
                 # 엉뚱한 페이지를 지운다.
                 raw["page"] = page_number
                 findings.append(_raw_to_finding(raw, "cnn"))
+
+    # 이미지 파일은 신분증 3종(주민등록증·운전면허증·여권)만 검사한다 — 그 밖의 사진은
+    # 인식률이 낮아 지원 범위에서 뺐다(2026-09-20 결정). 화면 문구도 같은 범위로 적혀 있다.
+    #
+    # 스캔본 PDF는 여기로 함께 들어오지만 file_type이 "pdf"라 이 제한을 받지 않는다.
+    # 문서를 스캔해 올린 것까지 막으면 핵심 사용 경로가 끊긴다.
+    #
+    # OCR보다 먼저 판정한다. 신분증이 아니면 OCR 결과도 내보내지 않을 것이라,
+    # 돌릴 이유가 없다.
+    if getattr(doc, "file_type", "") == "image":
+        if not id_checked:
+            result.error = "신분증 검사기를 불러오지 못해 이 이미지를 검사할 수 없습니다"
+            result.unsupported = True
+            return result.finalize()
+        if not _has_id_card_evidence(findings):
+            result.error = (
+                "지원하지 않는 이미지입니다. "
+                "이미지는 신분증(주민등록증·운전면허증·여권)만 검사할 수 있습니다."
+            )
+            result.unsupported = True
+            return result.finalize()
 
     if text_ocr is not None and hasattr(text_ocr, "detect"):
         have_detector = True

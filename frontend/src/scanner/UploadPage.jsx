@@ -39,7 +39,9 @@ const SECTIONS = [
 //   0초   backend/main.py — 원본은 검사가 끝나면 바로 지운다(사본만 30분 보관)
 //   18종  backend/shared/schema.py의 RiskType 중 개인정보 유형
 //         (숨은 명령·숨은 텍스트와 이미지 전용 3종을 빼면 18개)
-//   8종   PDF·DOCX·XLSX·TXT·MD·CSV·LOG·이미지
+//   7종   PDF·DOCX·XLSX·TXT·MD·CSV·LOG — 이미지는 문서 형식으로 세지 않는다.
+//         이미지는 신분증 3종(주민등록증·운전면허증·여권)만 검사한다. 그 밖의 사진은
+//         인식률이 낮아 지원 범위에서 뺐다(2026-09-20 결정).
 // detail은 카드에 마우스를 올리면(또는 키보드로 포커스하면) 뜨는 설명 — 18종은
 // backend/shared/schema.py TYPE_LABELS에서 위 18개만 그대로 옮겨 적은 것이라, 유형이 늘거나
 // 이름이 바뀌면 같이 고쳐야 한다.
@@ -56,9 +58,10 @@ const HERO_METRICS = [
       '주민등록번호 · 여권번호 · 운전면허번호 · 외국인등록번호 · 계좌번호 · 카드번호 · API 키 · DB 접속정보 · 이메일 · 전화번호 · 사업자등록번호 · 법인등록번호 · IP 주소 · 사번 · 생년월일 · 이름 · 주소 · 조직명',
   },
   {
-    value: '8종',
-    label: '지원 파일 형식',
-    detail: 'PDF · DOCX · XLSX · TXT · MD · CSV · LOG · 이미지(PNG/JPG/BMP/WEBP/TIFF)',
+    value: '7종',
+    label: '지원 문서 형식',
+    detail:
+      'PDF · DOCX · XLSX · TXT · MD · CSV · LOG. 이미지는 신분증 3종(주민등록증 · 운전면허증 · 여권)만 지원합니다.',
   },
 ]
 
@@ -818,7 +821,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
                     </span>
                     <h3 className="dropzone__title">문서를 업로드하세요</h3>
                     <p className="dropzone__hint">
-                      PDF · Word · Excel · 텍스트 · 이미지 (최대 {UPLOAD_LIMITS.maxFiles}개, 파일당{' '}
+                      PDF · Word · Excel · 텍스트 · 신분증 이미지 (최대 {UPLOAD_LIMITS.maxFiles}개, 파일당{' '}
                       {formatBytes(UPLOAD_LIMITS.maxFileBytes)})
                     </p>
                     <Button size="lg" disabled={busy} onClick={openPicker}>
@@ -979,7 +982,7 @@ export default function UploadPage({ onScan, error, busy, navigate }) {
           <p className="landing-lead">
             일반적인 검사는 눈에 보이는 텍스트만 확인합니다.
             <br />
-            DocX-ray는 문서의 구조부터 숨겨진 데이터, 이미지 속 정보까지 살펴봅니다.
+            DocX-ray는 문서의 구조부터 숨겨진 데이터, 신분증 이미지 속 정보까지 살펴봅니다.
           </p>
         </div>
         <ul className="landing-cards landing-cards--risk stagger">
