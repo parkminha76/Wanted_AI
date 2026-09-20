@@ -1444,7 +1444,14 @@
   padding: 0 2px;
   border-radius: 3px;
   background: var(--color-hit-bg);
-  color: var(--color-hit-text);
+  /* 실측(2026-09-20): 이메일 등 일반 하이라이트도 "숨은 명령"과 같은 문제를
+     겪고 있었다 — DOCX 원본 글자의 인라인 color(예: 본문 짙은 남색 #202B33)가
+     이 class보다 우선 적용되면, 어두운 배경(--color-hit-bg) 위에 어두운
+     글씨가 겹쳐 사실상 안 보이는 상자가 된다(예: "finance@example.com"이
+     읽을 수 없는 빈 상자처럼 보임). font-size도 같은 이유로 원본이 작게
+     지정해 둔 문서에서 깨질 수 있어 같이 지킨다. */
+  color: var(--color-hit-text) !important;
+  font-size: var(--font-size-md) !important;
 }
 
 .hit--hidden {
@@ -1469,7 +1476,9 @@
 
 .hit--other {
   background: var(--color-hit-other-bg);
-  color: var(--color-text);
+  /* 기본 .hit의 color !important를 다시 덮어써야 이 카테고리 고유 색이 나온다
+     (동시에 원본 문서의 인라인 color도 계속 막는다) — .hit--hidden과 같은 이유. */
+  color: var(--color-text) !important;
 }
 
 .hit.is-selected {
@@ -1765,7 +1774,7 @@
 /* 부분 마스킹 예정 — 실제로 어디까지 가려지는지는 서버 규칙이 정하므로 원래 값에 표시만 한다 */
 .hit--standard {
   background: var(--color-risk-medium-soft);
-  color: var(--color-risk-medium);
+  color: var(--color-risk-medium) !important;
 }
 
 /* 선택에서 뺀 항목 — 가리지 않는다는 표시 */
