@@ -551,14 +551,16 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
                       // "[유형]" 글자를 그 위에 올린다 — 유형별 색·선택 강조는 원문 보기에서만
                       // 의미가 있어 그대로 두지 않는다(값 자체를 다시 드러내지는 않는다).
                       return masked ? (
+                        // 라벨 글자는 그리지 않는다 — 마스킹 사본 자체에 서버가 칸 너비에
+                        // 맞춰 [회사]·[전화] 같은 짧은 라벨을 이미 그려 넣었다(mask.py의
+                        // _PDF_PLACEHOLDERS). 그 위에 같은 뜻의 라벨을 한 번 더 얹으면서
+                        // 칸보다 커져 잘리고 옆 줄까지 덮었다(실측 2026-09-20, 아이폰·PC 둘 다).
                         <span
                           key={finding.id}
                           className="image-hit image-hit--redacted"
                           style={boxStyle}
                           aria-label={`${finding.label} 가려짐`}
-                        >
-                          [{finding.label}]
-                        </span>
+                        />
                       ) : (
                         <mark
                           key={finding.id}
@@ -942,9 +944,7 @@ function ImagePreview({ title, file, findings, filteredOut = [], selectedId, mas
                 className="image-hit image-hit--redacted"
                 style={boxStyle}
                 aria-label={`${finding.label} 가려짐`}
-              >
-                [{finding.label}]
-              </span>
+              />
             ) : (
               <mark
                 key={finding.id}
