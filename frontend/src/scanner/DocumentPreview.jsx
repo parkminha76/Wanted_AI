@@ -17,6 +17,10 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 //
 // selection: { [finding.id]: 'full' | 'standard' } — 목록에 없는 항목은 가리지 않는다.
 // pages: 서버 ScanResult.pages([{ page, start, end, label }]). 2개 이상이면 쪽 카드로 나누고 쪽 이동 버튼을 붙인다.
+// 기본값으로 매번 새 []를 만들면 참조가 달라져서, 이 값을 의존성으로 쓰는 효과(DocxPreview)가
+// 부모가 렌더될 때마다 다시 돈다. 빈 배열은 하나만 만들어 돌려쓴다.
+const NO_FINDINGS = []
+
 export default function DocumentPreview({
   title,
   text = '',
@@ -32,7 +36,7 @@ export default function DocumentPreview({
   // 오탐으로 제외한 항목(위험도 점수엔 안 넣는 값들). 원문 보기(칠하기)에는 안 쓰지만, 마스킹
   // 사본은 서버가 이 값들도 같이 가려서 만든다 — 미리보기도 다운로드 사본과 같아지도록 마스킹
   // 대상에는 findings와 함께 포함한다.
-  filteredOut = [],
+  filteredOut = NO_FINDINGS,
 }) {
   const bodyRef = useRef(null)
   const hasPages = Array.isArray(pages) && pages.length > 1
@@ -98,11 +102,23 @@ export default function DocumentPreview({
   }, [pagedSegments])
 
   // 항목을 고르면 그 위치로 미리보기 안에서만 스크롤한다(페이지 전체는 움직이지 않게).
+  //
+  // 이미 그 항목으로 옮겨 놨으면 다시 움직이지 않는다. masked가 의존성에 있어서 "원문 보기"를
+  // 누를 때도 이 효과가 같이 도는데, 그때 다시 스크롤하면 마스킹 보기에서 내려 읽던 자리를
+  // 잃는다. 특히 문서 앞쪽 항목이 골라져 있으면 Math.max(0, ...)가 0이 되어 맨 위로 튄다.
+  // masked를 의존성에서 빼지는 않는다 — 마스킹 보기에서 항목을 고르면 여기서 한 번 걸러지고,
+  // 원문으로 돌아올 때 그 항목으로 옮겨 주어야 한다.
+  const scrolledToRef = useRef(null)
   useEffect(() => {
     const box = bodyRef.current
     if (masked || !selectedId || !box) return
+    if (scrolledToRef.current === selectedId) return
+    // 표시가 아직 안 그려졌으면 기록하지 않는다 — 기록부터 하면 "이미 옮겼다"고 쳐서
+    // 정작 다음 렌더에서 건너뛰고, 항목 이동이 한 박자씩 밀린다.
     const mark = box.querySelector(`[data-finding-id="${selectedId}"]`)
-    if (mark) box.scrollTo({ top: Math.max(0, mark.offsetTop - box.clientHeight / 3), behavior: 'smooth' })
+    if (!mark) return
+    scrolledToRef.current = selectedId
+    box.scrollTo({ top: Math.max(0, mark.offsetTop - box.clientHeight / 3), behavior: 'smooth' })
   }, [selectedId, masked])
 
   function jumpToPageIndex(index) {
@@ -532,8 +548,11 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
   )
 }
 
-function DocxPreview({ title, file, findings, filteredOut = [], selectedId, masked = false }) {
+function DocxPreview({ title, file, findings, filteredOut = NO_FINDINGS, selectedId, masked = false }) {
   const containerRef = useRef(null)
+  // 같은 문서를 다시 그리는 것인지(토글·선택 바뀜) 다른 문서로 갈아탄 것인지(FileSwitcher) 가른다.
+  // 같은 문서일 때만 보던 자리를 되돌린다 — 새 문서는 첫 쪽 맨 위에서 시작해야 한다.
+  const lastFileRef = useRef(null)
   const [error, setError] = useState('')
   const [pageCount, setPageCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -545,6 +564,16 @@ function DocxPreview({ title, file, findings, filteredOut = [], selectedId, mask
       try {
         const container = containerRef.current
         if (!container) return
+        // "원문 보기"를 누르면 masked가 바뀌어 이 효과가 다시 돈다. 그런데 replaceChildren()으로
+        // 상자를 비우고 renderDocx를 await 하는 동안 .docx-preview-host(max-height 68vh, 고정
+        // 높이 아님)가 0으로 접혀서 문서 전체가 68vh만큼 짧아진다. 브라우저는 줄어든 높이에 맞춰
+        // 창 스크롤을 끌어올리고, 다시 그려진 뒤에도 그 자리(맨 위)에 남는다.
+        // 그리는 동안만 높이를 붙잡아 두고, 상자 안에서 보던 위치도 같이 되돌린다.
+        const sameFile = lastFileRef.current === file
+        lastFileRef.current = file
+        const keptHeight = container.offsetHeight
+        const keptScrollTop = sameFile ? container.scrollTop : 0
+        container.style.minHeight = `${keptHeight}px`
         container.replaceChildren()
         await renderDocx(file, container, undefined, {
           className: 'docx-preview', breakPages: true, ignoreLastRenderedPageBreak: false,
@@ -563,9 +592,14 @@ function DocxPreview({ title, file, findings, filteredOut = [], selectedId, mask
         fitDocxToContainer(container)
         resizeObserver = new ResizeObserver(() => fitDocxToContainer(container))
         resizeObserver.observe(container)
-        setPageCount(container.querySelectorAll('.docx-preview').length)
-        setCurrentPage(1)
+        container.style.minHeight = ''
+        container.scrollTop = keptScrollTop
+        const count = container.querySelectorAll('.docx-preview').length
+        setPageCount(count)
+        // 보던 쪽을 유지한다 — 스크롤을 되돌려 놨는데 인디케이터만 1쪽으로 돌아가면 어긋난다.
+        setCurrentPage((current) => (sameFile && current <= count ? current : 1))
       } catch (caught) {
+        if (containerRef.current) containerRef.current.style.minHeight = ''
         if (!cancelled) setError('DOCX 원본을 화면에 표시하지 못했습니다.')
       }
     }
