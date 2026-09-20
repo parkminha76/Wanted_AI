@@ -136,7 +136,7 @@ def make_attendee_image(path: Path) -> None:
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
 
-    draw.text((40, 36), "2026 InfoGuard 데모데이 참석자 명단", font=font_title, fill="black")
+    draw.text((40, 36), "2026 docX-ray 데모데이 참석자 명단", font=font_title, fill="black")
     draw.text((40, 84), "행사일 2026-09-20  ·  장소 판교 스타트업캠퍼스 3층", font=font_body, fill=(90, 90, 90))
 
     orgs = ["블루웨이브 솔루션", "넥스트브릿지", "한빛전자", "대한소프트", "테크노메가"]

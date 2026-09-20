@@ -125,7 +125,7 @@ def make_customer_list(path: Path) -> None:
     sheet.page_setup.orientation = "landscape"
     sheet.page_setup.fitToWidth = 1
     sheet.sheet_properties.pageSetUpPr.fitToPage = True
-    sheet.oddFooter.center.text = "블루웨이브 솔루션  |  합성 데모 문서"
+    sheet.oddFooter.center.text = "블루웨이브 솔루션  |  docX-ray 합성 데모 문서"
     sheet.oddFooter.right.text = "Page &P / &N"
     sheet.sheet_properties.tabColor = NAVY
 
@@ -298,7 +298,7 @@ def make_developer_note(path: Path) -> None:
 ```env
 APP_ENV=staging
 OPENAI_API_KEY=sk-demo000000000000000000000000000000
-GITHUB_TOKEN=ghp_demo0000000000000000000000000000
+GITHUB_TOKEN=ghp_demo00000000000000000000000000000000
 DATABASE_URL=mysql://demo_user:demo_password@db.example.invalid/docxray
 ```
 

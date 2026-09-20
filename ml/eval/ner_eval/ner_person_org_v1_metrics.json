@@ -1,12 +1,12 @@
 {
   "overall": {
-    "eval_loss": 0.003562358906492591,
+    "eval_loss": 0.003687850898131728,
     "eval_precision": 1.0,
     "eval_recall": 1.0,
     "eval_f1": 1.0,
-    "eval_runtime": 0.1369,
-    "eval_samples_per_second": 2922.371,
-    "eval_steps_per_second": 51.141,
+    "eval_runtime": 3.3093,
+    "eval_samples_per_second": 120.872,
+    "eval_steps_per_second": 2.115,
     "epoch": 6.0
   },
   "by_label": {
@@ -14,31 +14,31 @@
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 198
+      "support": 202
     },
     "PS": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 324
+      "support": 293
     },
     "micro avg": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 522
+      "support": 495
     },
     "macro avg": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 522
+      "support": 495
     },
     "weighted avg": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 522
+      "support": 495
     }
   },
   "train_size": 3600,
