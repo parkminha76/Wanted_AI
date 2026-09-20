@@ -145,6 +145,13 @@ class ParsedDoc:
     # 안내를 결과에 남긴다 — 검사 안 한 쪽을 조용히 "안전"으로 표시하지 않기 위해서다.
     skipped_page_count: int = 0
 
+    # 사용자가 올린 이미지 파일(사진)을 해상도 상한에 맞춰 축소해서 검사(CNN/OCR)
+    # 했으면, 그 축소 비율의 역수(원본 해상도 / 축소본 해상도, 1보다 큼). 축소를
+    # 안 했으면 1.0이다. scan.py가 이 값으로 탐지 결과의 픽셀 좌표(bbox)를 원본
+    # 해상도 기준으로 되돌린다 — 마스킹(mask.py)은 **원본 파일**을 그대로 칠하므로
+    # (화질 손실 없이), 좌표가 축소본 기준으로 남아 있으면 엉뚱한 자리를 지운다.
+    image_downscale_ratio: float = 1.0
+
 
 class ParseError(Exception):
     """파일을 열거나 읽을 수 없다. scan.py가 잡아서 ScanResult.error로 옮긴다.
@@ -433,9 +440,49 @@ def _load_text_file(path: str, file_type: str) -> ParsedDoc:
 
 
 def _load_image(path: str) -> ParsedDoc:
-    return ParsedDoc(
+    doc = ParsedDoc(
         kind="image", raw_text="", spans=[], page_map=[], path=path, file_type="image"
     )
+    _downscale_image_if_oversized(doc, path)
+    return doc
+
+
+def _downscale_image_if_oversized(doc: ParsedDoc, path: str) -> None:
+    """사용자가 올린 사진이 해상도 상한(스캔본 PDF와 같은 장변 1400px)을 넘으면
+    축소한 사본을 만들어 doc.image_paths에 담는다.
+
+    실측(2026-09-20, 스캔본 PDF 페이지): 장변 1400px에서 페이지(신분증 CNN+OCR
+    합산)당 약 21초다. 스캔본 PDF는 렌더링할 때부터 이 상한 안에서 굽지만,
+    사용자가 직접 올리는 사진은 원본 해상도 그대로 CNN/OCR에 들어간다 — 25MP
+    사진이면 21초/1.4MP 기준 환산 약 380초까지 늘어날 수 있다. 같은 상한을
+    적용해 같은 안전 범위 안에 둔다.
+
+    스캔본 PDF의 `_render_scanned_pdf`처럼 실패해도 예외를 던지지 않는다 —
+    축소를 못 해도 원본 그대로 검사하면 되고, 이미지 로딩 자체를 실패시킬
+    일은 아니다(못 열리는 이미지는 CNN/OCR 단계에서 각자 다시 시도하고 실패한다).
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(path) as img:
+            width, height = img.size
+            long_side = max(width, height)
+            if long_side <= _PDF_SCANNED_RENDER_MAX_DIMENSION:
+                return
+            scale = _PDF_SCANNED_RENDER_MAX_DIMENSION / long_side
+            new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
+            resized = img.convert("RGB").resize(new_size, Image.LANCZOS)
+
+            out_dir = tempfile.mkdtemp(prefix=_SCANNED_DIR_PREFIX)
+            target = os.path.join(out_dir, "resized.png")
+            resized.save(target)
+    except Exception:      # noqa: BLE001 — 업로드 파일은 무엇이든 들어온다
+        return
+
+    doc.image_paths = [target]
+    # scale은 1보다 작다(축소했으므로) — 그 역수를 저장해 나중에 "곱하면 원본
+    # 좌표로 돌아가는" 값을 바로 쓸 수 있게 한다.
+    doc.image_downscale_ratio = 1.0 / scale
 
 
 # ---------------------------------------------------------------------------

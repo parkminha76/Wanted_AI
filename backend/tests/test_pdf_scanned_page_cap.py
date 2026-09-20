@@ -71,7 +71,8 @@ class ScannedPdfPageCapTest(unittest.TestCase):
                 fake_ocr.detect.return_value = fake_finding
                 result = scan._scan_image(doc)
 
-            self.assertIn(f"앞 {_PDF_SCANNED_MAX_PAGES}쪽만 검사", result.error)
+            self.assertIn(f"{_PDF_SCANNED_MAX_PAGES}쪽까지만 분석", result.notice)
+            self.assertIsNone(result.error)  # 검사 자체는 정상 — action_guide를 지우지 않는다
             self.assertTrue(result.findings)
 
 
