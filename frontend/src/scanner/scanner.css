@@ -1092,22 +1092,35 @@
   background: transparent;
 }
 
+/* 미리보기 종이는 흰 바탕이라 글자색도 어두운 값이어야 한다. 아래 color에 붙은
+   !important는 원본 문서의 인라인 color가 아니라 **우리 .hit의 !important**를
+   이기려고 있는 것이다. `.hit { color: ... !important }`(어두운 배경용 밝은 색)가
+   더 약한 특이도인데도 !important 때문에 이 규칙을 덮어써서, 흰 종이 위에 밝은
+   글씨가 얹혀 글자가 사실상 안 보였다(실측 2026-09-20: 조직명이 #e7e7e5 배경에
+   #f0e6dc 글씨, 전화번호가 #fbe4e1 배경에 #f3c3b8 글씨 — 회색 덩어리로 보인다). */
 .paper__body .hit,
 .sheet-grid .hit {
   background: #fbe4e1;
-  color: #8a2c22;
+  color: #8a2c22 !important;
 }
 
 .paper__body .hit--hidden,
 .sheet-grid .hit--hidden {
   background: #fbe8cf;
-  color: #8a5a12;
+  color: #8a5a12 !important;
 }
 
 .paper__body .hit--other,
 .sheet-grid .hit--other {
   background: #e7e7e5;
-  color: #3a352c;
+  color: #3a352c !important;
+}
+
+/* 부분 마스킹 미리보기(.hit--standard)는 자기 !important로 위 규칙을 이기고 있었다.
+   위에 !important가 붙으면서 특이도가 낮은 쪽이 지므로 같은 자리에 다시 적어 둔다. */
+.paper__body .hit--standard,
+.sheet-grid .hit--standard {
+  color: var(--color-risk-medium) !important;
 }
 
 .paper__body .hit-excluded {
