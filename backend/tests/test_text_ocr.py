@@ -1359,5 +1359,74 @@ class RowIsSingleClusterTest(unittest.TestCase):
         self.assertEqual(text, "입금 계좌 국민 6127-02-384915")
 
 
+class RecoverNumberedListGapsTest(unittest.TestCase):
+    """실측 재현(2026-09-20): 참석자명단.png "7. 김경자 (넥스트브릿지)"가
+    EasyOCR 확신도 0.255로 `_EASYOCR_MIN_CONFIDENCE`(0.3) 바로 아래에서
+    걸러져 raw_text에서 통째로 빠졌다. 문턱 자체를 낮추면 배경 잡음이
+    인젝션 분류기를 오탐시킨 전례가 있어(`_EASYOCR_MIN_CONFIDENCE` 주석
+    참고) 대신 "번호 목록에서 번호 하나가 빔"이라는 구조만 보고 좁게
+    구제한다."""
+
+    @staticmethod
+    def _row(text: str, y: float) -> list:
+        return [(text, (10.0, y, 200.0, y + 30.0))]
+
+    def test_missing_middle_item_is_recovered_from_weak_rows(self):
+        from backend.scanner.detectors import text_ocr
+
+        rows = [
+            self._row("1. 김영수 (블루웨이브 솔루션)", 100),
+            self._row("2. 김지영 (넥스트브릿지)", 150),
+            self._row("4. 황광수 (대한소프트)", 250),
+        ]
+        weak_rows = [
+            self._row("3. 김경자 (한빛전자)", 200),
+        ]
+        recovered = text_ocr._recover_numbered_list_gaps(rows, weak_rows)
+        texts = [row[0][0] for row in recovered]
+        self.assertEqual(
+            texts,
+            [
+                "1. 김영수 (블루웨이브 솔루션)",
+                "2. 김지영 (넥스트브릿지)",
+                "3. 김경자 (한빛전자)",
+                "4. 황광수 (대한소프트)",
+            ],
+        )
+
+    def test_fewer_than_three_numbered_rows_is_not_treated_as_a_list(self):
+        """번호가 하나·둘만 보이면 우연일 수 있다 — 목록이라고 단정하지 않는다."""
+        from backend.scanner.detectors import text_ocr
+
+        rows = [self._row("1. 김영수 (블루웨이브 솔루션)", 100)]
+        weak_rows = [self._row("2. 잡음", 150)]
+        recovered = text_ocr._recover_numbered_list_gaps(rows, weak_rows)
+        self.assertEqual(recovered, rows)
+
+    def test_weak_row_with_wrong_number_is_not_pulled_in(self):
+        """빠진 자리(3번)가 아닌 다른 번호로 시작하는 weak_row는 채우지 않는다."""
+        from backend.scanner.detectors import text_ocr
+
+        rows = [
+            self._row("1. 김영수 (블루웨이브 솔루션)", 100),
+            self._row("2. 김지영 (넥스트브릿지)", 150),
+            self._row("4. 황광수 (대한소프트)", 250),
+        ]
+        weak_rows = [self._row("5. 잡음 (엉뚱한 회사)", 300)]
+        recovered = text_ocr._recover_numbered_list_gaps(rows, weak_rows)
+        self.assertEqual(recovered, rows)
+
+    def test_no_gap_returns_rows_unchanged(self):
+        from backend.scanner.detectors import text_ocr
+
+        rows = [
+            self._row("1. 김영수 (블루웨이브 솔루션)", 100),
+            self._row("2. 김지영 (넥스트브릿지)", 150),
+            self._row("3. 황광수 (대한소프트)", 200),
+        ]
+        recovered = text_ocr._recover_numbered_list_gaps(rows, [])
+        self.assertEqual(recovered, rows)
+
+
 if __name__ == "__main__":
     unittest.main()
