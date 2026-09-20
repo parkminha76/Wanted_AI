@@ -472,7 +472,16 @@ def _leaks(out_path: str, raw_text: str, plan) -> bool:
     완전한 증명은 아니다 — 값이 XML 조각 여러 개로 쪼개져 있으면 못 세고, 바이너리
     파트는 보지 않는다. 문서 속성(docProps의 작성자·제목)은 본문 마스킹이 다루는
     범위가 아니라서 제외한다.
+
+    태그를 지우고 세는 이유
+    ----------------------
+    XML 마크업 자체에 글자가 잔뜩 들어 있다 — `r="A10"`, `s="0"`, 스타일 인덱스,
+    네임스페이스 URL. 마크업까지 같이 세면 짧은 값이 전부 "샌다"로 판정된다.
+    실측(02_최종점검_정산내역.xlsx): 숨은 텍스트 `0` 한 글자의 예상 잔존이 29회인데
+    마크업 포함 656회가 세어져, 제대로 가려진 사본이 통째로 버려졌다.
+    마스킹이 책임지는 것은 문서의 **글자**이고 그건 태그 사이에 있다.
     """
+    import re
     import zipfile
     from xml.sax.saxutils import escape
 
@@ -490,6 +499,10 @@ def _leaks(out_path: str, raw_text: str, plan) -> bool:
             )
     except Exception:      # noqa: BLE001
         return True        # 확인하지 못한 사본은 내보내지 않는다
+
+    # 태그를 줄바꿈으로 바꾼다. 지우지 않는 이유는 태그를 사이에 두고 떨어져 있던
+    # 글자가 붙어서 없던 값이 생기는 것을 막기 위해서다.
+    blob = re.sub(r"<[^>]*>", "\n", blob)
 
     for value, allowed in budget.items():
         found = blob.count(value)

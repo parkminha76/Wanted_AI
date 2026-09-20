@@ -119,8 +119,23 @@ def _get_pipeline():
     return _pipeline
 
 
+_HANGUL_PATTERN = re.compile(r"[가-힣]")
+
+
 def _iter_segment_chunks(text: str, segment_start: int, segment_end: int):
-    """탭·줄바꿈으로 분리된 한 구간을 모델 입력 크기에 맞춰 나눈다."""
+    """탭·줄바꿈으로 분리된 한 구간을 모델 입력 크기에 맞춰 나눈다.
+
+    한글이 한 글자도 없는 조각은 건너뛴다. 실측(2026-09-20, 4,442,184자·2만
+    5천 줄짜리 로그 파일): request_id·client_ip·phone·email 같은 필드가
+    반복되는 줄마다 NER 입력이 하나씩 생겨(줄당 약 176자, 줄바꿈이 강제
+    경계라) 배치 추론이 3천 번 넘게 돌아 180초를 넘겼다. 이 모델이 사람
+    이름·회사명으로 잡는 값은 이 프로젝트가 다루는 문서에서 전부 한글이
+    섞여 있다(외국 회사명도 "Liceria & Co. 비 디자인 디자인팀"처럼 한글
+    문맥과 같이 나온다 — 실측 사례). 전화번호·이메일·IP처럼 형식이 고정된
+    값은 이 필터와 무관하게 rules.py가 정규식으로 전체 파일을 그대로
+    훑으므로(NER을 거치지 않는다), 한글 없는 로그 줄을 건너뛰어도 그
+    탐지에는 영향이 없다.
+    """
     start = segment_start
     while start < segment_end:
         end = min(start + _MAX_CHARS_PER_CHUNK, segment_end)
@@ -131,7 +146,7 @@ def _iter_segment_chunks(text: str, segment_start: int, segment_end: int):
             if boundary > start:
                 end = boundary + 1
         chunk = text[start:end]
-        if chunk.strip():
+        if chunk.strip() and _HANGUL_PATTERN.search(chunk):
             yield chunk, start
         start = end
 
