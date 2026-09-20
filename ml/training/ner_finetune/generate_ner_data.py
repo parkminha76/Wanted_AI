@@ -219,6 +219,36 @@ def gen_natural_sentence() -> tuple[str, list]:
     return "".join(parts), entities
 
 
+# 실측(2026-09-20): 이력서류 "2022 - 2023 Liceria & Co. 비 디자인 디자인팀"에서
+# 학교명 필터 회귀 테스트(test_ner_school_exclusion.py)가 깨졌다 — 회사명 자체는
+# 여전히 0.94로 잘 잡았지만, 이번 학습 데이터에 없던 "영문 회사명 + 바로 뒤에
+# 붙는 한글 부서 접미어(팀/부/실/본부)" 조합에서 경계가 부서 접미어 중간까지
+# 번져(ner.py의 "단어 중간에서 끊긴 조직명" 안전장치에 걸려 통째로 버려졌다.
+# 순수 한글 회사명 생성기(_gen_org)만 계속 써서 영문 회사명 형태를 아예 학습에
+# 안 넣은 게 원인으로 보인다 — 영문 회사명과 부서 접미어 경계를 같이 가르친다.
+_ENGLISH_ORGS = [
+    "Liceria & Co.", "Nomad Coders", "Bright Path Inc.", "Vertex Solutions",
+    "Union Bay Ltd.", "Nova Systems", "Crestline Partners", "Argon Digital",
+]
+_DEPARTMENT_SUFFIXES = ["팀", "부", "실", "본부", "센터", "그룹"]
+
+
+def gen_career_entry() -> tuple[str, list]:
+    """실측 재현: 이력서 경력 목록 "연도범위 회사명. 부서명접미어" — 회사명
+    경계가 바로 뒤에 붙는 부서 접미어(공백 없음) 앞에서 정확히 끊겨야 한다."""
+    parts: list[str] = []
+    entities: list[list] = []
+    y1 = random.randint(2015, 2023)
+    y2 = y1 + random.randint(1, 3)
+    org = random.choice(_ENGLISH_ORGS) if random.random() < 0.5 else _gen_org()
+    dept = random.choice(["디자인", "개발", "마케팅", "영업", "인사", "재무", "전략기획"])
+    suffix = random.choice(_DEPARTMENT_SUFFIXES)
+    _mark(parts, entities, f"{y1} - {y2} ", None)
+    _mark(parts, entities, org, "OG")
+    _mark(parts, entities, f". {dept}{suffix}", None)
+    return "".join(parts), entities
+
+
 def gen_hard_negative_csv_row() -> tuple[str, list]:
     """실측 재현: "이름 자리"에 이름이 아닌 값이 오는 하드 네거티브 — 위치만
     보고 무조건 이름으로 외우지 않게 막는다(쿠폰번호·접수번호 오탐 사례와
@@ -235,6 +265,38 @@ def gen_hard_negative_csv_row() -> tuple[str, list]:
     return "".join(parts), entities
 
 
+# 실측(2026-09-20, docX-ray 배포본): gen_table_row("역할\t이름\t연락처")로 학습한
+# 뒤, 계약서류 표에서 이름/회사명이 아닌 흔한 업무 라벨("법인카드", "검수",
+# "정보보호" 등)까지 회사명(OG)으로 오탐하는 회귀가 생겼다 — "탭/파이프로 나뉜
+# 첫 칸은 대체로 PS/OG"라고 위치만으로 과일반화한 것으로 보인다.
+# gen_hard_negative_csv_row가 "이름 자리"의 하드 네거티브를 다루듯, 이번엔
+# "표 라벨 자리"의 하드 네거티브를 대칭으로 넣는다 — 실제 계약서/보고서 표에
+# 흔한 라벨들이고, 전부 개체명이 아니다(entities가 빈 리스트).
+_TABLE_LABEL_HARD_NEGATIVES = [
+    "법인카드", "검수", "정산", "정보보호", "승인", "접수", "발주", "납품",
+    "품질보증", "손해배상", "비밀유지", "계약기간", "지급조건", "분쟁해결",
+    "하자보수", "인수인계", "보안서약", "정산 계좌", "결제 방법", "배송 조건",
+]
+
+
+def gen_hard_negative_table_label() -> tuple[str, list]:
+    """실측 재현: 계약서류 표에서 "법인카드\\t3991-..." 같은 라벨 자리를
+    회사명으로 오탐하던 것 — 라벨은 개체명이 아니라고 대칭으로 가르친다."""
+    parts: list[str] = []
+    entities: list[list] = []
+    sep = random.choice(["\t", " | "])
+    label = random.choice(_TABLE_LABEL_HARD_NEGATIVES)
+    value = random.choice([
+        _gen_phone(),
+        f"{random.randint(100,999)}-{random.randint(10,99)}-{random.randint(10000,99999)}",
+        "월간 결과보고서 제출 후 5영업일 안에 검토한다",
+        "업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다",
+        f"{random.randint(1000,9999)}-{random.randint(1000,9999)}-{random.randint(1000,9999)}-{random.randint(1000,9999)}",
+    ])
+    _mark(parts, entities, label + sep + value, None)
+    return "".join(parts), entities
+
+
 _GENERATORS = [
     (gen_csv_row, 20),
     (gen_numbered_list_with_org, 20),
@@ -244,6 +306,8 @@ _GENERATORS = [
     (gen_org_only_row, 10),
     (gen_natural_sentence, 15),
     (gen_hard_negative_csv_row, 8),
+    (gen_hard_negative_table_label, 12),
+    (gen_career_entry, 14),
 ]
 
 
