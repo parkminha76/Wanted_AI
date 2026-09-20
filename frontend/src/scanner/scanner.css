@@ -1448,15 +1448,21 @@
 }
 
 .hit--hidden {
-  background: var(--color-hit-hidden-bg);
   /* 실측(2026-09-20): 숨겨진 글자는 원본에서 0pt 크기·투명색 같은 방식으로
-     숨겨져 있어서, 그 인라인 스타일이 이 배경색보다 우선 적용되면 하이라이트만
-     칠해지고 글자는 여전히 안 보인다(예: font-size 0.02rem으로 남아 사실상
-     빈 검은 상자처럼 보임). !important로 원본 숨김 스타일을 덮어써 실제로
-     읽을 수 있게 만든다 — "여기 뭔가 있다"가 아니라 "이게 그 내용이다"를
-     보여주는 게 목적이다. */
+     숨겨져 있어서, 그 인라인 스타일이 우리 스타일보다 우선 적용되면 글자가
+     안 보인다(예: font-size 0.02rem으로 남음). !important로 원본 숨김
+     스타일을 덮어써 실제로 읽을 수 있게 만든다 — "여기 뭔가 있다"가 아니라
+     "이게 그 내용이다"를 보여주는 게 목적이다.
+     채워진 배경 대신 테두리만 쓴다(2026-09-20 피드백) — 꽉 찬 어두운 상자는
+     "내용을 또 가려놓은 것"처럼 보여서, 굳이 클릭해야 뭔지 알 수 있었다.
+     테두리로 "여기 위험한 게 있다"는 경고만 주고, 글자는 원래 색으로
+     바로 읽히게 한다. */
+  background: transparent;
+  border: 1.5px solid var(--color-risk-high);
+  border-radius: 3px;
+  padding: 0 3px;
   font-size: var(--font-size-md) !important;
-  color: var(--color-text) !important;
+  color: var(--color-risk-high) !important;
   opacity: 1 !important;
   letter-spacing: normal !important;
 }
