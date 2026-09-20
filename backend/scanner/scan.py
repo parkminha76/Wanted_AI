@@ -389,6 +389,17 @@ def _apply_classifier_filters(
         if _has_explicit_positive_label(f, raw_text):
             kept.append(f)
             continue
+        # 실측(2026-09-20, 4,442,184자짜리 로그 파일 — phone·email 6천 건):
+        # 분류기가 학습하지 않은 타입(phone·email 등)은 filter_false_positive가
+        # 문맥을 보지도 않고 그냥 통과시킨다(모델이 배운 적 없는 타입은 안
+        # 묻는다는 주석 참고) — 그런데도 그 문맥을 만드는 _sentence_around를
+        # 매번 불렀다. _sentence_around는 호출할 때마다 원문 전체를 처음부터
+        # 다시 문장으로 쪼개며 찾는 값 자리까지 훑는 O(문장 수) 함수라, 값이
+        # 6천 개면 사실상 원문 전체를 6천 번 훑는 셈이 된다(실측: 139초). 학습
+        # 안 한 타입은 문맥이 버려질 걸 알고 있으므로, 애초에 만들지 않는다.
+        if not models.false_positive_model_ready(f.type):
+            kept.append(f)
+            continue
         context, context_start = _sentence_around(raw_text, f.start, f.end)
         is_real, prob_positive = models.filter_false_positive(
             f.text, context, f.type, value_start=f.start - context_start
