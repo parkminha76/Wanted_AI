@@ -130,6 +130,95 @@ def _filter_passport_incompatible(findings: list[dict]) -> list[dict]:
     return filtered
 
 
+def _drop_stray_low_confidence_addresses(findings: list[dict]) -> list[dict]:
+    """확신도 높은 주소가 이미 있을 때, 그 블록과 동떨어진 낮은 주소 후보를 버린다.
+
+    address만 0.05까지 받는 이유는 주민등록증 주소가 여러 줄로 쪼개져 뒷줄이
+    0.062처럼 낮게 나오기 때문이다(_CLASS_CONFIDENCE_THRESHOLDS 주석). 그 뒷줄은
+    **첫 줄 바로 아래에** 붙어 있다 — 가로 범위가 겹친다.
+
+    그런데 운전면허증에서는 이 낮은 문턱이 엉뚱한 글자를 주소로 집어 온다
+    (실측 2026-09-20: 좌상단 "2종보통 2종소형 원동기" 줄이 0.080으로 잡혔다.
+    진짜 주소는 반대편에서 0.943으로 따로 잡혀 있었다). 면허 종별까지 까맣게
+    칠해지면 사본이 못 쓰게 된다.
+
+    그래서 확신도 높은 주소가 있을 때만, 그것과 가로로 겹치지 않는 낮은 후보를
+    이어지는 줄이 아니라고 보고 버린다. 전부 낮게 잡힌 주민등록증에서는
+    비교 기준이 없으므로 예전처럼 전부 남긴다.
+    """
+    addresses = [
+        item for item in findings if item.get("evidence", {}).get("cnn_class") == "address"
+    ]
+    strong = [item for item in addresses if item["confidence"] >= CONFIDENCE_THRESHOLD]
+    if not strong or len(addresses) == len(strong):
+        return findings
+
+    def overlaps_strong(item: dict) -> bool:
+        left, _, right, _ = item["bbox"]
+        return any(
+            left < anchor["bbox"][2] and anchor["bbox"][0] < right for anchor in strong
+        )
+
+    return [
+        item
+        for item in findings
+        if item.get("evidence", {}).get("cnn_class") != "address"
+        or item["confidence"] >= CONFIDENCE_THRESHOLD
+        or overlaps_strong(item)
+    ]
+
+
+# 주소 박스를 늘릴 때 기준으로 삼는 "한 줄짜리 글자 필드"들. 이들은 카드에서 주소와
+# 같은 방향으로 인쇄되고 끝까지 또렷하게 잡히는 편이라 폭의 기준이 된다.
+_TEXT_EXTENT_CLASSES = {"license_number", "resident_number", "passport_number", "name"}
+
+
+def _widen_address_to_text_extent(findings: list[dict]) -> list[dict]:
+    """주소 박스가 글자 끝까지 못 미칠 때, 같은 카드의 다른 글자 필드 끝선까지 늘린다.
+
+    실측(2026-09-20, 합성 운전면허증 1040x720): 주소 "서울특별시 서대문구 통일로 97"이
+    x=900 근처까지 인쇄돼 있는데 박스는 x=750에서 끊겨, 사본에서 "통일로 97"이 그대로
+    읽혔다. 개인정보를 가리는 것이 본업이므로 이건 오탐보다 무거운 실패다.
+
+    고정 픽셀이나 고정 비율로 늘리면 카드·해상도마다 과하거나 모자라므로, **같은 카드에서
+    이미 잡힌 다른 글자 필드의 끝선**을 기준으로 삼는다. 면허번호·주민번호처럼 한 줄로
+    또렷하게 잡히는 필드가 그 카드의 글자 영역이 어디까지인지 알려준다. 기준이 주소보다
+    짧으면 아무것도 하지 않는다.
+
+    글자가 가로로 흐르면(박스가 옆으로 길면) 오른쪽 끝을, 세로로 누운 신분증이면
+    아래쪽 끝을 늘린다. 원래 길이만큼까지만 늘려서, 기준이 엉뚱하게 잡혔을 때
+    카드 절반이 통째로 칠해지는 일은 막는다.
+    """
+    references = [
+        item
+        for item in findings
+        if item.get("evidence", {}).get("cnn_class") in _TEXT_EXTENT_CLASSES
+    ]
+    if not references:
+        return findings
+
+    widened = []
+    for item in findings:
+        if item.get("evidence", {}).get("cnn_class") != "address":
+            widened.append(item)
+            continue
+
+        left, top, right, bottom = item["bbox"]
+        horizontal = (right - left) >= (bottom - top)
+        if horizontal:
+            target = max(ref["bbox"][2] for ref in references)
+            limit = right + (right - left)
+            new_right = min(max(right, target), limit)
+            item = {**item, "bbox": (left, top, new_right, bottom)}
+        else:
+            target = max(ref["bbox"][3] for ref in references)
+            limit = bottom + (bottom - top)
+            new_bottom = min(max(bottom, target), limit)
+            item = {**item, "bbox": (left, top, right, new_bottom)}
+        widened.append(item)
+    return widened
+
+
 def _add_license_secondary_face(
     findings: list[dict], width: int, height: int
 ) -> list[dict]:
@@ -233,22 +322,71 @@ def _get_model():
     return _model
 
 
-def detect(path: str) -> list[dict]:
-    """이미지 1장에서 개인정보 영역을 찾는다.
+def _has_anchor(findings: list[dict]) -> bool:
+    """신분증에만 나오는 클래스를 하나라도 찾았는가(_ANCHOR_CLASSES 참고)."""
+    return any(
+        item.get("evidence", {}).get("cnn_class") in _ANCHOR_CLASSES for item in findings
+    )
 
-    rules.py와 같은 형식에 좌표를 더해 돌려준다:
-        [{field, value, start, end, confidence, bbox, page, reason, evidence}, ...]
 
-    start/end는 0으로 둔다 — 이미지에는 문자 오프셋이라는 개념이 없다. 마스킹은
-    bbox로 한다. 그래서 scan.py의 _dedupe는 이 결과에 아무 일도 하지 못한다
-    (구간 겹침을 start/end로 판정하는데 둘 다 0이라 항상 "안 겹침"이 된다).
-    겹친 박스를 합치는 일은 아래 NMS가 책임진다.
+def _detect_rotated(path: str) -> list[dict] | None:
+    """사진 속 신분증이 누워 있을 때를 위해 90/180/270도로 돌려 다시 본다.
+
+    이 모델은 바로 세운 신분증으로 학습했다. 실측(2026-09-20, 세로로 세워 찍은
+    주민등록증 견본): 원본 방향에서는 얼굴 하나(0.252)만 잡혀 앵커가 없었고,
+    반시계 90도로 돌리자 주민등록번호·이름·발급일자까지 6건이 잡혔다. 앵커가 없으면
+    scan.py가 "신분증이 아니다"로 보고 거부하므로, 돌리지 않으면 멀쩡한 신분증이
+    반려된다.
+
+    앵커가 없을 때만 돈다 — 바로 세운 사진까지 매번 네 배 비용을 물지 않는다.
+    text_ocr.py가 OCR에서 같은 일을 하며 쓰는 규칙을 그대로 따른다.
+
+    좌표는 돌린 그림 기준으로 나오므로 원본 좌표로 되돌려서 내보낸다. 마스킹은
+    원본 파일 위에 그리기 때문에, 이걸 빼먹으면 엉뚱한 자리가 가려진다.
+    """
+    import cv2
+    import numpy as np
+
+    # text_ocr의 좌표 역매핑을 그대로 쓴다. 같은 회전 규칙(np.rot90의 k)을 두 군데서
+    # 따로 구현하면 한쪽만 틀어져도 마스킹이 엉뚱한 자리를 가린다.
+    from backend.scanner.detectors.text_ocr import _map_bbox_from_rotated
+
+    # YOLO가 경로를 받을 때 cv2로 읽어 BGR로 다루므로 여기서도 cv2로 읽는다.
+    # PIL로 읽어 RGB로 넘기면 색 순서가 뒤바뀌어 탐지 품질이 달라진다.
+    image = cv2.imread(path)
+    if image is None:
+        return None
+    orig_h, orig_w = float(image.shape[0]), float(image.shape[1])
+
+    for k in (1, 2, 3):
+        # np.rot90은 음수 stride를 가진 뷰를 돌려준다. ultralytics는 연속 배열을
+        # 기대하므로 복사해서 넘긴다.
+        rotated = np.ascontiguousarray(np.rot90(image, k=k))
+        found, width, height = _detect_frame(rotated)
+        found = _filter_passport_incompatible(found)
+        found = _drop_stray_low_confidence_addresses(found)
+        found = _widen_address_to_text_extent(found)
+        found = _add_license_secondary_face(found, width, height)
+        if _has_anchor(found):
+            for item in found:
+                item["bbox"] = _map_bbox_from_rotated(item["bbox"], k, orig_w, orig_h)
+                item["evidence"]["rotated_k"] = k
+            return found
+    return None
+
+
+def _detect_frame(source) -> tuple[list[dict], int, int]:
+    """한 방향에서 추론한다. source는 파일 경로 또는 BGR 배열이다.
+
+    반환값은 (findings, 이미지 너비, 이미지 높이)다. 너비·높이는
+    `_add_license_secondary_face`가 쓰는데, 돌린 그림에서는 원본과 뒤바뀌므로
+    그 그림 기준 값을 그대로 돌려줘야 한다.
     """
     model = _get_model()
     findings: list[dict] = []
     image_width = image_height = 0
     for result in model.predict(
-        path, conf=_INFERENCE_CONFIDENCE_FLOOR, iou=_NMS_IOU_THRESHOLD, verbose=False
+        source, conf=_INFERENCE_CONFIDENCE_FLOOR, iou=_NMS_IOU_THRESHOLD, verbose=False
     ):
         image_height, image_width = result.orig_shape
         names = result.names
@@ -275,6 +413,31 @@ def detect(path: str) -> list[dict]:
                     "evidence": {"cnn_class": class_name, "model": "infoguard_cnn_v1"},
                 }
             )
+    return findings, image_width, image_height
+
+
+def detect(path: str) -> list[dict]:
+    """이미지 1장에서 개인정보 영역을 찾는다.
+
+    rules.py와 같은 형식에 좌표를 더해 돌려준다:
+        [{field, value, start, end, confidence, bbox, page, reason, evidence}, ...]
+
+    start/end는 0으로 둔다 — 이미지에는 문자 오프셋이라는 개념이 없다. 마스킹은
+    bbox로 한다. 그래서 scan.py의 _dedupe는 이 결과에 아무 일도 하지 못한다
+    (구간 겹침을 start/end로 판정하는데 둘 다 0이라 항상 "안 겹침"이 된다).
+    겹친 박스를 합치는 일은 NMS가 책임진다.
+
+    바로 세운 방향에서 앵커를 못 찾으면 돌려서 한 번 더 본다(`_detect_rotated`).
+    """
+    findings, image_width, image_height = _detect_frame(path)
     findings = _filter_passport_incompatible(findings)
+    findings = _drop_stray_low_confidence_addresses(findings)
+    findings = _widen_address_to_text_extent(findings)
     findings = _add_license_secondary_face(findings, image_width, image_height)
+
+    if not _has_anchor(findings):
+        rotated = _detect_rotated(path)
+        if rotated is not None:
+            findings = rotated
+
     return _require_anchor_evidence(findings)

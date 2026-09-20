@@ -85,8 +85,16 @@ export default function DocumentPreview({
   // "‹ 1 / N ›" 인디케이터가 가리키는 위치 — 배열 순서(0부터)로 센다. 쪽 번호(page.page)는
   // 꼭 1,2,3...으로 이어진다는 보장이 없어서(서버가 주는 값) 인덱스로 다뤄야 화살표 이동이 안전하다.
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
+  // 보던 쪽을 유지하고, 새 문서에 그 쪽이 없을 때만 첫 쪽으로 되돌린다.
+  //
+  // 그냥 0으로 초기화하면 원문↔마스킹 토글 때마다 맨 위로 튄다 — 토글은 내용을
+  // (raw_text ↔ maskedText) 갈아 끼우므로 pagedSegments가 매번 새 배열이 되고,
+  // 이 효과가 같이 돈다. 3쪽을 보다가 "원문 보기"를 누르면 3쪽의 원문이 아니라
+  // 1쪽으로 돌아가 버렸다.
   useEffect(() => {
-    setCurrentPageIndex(0)
+    setCurrentPageIndex((current) =>
+      pagedSegments && current < pagedSegments.length ? current : 0,
+    )
   }, [pagedSegments])
 
   // 항목을 고르면 그 위치로 미리보기 안에서만 스크롤한다(페이지 전체는 움직이지 않게).

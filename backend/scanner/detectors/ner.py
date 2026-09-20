@@ -188,12 +188,82 @@ def _is_education_institution(text: str, start: int, end: int) -> bool:
 # 개체(회사명)가 되는 일이 사실상 없다 — 값이 정확히 이 목록과 같을 때만 뺀다.
 _ORG_STANDALONE_MODIFIERS = {"공인"}
 
+# 한국 사람 이름의 모양. 성 한 글자 + 이름 1~3글자라 2~4자를 벗어나지 않는다.
+#
+# 왜 형태로 거르나: 확신도로는 못 가른다. 실측(2026-09-20, 데모 문서 4종)에서
+# 보통명사 '오류율'·'시연용'이 0.99로 잡혔는데 진짜 이름 '박진우'도 0.99였다.
+# 같은 자리에 있어서 문턱을 올리면 진짜 이름이 먼저 떨어진다.
+_PERSON_NAME_LENGTH = (2, 4)
+
+# 흔한 한국 성. NER이 보통명사를 이름으로 내놓을 때 첫 글자가 성이 아닌 경우가 많다
+# (실측: '시연용'의 시, '별지'의 별). 성으로 시작하지 않으면 이름으로 보지 않는다.
+_KOREAN_SURNAMES = frozenset(
+    "김이박최정강조윤장임한오서신권황안송전홍고문손양배백허남심노하곽성차주우구"
+    "라민유진지엄채원천방공현함변염여추도소석선설마길연위표명반왕금옥육인맹제탁국어편"
+)
+
+# 이름 끝에 거의 오지 않으면서 보통명사를 만드는 꼬리. 실측에서 걸린 '기준일'·
+# '정산기준일'의 일, '시연용'의 용이 여기 해당한다.
+#
+# '율'은 일부러 뺐다 — '하율'·'서율'·'채율'처럼 요즘 흔한 이름의 끝 글자라,
+# 넣으면 진짜 이름을 놓친다. 그래서 '오류율'은 이 규칙으로 못 거른다(아래 보고 참고).
+_PERSON_NOUN_TAIL = ("일", "용", "함")
+
+
+def _looks_like_person_name(value: str) -> bool:
+    """사람 이름의 모양을 갖췄는가. 한글 이름만 판단하고 그 외는 그대로 통과시킨다."""
+    value = value.strip()
+    if not value or not all("가" <= ch <= "힣" for ch in value):
+        return True  # 외국어 이름 등은 이 규칙으로 판단하지 않는다
+    low, high = _PERSON_NAME_LENGTH
+    if not low <= len(value) <= high:
+        return False
+    if value[0] not in _KOREAN_SURNAMES:
+        return False
+    return not value.endswith(_PERSON_NOUN_TAIL)
+
+
 _ORG_SUFFIX_PATTERN = re.compile(
     r"(?<![가-힣A-Za-z0-9])"
     r"(?:주식회사\s+)?[가-힣A-Za-z0-9·]{2,}"
     r"\s+(?:솔루션|테크놀로지|테크|글로벌|그룹)"
     r"(?:\s+주식회사)?(?![가-힣A-Za-z0-9])"
 )
+
+
+# 회사임을 스스로 밝히는 표기. 한글·영문 양쪽을 본다.
+_ORG_EVIDENCE_WORDS = (
+    "주식회사", "㈜", "솔루션", "테크놀로지", "테크", "글로벌", "그룹", "코퍼레이션", "홀딩스",
+    "Co", "Inc", "Ltd", "LLC", "Corp", "Company", "GmbH", "PLC",
+)
+
+
+def _drop_latin_orgs_without_marker(findings: list[dict]) -> list[dict]:
+    """한글이 하나도 없는 조직명 후보는 회사 표기가 붙어 있을 때만 남긴다.
+
+    실측(2026-09-20, 데모 문서 4종): 'PDF'(0.92)·'DOCX'(0.97)·'docX'(0.92)·
+    'health'(0.98)가 조직명으로 잡혔다. 전부 파일 형식이나 경로 조각이다. 확신도는
+    진짜 회사명과 같은 자리에 있어서 문턱으로는 못 가른다.
+
+    한글 문서에 섞인 짧은 영문 토큰은 회사명보다 약어·파일 형식일 때가 훨씬 많다.
+    그래서 영문만으로 된 후보는 'Co.'·'Inc.' 같은 표기를 달고 있을 때만 받는다 —
+    'Liceria & Co.'는 남고 'PDF'는 빠진다.
+
+    한글이 섞인 후보는 건드리지 않는다. '카카오'처럼 꼬리말 없이도 회사명인 경우가
+    흔해서(test_ner_org_standalone_modifiers) 같은 잣대를 들이대면 진짜 회사명이 죽는다.
+
+    남는 한계: '마스킹'·'한함'처럼 한글 보통명사가 조직명으로 잡히는 것은 이 규칙으로
+    못 거른다. person/org를 오탐 제거 분류기에 학습시키는 것이 제대로 된 해법이다.
+    """
+    kept = []
+    for item in findings:
+        value = item["value"].strip()
+        if item["field"] != "org" or any("가" <= ch <= "힣" for ch in value):
+            kept.append(item)
+            continue
+        if any(word.lower() in value.lower() for word in _ORG_EVIDENCE_WORDS):
+            kept.append(item)
+    return kept
 
 
 def _expand_repeated_entities(text: str, findings: list[dict]) -> list[dict]:
@@ -260,6 +330,9 @@ def detect(text: str) -> list[dict]:
                     if text[start:end].endswith(suffix):
                         end -= len(suffix)
                         break
+                # 사람 이름의 모양을 갖추지 못한 보통명사를 뺀다(_looks_like_person_name).
+                if not _looks_like_person_name(text[start:end]):
+                    continue
 
             # 영문 토큰 중간에서 시작·끝난 조직명(InfoGuard -> foGuard)은 모델의
             # 토큰 경계 오류다. 한 글자 조직명 "주"도 회사명으로 쓰지 않는다.
@@ -318,4 +391,4 @@ def detect(text: str) -> list[dict]:
             merged[-1]["confidence"] = max(merged[-1]["confidence"], item["confidence"])
         else:
             merged.append(dict(item))
-    return _expand_repeated_entities(text, merged)
+    return _expand_repeated_entities(text, _drop_latin_orgs_without_marker(merged))
