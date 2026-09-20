@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import re
 import statistics
+import threading
 from dataclasses import dataclass
 
 # 한국어 문서이므로 한국어를 기본으로 하되 영어 라벨(Invoice, CHOI-TAEO 등)도
@@ -388,16 +389,23 @@ def _union(a: tuple, b: tuple) -> tuple:
 
 
 _reader = None
+_reader_lock = threading.Lock()
 
 
 def _get_reader():
     """첫 호출 때 한 번만 모델을 불러와 캐싱한다. import 시점에 불러오면 모델 파일이
-    없는 환경에서 `import text_ocr` 자체가 실패해 scan.py 전체가 멎는다."""
+    없는 환경에서 `import text_ocr` 자체가 실패해 scan.py 전체가 멎는다.
+
+    락으로 감싸는 이유는 ner.py의 `_get_pipeline` 주석 참고 — 락 없이 동시
+    요청이 들어오면 콜드 스타트 직후 EasyOCR을 여러 번 동시에 새로 불러와
+    작은 인스턴스에서 서로 CPU를 뺏어가며 응답이 몇 분씩 늘어진다."""
     global _reader
     if _reader is None:
-        import easyocr
+        with _reader_lock:
+            if _reader is None:
+                import easyocr
 
-        _reader = easyocr.Reader(_EASYOCR_LANGS, gpu=False)
+                _reader = easyocr.Reader(_EASYOCR_LANGS, gpu=False)
     return _reader
 
 
@@ -485,6 +493,49 @@ def _group_into_rows(
     return [sorted(row, key=lambda item: item[1][0]) for row in rows]
 
 
+# "1. 이름 (회사)"류 번호 목록에서 줄 하나가 통째로 확신도 문턱(`_EASYOCR_MIN_
+# CONFIDENCE`)에 못 미쳐 raw_text에서 빠지는 경우가 있다(실측: 2026-09-20,
+# 참석자명단.png "7. 김경자 (넥스트브릿지)"가 확신도 0.255로 0.3 문턱 바로
+# 아래에서 걸러짐). 문턱 자체를 낮추면 장식 배경 잡음까지 섞여 인젝션
+# 분류기를 오탐시킨 전례가 있어(`_EASYOCR_MIN_CONFIDENCE` 주석 참고) 못 쓴다.
+# 대신 이 패턴에 한해서만 좁게 구제한다: 번호가 3개 이상 이어지는 목록에서
+# 번호가 하나 빠져 있으면, weak_rows(더 낮은 문턱까지 담은 목록)에서 정확히
+# 그 번호로 시작하는 줄을 찾아 채운다 — 잡음이 우연히 "7. "로 시작하면서
+# 정확히 그 빠진 자리에 올 일은 사실상 없어서, 위 오탐 경로가 다시 열리지
+# 않는다.
+_NUMBERED_LIST_ITEM = re.compile(r"^(\d{1,3})[.)]\s")
+
+
+def _numbered_list_item_number(line: list[tuple[str, tuple]]) -> int | None:
+    if not line:
+        return None
+    match = _NUMBERED_LIST_ITEM.match(line[0][0])
+    return int(match.group(1)) if match else None
+
+
+def _recover_numbered_list_gaps(
+    rows: list[list[tuple[str, tuple]]],
+    weak_rows: list[list[tuple[str, tuple]]],
+) -> list[list[tuple[str, tuple]]]:
+    numbered = {n: row for row in rows if (n := _numbered_list_item_number(row)) is not None}
+    if len(numbered) < 3:
+        return rows
+
+    missing = [n for n in range(min(numbered), max(numbered) + 1) if n not in numbered]
+    if not missing:
+        return rows
+
+    recovered = list(rows)
+    for n in missing:
+        for weak_row in weak_rows:
+            if _numbered_list_item_number(weak_row) == n:
+                recovered.append(weak_row)
+                break
+    if len(recovered) == len(rows):
+        return rows
+    return sorted(recovered, key=lambda row: min(b[1] for _, b in row))
+
+
 def _oversized_row_flags(rows: list[list[tuple[str, tuple]]]) -> list[bool]:
     """줄마다 제목 크기인지 표시한다. `_OVERSIZED_HEIGHT_RATIO` 주석 참고.
 
@@ -568,8 +619,9 @@ def _ocr_lines(
             detections.append((text, bbox))
 
     rows = _group_into_rows(detections)
-    flags = _oversized_row_flags(rows)
     weak_rows = _group_into_rows(weak_detections)
+    rows = _recover_numbered_list_gaps(rows, weak_rows)
+    flags = _oversized_row_flags(rows)
     return rows, flags, weak_rows, rotation
 
 

@@ -39,6 +39,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from pathlib import Path
 
 _BASE_MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
@@ -50,7 +51,21 @@ _BASE_MODEL_NAME = "Leo97/KoELECTRA-small-v3-modu-ner"
 # 문장)으로 베이스 대비 신뢰도가 뚜렷이 올라간 것을 확인했고, 자연스러운
 # 문장에서의 원래 성능도 유지됨을 확인했다(파국적 망각 없음).
 _FINETUNED_MODEL_DIR = Path(__file__).resolve().parents[3] / "ml" / "models" / "ner_person_org_v1"
-MODEL_NAME = str(_FINETUNED_MODEL_DIR) if _FINETUNED_MODEL_DIR.is_dir() else _BASE_MODEL_NAME
+_USING_FINETUNED_MODEL = _FINETUNED_MODEL_DIR.is_dir()
+MODEL_NAME = str(_FINETUNED_MODEL_DIR) if _USING_FINETUNED_MODEL else _BASE_MODEL_NAME
+
+# 2026-09-20 실측(계약서.pdf 실서비스 스캔): 파인튜닝 모델이 "법인카드"·"검수"
+# 오탐은 고쳤지만, 짧은 영문 단어·주소 조각·문서 자체 텍스트("월간", "docX",
+# "Security", "Approval", "오탐"조차)를 회사명으로 잘못 잡는 사례가 남아 있었다.
+# 건마다 하드 네거티브를 추가하는 건 끝이 없다 — 대신 실제 계약서.pdf 전체를
+# 스캔해 회사명 신뢰도를 정렬해보니, 진짜 회사명(블루웨이브 솔루션·넥스트브릿지
+# 등)은 전부 0.94~0.99인 반면 이런 오탐은 전부 0.85 이하로 뚜렷이 갈렸다
+# (0.89 "한빛타워"만 예외처럼 보이지만 이것도 주소 일부라 실제로는 오탐이다).
+# 베이스 모델(파인튜닝 전)은 이 임계값을 적용하면 안 된다 — 기존 실측(주석
+# 참고, "공인" 필터 관련)에서 진짜 회사명 "네이버"가 0.364로 나온 적이 있어,
+# 베이스 모델의 신뢰도 분포는 파인튜닝 모델과 다르다. 그래서 파인튜닝 모델을
+# 쓸 때만 적용한다.
+_FINETUNED_ORG_MIN_CONFIDENCE = 0.90
 
 # 한 번에 모델에 넣을 최대 글자 수. 한국어는 대략 2글자당 1토큰이라 400자면
 # 200토큰 안팎으로, 512 한도에 충분한 여유가 있다.
@@ -74,18 +89,33 @@ _TAG_TO_RISK_TYPE: dict[str, str] = {
 }
 
 _pipeline = None
+_pipeline_lock = threading.Lock()
 
 
 def _get_pipeline():
+    """모델을 한 번만 불러와 캐싱한다.
+
+    2026-09-20 실측(Railway 배포): 락 없이 `if _pipeline is None`만 보면,
+    콜드 스타트 직후 여러 요청(XLSX는 셀마다 detect()를 부른다)이 거의 동시에
+    들어올 때 전부 캐시가 비어 있는 걸 보고 각자 모델을 처음부터 새로
+    불러온다 — 배포 로그에 "Loading weights: 0%"가 같은 몇 초 사이 수십 번
+    반복해서 시작되는 것으로 확인됐다. 작은 인스턴스에서 이게 동시에 겹치면
+    CPU를 서로 뺏어가며 몇 초면 끝날 로딩이 수 분으로 늘어나고, `/samples`
+    처럼 여러 파일을 한 요청 안에서 훑는 경로는 아예 Railway의 프록시 타임아웃
+    (5분)을 넘겨버린다. 락으로 첫 스레드만 실제로 불러오고 나머지는 그 결과를
+    기다리게 한다.
+    """
     global _pipeline
     if _pipeline is None:
-        from transformers import pipeline
+        with _pipeline_lock:
+            if _pipeline is None:
+                from transformers import pipeline
 
-        _pipeline = pipeline(
-            "token-classification",
-            model=MODEL_NAME,
-            aggregation_strategy="simple",
-        )
+                _pipeline = pipeline(
+                    "token-classification",
+                    model=MODEL_NAME,
+                    aggregation_strategy="simple",
+                )
     return _pipeline
 
 
@@ -251,6 +281,11 @@ def detect(text: str) -> list[dict]:
                 if _is_education_institution(text, start, end):
                     continue
                 if text[start:end] in _ORG_STANDALONE_MODIFIERS:
+                    continue
+                if (
+                    _USING_FINETUNED_MODEL
+                    and float(entity["score"]) < _FINETUNED_ORG_MIN_CONFIDENCE
+                ):
                     continue
 
             if end <= start:

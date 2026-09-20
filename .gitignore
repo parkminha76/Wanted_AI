@@ -74,7 +74,11 @@ runs/
 !ml/models/injection_classifier_v1.pkl
 # NER 파인튜닝 모델(짧은 맥락 이름·회사명 인식, 2026-09-20) — .safetensors라
 # 위 규칙에 걸리지만 detectors/ner.py가 이 경로가 있으면 우선 로드한다.
-# 55MB라 Git LFS로 추적한다(.gitattributes 참고).
+# LFS는 배포 플랫폼(Railway)이 스무징을 지원하지 않아 못 쓴다 — 일반 파일로
+# 커밋한다(55MB, GitHub 하드 제한 100MB보다 작음).
+# 학습 스크립트(train_ner.py)가 남기는 중간 체크포인트는 최종 가중치가 아니라
+# 용량만 크므로 커밋하지 않는다(실수로 한 번 들어갔다가 뺐음, 2026-09-20).
+ml/training/ner_finetune/_run/
 !ml/models/ner_person_org_v1/config.json
 !ml/models/ner_person_org_v1/model.safetensors
 !ml/models/ner_person_org_v1/tokenizer.json

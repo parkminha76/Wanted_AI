@@ -72,7 +72,7 @@ export default function TrainingHomePage({ onStarted }) {
       <SectionRail
         sections={[
           { id: 'intro', label: '소개 및 기능', highlightIds: ['intro', 'features'] },
-          { id: 'training-levels', label: '레벨 테스트' },
+          { id: 'training-levels', label: '상황별 테스트' },
         ]}
       />
       <section id="intro" className="training-hero rv">

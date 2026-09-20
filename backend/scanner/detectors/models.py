@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 
 INJECTION_MODEL_PATH = os.path.join("ml", "models", "injection_classifier_v1.pkl")
 FALSE_POSITIVE_MODEL_PATH = os.path.join("ml", "models", "fp_filter_v1.pkl")
@@ -227,21 +228,27 @@ def _keyword_hit(sentence: str) -> bool:
 
 _injection_model = None
 _injection_model_unavailable = False
+_injection_model_lock = threading.Lock()
 
 
 def _get_injection_model():
+    """락으로 감싸는 이유는 ner.py의 `_get_pipeline` 주석 참고 — 동시 요청이
+    콜드 스타트 직후 이 파일을 여러 번 동시에 새로 불러오는 걸 막는다."""
     global _injection_model, _injection_model_unavailable
     if _injection_model is not None or _injection_model_unavailable:
         return _injection_model
-    try:
-        from ml.training.injection_classifier import InjectionClassifier
+    with _injection_model_lock:
+        if _injection_model is not None or _injection_model_unavailable:
+            return _injection_model
+        try:
+            from ml.training.injection_classifier import InjectionClassifier
 
-        _injection_model = InjectionClassifier.load(INJECTION_MODEL_PATH)
-    except Exception:
-        # 파일 없음(FileNotFoundError), sklearn 미설치(ImportError), pickle 형식
-        # 불일치(ValueError/UnpicklingError)가 모두 여기로 온다. 원인이 무엇이든
-        # 결론은 하나다 — 키워드로 돌린다. 그래서 예외 종류를 나누지 않는다.
-        _injection_model_unavailable = True
+            _injection_model = InjectionClassifier.load(INJECTION_MODEL_PATH)
+        except Exception:
+            # 파일 없음(FileNotFoundError), sklearn 미설치(ImportError), pickle 형식
+            # 불일치(ValueError/UnpicklingError)가 모두 여기로 온다. 원인이 무엇이든
+            # 결론은 하나다 — 키워드로 돌린다. 그래서 예외 종류를 나누지 않는다.
+            _injection_model_unavailable = True
     return _injection_model
 
 
@@ -391,20 +398,26 @@ FALSE_POSITIVE_THRESHOLD = 0.5
 
 _false_positive_model = None
 _false_positive_model_unavailable = False
+_false_positive_model_lock = threading.Lock()
 
 
 def _get_false_positive_model():
+    """락으로 감싸는 이유는 ner.py의 `_get_pipeline` 주석 참고 — 동시 요청이
+    콜드 스타트 직후 이 파일을 여러 번 동시에 새로 불러오는 걸 막는다."""
     global _false_positive_model, _false_positive_model_unavailable
     if _false_positive_model is not None or _false_positive_model_unavailable:
         return _false_positive_model
-    try:
-        from ml.training.false_positive_classifier.false_positive_filter import (
-            FalsePositiveFilter,
-        )
+    with _false_positive_model_lock:
+        if _false_positive_model is not None or _false_positive_model_unavailable:
+            return _false_positive_model
+        try:
+            from ml.training.false_positive_classifier.false_positive_filter import (
+                FalsePositiveFilter,
+            )
 
-        _false_positive_model = FalsePositiveFilter.load(FALSE_POSITIVE_MODEL_PATH)
-    except Exception:
-        _false_positive_model_unavailable = True
+            _false_positive_model = FalsePositiveFilter.load(FALSE_POSITIVE_MODEL_PATH)
+        except Exception:
+            _false_positive_model_unavailable = True
     return _false_positive_model
 
 
