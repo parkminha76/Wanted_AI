@@ -1,44 +1,44 @@
 {
   "overall": {
-    "eval_loss": 0.004326758906245232,
+    "eval_loss": 0.003529024077579379,
     "eval_precision": 1.0,
-    "eval_recall": 1.0,
-    "eval_f1": 1.0,
-    "eval_runtime": 2.742,
-    "eval_samples_per_second": 145.881,
-    "eval_steps_per_second": 2.553,
+    "eval_recall": 0.9978632478632479,
+    "eval_f1": 0.9989304812834224,
+    "eval_runtime": 2.9315,
+    "eval_samples_per_second": 136.451,
+    "eval_steps_per_second": 2.388,
     "epoch": 6.0
   },
   "by_label": {
     "OG": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
-      "support": 225
+      "recall": 0.9951690821256038,
+      "f1-score": 0.9975786924939467,
+      "support": 207
     },
     "PS": {
       "precision": 1.0,
       "recall": 1.0,
       "f1-score": 1.0,
-      "support": 271
+      "support": 261
     },
     "micro avg": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
-      "support": 496
+      "recall": 0.9978632478632479,
+      "f1-score": 0.9989304812834224,
+      "support": 468
     },
     "macro avg": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
-      "support": 496
+      "recall": 0.9975845410628019,
+      "f1-score": 0.9987893462469734,
+      "support": 468
     },
     "weighted avg": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
-      "support": 496
+      "recall": 0.9978632478632479,
+      "f1-score": 0.9989290370646303,
+      "support": 468
     }
   },
   "train_size": 3600,

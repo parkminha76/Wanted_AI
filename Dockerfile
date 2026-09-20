@@ -37,5 +37,13 @@ RUN .venv/bin/python -c "import easyocr; easyocr.Reader(['ko', 'en'], gpu=False)
 
 COPY . .
 
-# 모델 캐시와 다운로드 레지스트리는 프로세스 메모리에 있으므로 worker는 하나만 쓴다.
-CMD ["sh", "-c", "exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# 모델 캐시와 다운로드 레지스트리는 프로세스 메모리에 있어서, worker를 늘리면
+# worker 개수만큼 모델(NER·EasyOCR·YOLO·분류기)을 각자 따로 메모리에 올린다.
+# Railway Hobby(CPU 1개, 메모리 빠듯함) 때는 이게 부담스러워 1개로 고정했었다.
+# Pro로 올린 뒤(2026-09-20, CPU 24개·RAM 24GB)에는 상황이 다르다 — worker가
+# 하나뿐이면 CPU가 몇 개든 uvicorn 프로세스 자체가 코어 하나만 쓰므로, 요금제만
+# 올려서는 체감 속도가 그대로다(실측: 사용자가 직접 확인). WORKERS 환경변수로
+# 조절 가능하게 하고 기본값을 4로 올린다 — 모델들을 합쳐도 워커 하나당
+# 1~2GB 안팎이라 24GB에서 여유 있게 돈다.
+ENV WORKERS=4
+CMD ["sh", "-c", "exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS}"]

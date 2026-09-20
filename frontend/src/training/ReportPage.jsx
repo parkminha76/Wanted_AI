@@ -92,12 +92,12 @@ export default function ReportPage({ training, navigate }) {
 
       {report && (
         <>
-          <section className={`report-hero report-hero--${report.grade}`}>
+          <section className={`report-hero report-hero--${report.score == null ? 'unscored' : report.grade}`}>
             <div>
               <p className="eyebrow">SECURITY SCORE</p>
               <p className="report-score">
-                <b>{report.score}</b>
-                <span>/ 100</span>
+                <b>{report.score == null ? '—' : report.score}</b>
+                <span>{report.score == null ? '점수 없음' : '/ 100'}</span>
               </p>
             </div>
             <div className="report-grade">
@@ -113,29 +113,37 @@ export default function ReportPage({ training, navigate }) {
             <p>{report.summary || '분석 결과가 없습니다.'}</p>
           </section>
 
-          <div className="report-grid">
-            <section className="report-detail report-detail--risk">
-              <span className="report-detail__icon" aria-hidden="true">!</span>
-              <h2>위험했던 행동</h2>
-              {report.risky_actions?.length ? (
-                <ul>{report.risky_actions.map((item) => <li key={item}>{item}</li>)}</ul>
-              ) : <p>확인된 위험 행동이 없습니다.</p>}
-            </section>
-            <section className="report-detail report-detail--good">
-              <span className="report-detail__icon" aria-hidden="true">✓</span>
-              <h2>잘한 점</h2>
-              {report.good_actions?.length ? (
-                <ul>{report.good_actions.map((item) => <li key={item}>{item}</li>)}</ul>
-              ) : <p>확인된 항목이 없습니다.</p>}
-            </section>
+          {report.score == null ? (
             <section className="report-detail report-detail--improve">
               <span className="report-detail__icon" aria-hidden="true">→</span>
-              <h2>다음에는 이렇게</h2>
-              {report.improvements?.length ? (
-                <ul>{report.improvements.map((item) => <li key={item}>{item}</li>)}</ul>
-              ) : <p>추가 개선 권고가 없습니다.</p>}
+              <h2>다시 훈련하려면</h2>
+              <ul>{report.improvements.map((item) => <li key={item}>{item}</li>)}</ul>
             </section>
-          </div>
+          ) : (
+            <div className="report-grid">
+              <section className="report-detail report-detail--risk">
+                <span className="report-detail__icon" aria-hidden="true">!</span>
+                <h2>위험했던 행동</h2>
+                {report.risky_actions?.length ? (
+                  <ul>{report.risky_actions.map((item) => <li key={item}>{item}</li>)}</ul>
+                ) : <p>확인된 위험 행동이 없습니다.</p>}
+              </section>
+              <section className="report-detail report-detail--good">
+                <span className="report-detail__icon" aria-hidden="true">✓</span>
+                <h2>잘한 점</h2>
+                {report.good_actions?.length ? (
+                  <ul>{report.good_actions.map((item) => <li key={item}>{item}</li>)}</ul>
+                ) : <p>확인된 항목이 없습니다.</p>}
+              </section>
+              <section className="report-detail report-detail--improve">
+                <span className="report-detail__icon" aria-hidden="true">→</span>
+                <h2>다음에는 이렇게</h2>
+                {report.improvements?.length ? (
+                  <ul>{report.improvements.map((item) => <li key={item}>{item}</li>)}</ul>
+                ) : <p>추가 개선 권고가 없습니다.</p>}
+              </section>
+            </div>
+          )}
 
           {report.conversation?.length > 0 && (
             <section className="report-conversation" aria-labelledby="report-conversation-title">

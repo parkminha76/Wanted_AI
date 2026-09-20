@@ -86,3 +86,17 @@ def finish_training(
     db.commit()
     db.refresh(progress)
     return progress
+
+
+def finish_unscored_training(
+    db: Session,
+    training_progress_id: int,
+) -> TrainingProgress:
+    """유효 답변 부족으로 채점하지 않은 훈련을 통계 제외 상태로 종료한다."""
+    progress = db.query(TrainingProgress).filter_by(id=training_progress_id).one()
+    progress.status = "중단"
+    progress.score = 0  # 기존 NOT NULL 스키마 유지용이며 통계에는 포함하지 않는다.
+    progress.completed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(progress)
+    return progress

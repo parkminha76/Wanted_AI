@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from backend.training.attacker_service import AttackerService
 from backend.training.sanitizer import sanitize_training_text
-from backend.training.state_machine import STATE_END, STATE_S1, get_next_state
+from backend.training.state_machine import (
+    STATE_END,
+    STATE_S1,
+    get_next_state,
+    is_evaluable_reply,
+)
 
 
 MAX_USER_TURNS = 5
+MAX_INVALID_REPLIES = 3
 
 
 def create_training_session(level: int, scenario: dict | None = None) -> dict:
@@ -18,6 +24,7 @@ def create_training_session(level: int, scenario: dict | None = None) -> dict:
         "history": [],
         "shared_fields": [],
         "status": "in_progress",
+        "invalid_reply_count": 0,
     }
 
 
@@ -35,6 +42,7 @@ def generate_attacker_message(session: dict) -> str:
         level=session["level"],
         scenario=session["scenario"],
         messages=messages,
+        invalid_reply_count=session["invalid_reply_count"],
     )
     session["history"].append(
         {"role": "assistant", "content": attacker_message}
@@ -51,6 +59,7 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
     new_fields = list(sanitized["shared_fields"])
     current_state = session["state"]
     processed_turn = session["turn_no"]
+    is_evaluable = is_evaluable_reply(sanitized_text)
 
     # 원문은 이 지점 이후 참조하거나 저장하지 않는다.
     session["history"].append({"role": "user", "content": sanitized_text})
@@ -58,15 +67,31 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         dict.fromkeys([*session["shared_fields"], *new_fields])
     )
 
-    reached_limit = processed_turn >= MAX_USER_TURNS
-    next_state = STATE_END if reached_limit else get_next_state(
-        current_state,
-        sanitized_text,
-    )
-    session["state"] = next_state
-    session["turn_no"] = processed_turn + 1
+    if is_evaluable:
+        session["invalid_reply_count"] = 0
+        reached_limit = processed_turn >= MAX_USER_TURNS
+        next_state = (
+            STATE_END
+            if reached_limit
+            else get_next_state(current_state, sanitized_text)
+        )
+    else:
+        session["invalid_reply_count"] += 1
+        reached_limit = False
+        next_state = current_state
 
-    if next_state == STATE_END:
+    insufficient_responses = (
+        not is_evaluable
+        and session["invalid_reply_count"] >= MAX_INVALID_REPLIES
+    )
+    if insufficient_responses:
+        next_state = STATE_END
+    session["state"] = next_state
+    session["turn_no"] = processed_turn + 1 if is_evaluable else processed_turn
+
+    if insufficient_responses:
+        session["status"] = "awaiting_unscored_report"
+    elif next_state == STATE_END:
         session["status"] = "awaiting_report"
 
     return {
@@ -74,5 +99,12 @@ def process_user_reply(*, session: dict, user_reply: str) -> dict:
         "next_state": next_state,
         "turn_no": session["turn_no"],
         "is_finished": next_state == STATE_END,
+        "is_evaluable": is_evaluable,
+        "invalid_reply_count": session["invalid_reply_count"],
+        "evaluation_status": (
+            "insufficient_responses"
+            if insufficient_responses
+            else "evaluable" if is_evaluable else "not_evaluable"
+        ),
         "shared_fields": new_fields,
     }

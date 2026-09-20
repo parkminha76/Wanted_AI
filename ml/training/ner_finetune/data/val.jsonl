@@ -1,400 +1,400 @@
-{"text": "14. 박민수 (청담물류)", "entities": [[4, 7, "PS"], [9, 13, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "발주처: 한빛에너지", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-10595,2026-02-14 13:00,서현우,010-5620-1831,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-88328,2026-08-13 16:00,고시우,010-7098-7966,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "박미경님이 그린필드파트너스에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_natural_sentence"}
-{"text": "2019 - 2022 가온시스템즈. 디자인그룹", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "8. 이정자 (스카이라인로지스틱스)", "entities": [[3, 6, "PS"], [8, 18, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "9. 이상호 (스마트컨설팅)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "보안 신고 | 백성현 | 010-7399-8002", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-88077,2026-04-28 17:00,윤윤서,010-9206-6566,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "계약 담당자 김현주", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
-{"text": "2019 - 2020 Crestline Partners. 인사실", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
-{"text": "발주처: (주) 가야항공", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
-{"text": "14. 김준호 (시너지소프트)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "손해배상\t1631-6880-6979-6075", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "이진호  (유한회사 인포종합금고)\n010-8199-4990    guest48@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "정보보호\t월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "양상호  (원더모두출판)\n010-4078-9928    guest86@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2016 - 2019 Liceria & Co.. 재무그룹", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-25352,2026-04-25 23:00,조은정,010-8477-6969,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "계약 변경 | 이영숙 | 010-4167-4574", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "권하윤  (블루웨이브 컨설팅)\n010-1380-1924    guest20@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "16. 양경숙 (스마트머티리얼즈)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "채용 문의\t이경희\t010-6427-9629", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "발주처: 은하시스템즈", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "2019 - 2020 Vertex Solutions. 마케팅센터", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "(유) 에코테크 소속 민선영 담당자에게 문의해 주세요.", "entities": [[0, 8, "OG"], [12, 15, "PS"]], "source": "gen_natural_sentence"}
-{"text": "14. 허서윤 (신성로지스틱스)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "13. 김상현 ((주) 유니온)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "박서윤님이 주식회사 모두보람그룹에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_natural_sentence"}
-{"text": "보안 신고 | 민영숙 | 010-9425-4073", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "손해배상\t5371-6690-8536-2068", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2023 - 2024 (주) 제나스타연구소. 영업센터", "entities": [[12, 23, "OG"]], "source": "gen_career_entry"}
-{"text": "2015 - 2016 베스트 컨설팅. 개발본부", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
-{"text": "채용 문의\t김정식\t010-9610-2014", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "2022 - 2023 청담솔루션. 개발센터", "entities": [[12, 17, "OG"]], "source": "gen_career_entry"}
-{"text": "보안 신고 | 최정자 | 010-7618-8220", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-69042,2026-11-15 16:00,나숙자,010-7416-1932,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "정산 문의\t김정식\t010-3528-5932", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "11. 김정웅 ((유) 네오에너지)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-75390,2026-11-26 04:00,김지혜,010-7522-8886,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "이정숙  (베스트 시스템즈)\n010-7935-1392    guest45@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "김영진  (한가람네트웍스)\n010-3842-5003    guest72@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "19. 김은주 (신성 소프트)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "3. 임현주 (인포코리아에너지)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "수신인 최숙자", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-38364,2026-12-04 04:00,류예준,010-7454-1659,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "거래처: 브라이트 미디어", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-73539,2026-07-19 19:00,김숙자,010-1090-7214,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "발주처: 신성물류", "entities": [[5, 9, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-17998,2026-12-27 00:00,김영일,010-4647-7561,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "14. 이승민 (베스트메가)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-29714,2026-02-03 19:00,서병철,010-5691-4457,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "손수민님이 가온 컨설팅에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_natural_sentence"}
-{"text": "협력사: (주) 고려네트워크", "entities": [[5, 15, "OG"]], "source": "gen_org_only_row"}
-{"text": "담당자 김종수", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-84915,2026-10-01,당일 배송,010-3780-9268", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "8. 최성수 (프라임 정보통신)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "2020 - 2023 코어브레인뷰티. 개발본부", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
-{"text": "공급사: 제나항공", "entities": [[5, 9, "OG"]], "source": "gen_org_only_row"}
-{"text": "협력사: 모두엔지니어링", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "2022 - 2025 Vertex Solutions. 개발센터", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-28214,2026-10-12 18:00,김서현,010-9770-1928,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-49433,2026-08-18,보조배터리 20000mAh,010-7435-4177", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "나현우  (청담네트웍스)\n010-3016-1086    guest9@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "협력사: 프라임케미칼", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-81820,2026-03-08 14:00,나예준,010-8371-1478,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "작성자 심지영", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "채용 문의\t박지원\t010-3087-9633", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "거래처: 대한 물류", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
-{"text": "정산 문의 | 김영숙 | 010-2868-7804", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-73262,2026-07-09 01:00,배춘자,010-1400-8305,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "채용 문의 | 유정호 | 010-8656-5237", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "성명 조정남", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
-{"text": "2016 - 2018 Crestline Partners. 마케팅실", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-55017,2026-01-20 23:00,김예은,010-9748-3208,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-16706,2026-11-08 22:00,최건우,010-6999-9391,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "이 계약은 최예원님과 하나로정보통신이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 19, "OG"]], "source": "gen_natural_sentence"}
-{"text": "3. 박현지 (신성 미디어)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "접수\t010-5469-5089", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "이영순  (고려그룹)\n010-8884-8873    guest1@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2022 - 2023 Union Bay Ltd.. 인사본부", "entities": [[12, 26, "OG"]], "source": "gen_career_entry"}
-{"text": "19. 김영길 (유니온로지스틱스)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "8. 박정숙 ((주) 코리아시스템즈)", "entities": [[3, 6, "PS"], [8, 19, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-85584,2026-07-03 10:00,하영진,010-6749-6571,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2019 - 2021 Liceria & Co.. 디자인팀", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "고예원  (유한회사 모두상사)\n010-2114-9787    guest12@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "7. 김선영 (유한회사 고려고구려연구소)", "entities": [[3, 6, "PS"], [8, 21, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "공급사: 주식회사 모두바이오", "entities": [[5, 15, "OG"]], "source": "gen_org_only_row"}
-{"text": "손예은  ((유) 마루연구소)\n010-5516-6050    guest44@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "김광수  (브라이트시스템즈)\n010-8685-8551    guest78@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "권은정님이 가야미래정보통신에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_natural_sentence"}
-{"text": "보안 신고 | 허정수 | 010-7437-3611", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "공급사: 대한파트너스", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "2. 남예진 (은하파트너스)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "15. 이정남 (클리어솔루션)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "박정식님이 유한회사 하나에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_natural_sentence"}
-{"text": "2021 - 2024 Crestline Partners. 영업부", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
-{"text": "정산 문의 | 이은정 | 010-1563-1127", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-38651,2026-10-24 16:00,허준혁,010-9522-8356,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-71554,2026-11-25 02:00,김정숙,010-5741-5554,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "손광수  (브라이트 테크)\n010-2907-1930    guest1@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2019 - 2021 (유) 마루윈드바이오. 마케팅그룹", "entities": [[12, 23, "OG"]], "source": "gen_career_entry"}
-{"text": "2. 김미숙 (유니온 테크)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "김정자  (씨앤씨개발)\n010-5683-7185    guest88@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "최명숙입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
-{"text": "권지원  (하나로 인더스트리)\n010-8201-7757    guest95@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-69151,2026-01-06,당일 배송,010-1774-9518", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "채용 문의\t이재호\t010-3718-6731", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "기술 지원\t김성현\t010-2064-3096", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "승인\t7486-8524-3620-8081", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "ORD-2026-97605,2026-06-21 12:00,박성진,010-8701-3686,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "성명 허영희", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
-{"text": "10. 주정희 ((주) 푸른테크)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "제나 소속 진은경 담당자에게 문의해 주세요.", "entities": [[0, 2, "OG"], [6, 9, "PS"]], "source": "gen_natural_sentence"}
-{"text": "(주) 에코보람플랫폼은 올해 매출이 크게 늘었습니다.", "entities": [[0, 11, "OG"]], "source": "gen_natural_sentence"}
-{"text": "이미정  (그린필드바이오)\n010-5847-8747    guest91@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "기술 지원\t임민석\t010-1835-4592", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "기술 지원\t김병철\t010-1523-2764", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-16112,2026-10-22,보조배터리 20000mAh,010-1831-4787", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "거래처: 주식회사 유니온라온바이오", "entities": [[5, 18, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-89838,2026-01-17 04:00,김지훈,010-2418-7000,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2022 - 2024 신성파트너스. 마케팅실", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "19. 문민준 (우리아름상사)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "작성자 김민준", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "손해배상\t783-51-21988", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "거래처: 우리헬스케어", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "공급사: 코어정보통신", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "2022 - 2023 Liceria & Co.. 인사그룹", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "5. 정성현 (아름정보통신)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "거래처: 유니온전자", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
-{"text": "보안 신고 | 심현숙 | 010-6875-3556", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-88604,2026-04-26 15:00,김경자,010-3830-4666,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "조준영  (유한회사 브레인시너지출판)\n010-7873-3527    guest75@example.com", "entities": [[0, 3, "PS"], [6, 19, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "검수\t9275-3746-4408-1982", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2021 - 2022 (유) 모두에코정보통신. 영업부", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
-{"text": "협력사: 넥스젠 테크", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "오수빈  ((유) 시너지)\n010-5638-8302    guest62@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-78906,2026-07-13,쿠폰 적용,010-6829-4146", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "이재호  (가온테크)\n010-8700-8173    guest57@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "계약 담당자 장민수", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
-{"text": "백은서  (글로벌)\n010-2572-1176    guest44@example.com", "entities": [[0, 3, "PS"], [6, 9, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2019 - 2021 유한회사 스타엔지니어링. 개발센터", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
-{"text": "수신인 김중수", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "4. 김영희 (백제)", "entities": [[3, 6, "PS"], [8, 10, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "정산 문의\t이재호\t010-1124-8374", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "계약 변경 | 김건우 | 010-2181-6340", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "2018 - 2020 유한회사 인포. 영업그룹", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
-{"text": "거래처: 가온 네트웍스", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "계약 변경 | 문명숙 | 010-3813-3351", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-82434,2026-02-13,당일 배송,010-1022-4754", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "작성자 최유진", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-79838,2026-03-27 06:00,김영호,010-6183-2331,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-87055,2026-10-07 07:00,최정식,010-7560-4300,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "보안 신고 | 이춘자 | 010-8203-5268", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-52495,2026-03-13 17:00,김성호,010-8236-7461,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "20. 김상훈 (동방바이오)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "8. 김아름 (실버라인테크)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "2020 - 2021 Bright Path Inc.. 전략기획실", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "박정수  (겨레)\n010-5788-4104    guest93@example.com", "entities": [[0, 3, "PS"], [6, 8, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "최춘자  (한빛헬스케어)\n010-2815-8285    guest46@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "최경수  (인포신문)\n010-3492-5108    guest87@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "정산 문의\t박정호\t010-3977-3128", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "17. 최미정 (우리미디어)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "14. 노서준 ((유) 푸른)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "이주원  (프라임바이오)\n010-8606-3005    guest1@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "안영철  (가온물류)\n010-7520-7013    guest94@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "최성수  (나루인포신문)\n010-5448-6731    guest89@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "곽정순님이 유한회사 제나에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-85195,2026-11-05 00:00,김채원,010-7752-6207,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "이 계약은 손지아님과 테크노 정보통신이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 20, "OG"]], "source": "gen_natural_sentence"}
-{"text": "2019 - 2022 주식회사 글로벌. 마케팅실", "entities": [[12, 20, "OG"]], "source": "gen_career_entry"}
-{"text": "김예준  (골든게이트머티리얼즈)\n010-6859-5892    guest34@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "이 계약은 신정훈님과 유한회사 중앙넥스트개발공사이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 26, "OG"]], "source": "gen_natural_sentence"}
-{"text": "2019 - 2022 프라임 헬스케어. 영업본부", "entities": [[12, 20, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-92275,2026-06-03 21:00,송성현,010-2787-1353,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-41842,2026-11-01 22:00,이성현,010-3741-5950,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2019 - 2020 푸른. 개발본부", "entities": [[12, 14, "OG"]], "source": "gen_career_entry"}
-{"text": "2020 - 2023 이노하나신문. 개발본부", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "김도현  (이노소프트)\n010-2784-1905    guest52@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "거래처: 테크노소프트", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "기술 지원 | 황예은 | 010-8856-5329", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "정산 문의\t안영자\t010-1287-9301", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "정산 문의 | 김현지 | 010-6382-6887", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "정산 문의 | 박영호 | 010-1394-8639", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "(주) 마음 소속 이준혁 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-54020,2026-07-16 18:00,김성진,010-6597-9830,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "1. 류민수 (클리어그룹)", "entities": [[3, 6, "PS"], [8, 13, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "1. 이예지 ((유) 제나개발)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "홍성훈  (첨단씨앤씨연구소)\n010-6648-4255    guest87@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "발해센터 소속 장성현 담당자에게 문의해 주세요.", "entities": [[0, 4, "OG"], [8, 11, "PS"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-39350,2026-01-12 08:00,홍서윤,010-7895-4374,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "정산 문의 | 문준호 | 010-8567-3162", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "최상현  (스카이라인인더스트리)\n010-8970-7579    guest53@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "계약기간\t7940-9008-4392-4827", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "공급사: 백제", "entities": [[5, 7, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-44680,2026-06-22 08:00,송은주,010-9513-8042,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2020 - 2021 Crestline Partners. 마케팅실", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
-{"text": "지급조건\t010-1998-8358", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "ORD-2026-50410,2026-11-21 06:00,박재호,010-8209-2417,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "보안 신고 | 오수민 | 010-9739-8453", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "2020 - 2022 Vertex Solutions. 재무센터", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "협력사: 유한회사 라온", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "기술 지원\t이영일\t010-1310-8997", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-57034,2026-11-04 00:00,오순옥,010-7948-8116,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "배송 조건\t010-4796-7155", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2018 - 2019 Argon Digital. 디자인본부", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "성영길  (주식회사 종합)\n010-9709-9991    guest56@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "하자보수\t월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2017 - 2018 마음아름자동차. 개발실", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
-{"text": "보안 신고\t홍상철\t010-6017-8814", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "12. 양성수 ((유) 시너지종합은행)", "entities": [[4, 7, "PS"], [9, 20, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "기술 지원\t우성호\t010-6823-8967", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "홍성민  (한가람센터)\n010-3442-3019    guest20@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "19. 오민지 (모두중앙그룹)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "수신인 김서윤", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "채용 문의\t김서준\t010-9115-4868", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "7. 임윤서 (첨단)", "entities": [[3, 6, "PS"], [8, 10, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-32382,2026-05-04 00:00,전광수,010-8965-4723,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "비밀유지\t010-6980-7296", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "이도현  ((주) 원더에이아이)\n010-3003-5474    guest61@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2015 - 2018 Nomad Coders. 마케팅팀", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
-{"text": "1. 남경희 (비전소프트)", "entities": [[3, 6, "PS"], [8, 13, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "14. 이명자 (글로벌첨단뷰티)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "발주처: (유) 나루글로벌에이아이", "entities": [[5, 18, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-16234,2026-07-14 12:00,이옥순,010-5981-2340,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "검수 | 010-7766-2196", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "미래헬스케어 소속 구은영 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
-{"text": "공급사: 실버라인에너지", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "청담 컨설팅은 올해 매출이 크게 늘었습니다.", "entities": [[0, 6, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-98491,2026-06-14,무선 이어폰 세트,010-4945-2677", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "채용 문의 | 최상철 | 010-9867-6785", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "4. 이서연 (브라이트 메가)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "18. 이예은 (청담바이오)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "정산 문의 | 박지훈 | 010-4724-1366", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "접수 | 491-60-60361", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "기술 지원 | 김서현 | 010-8476-9050", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "정산 계좌 | 업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "11. 김미정 (유한회사 윈드고구려연구소)", "entities": [[4, 7, "PS"], [9, 22, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "최영희  (브라이트로지스틱스)\n010-4473-9983    guest23@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "검수\t9425-9778-7989-9788", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "성명 김숙자", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
-{"text": "최예은님이 클리어미디어에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-12261,2026-01-13,무선 이어폰 세트,010-6192-1339", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "이 계약은 서상현님과 유한회사 시너지이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 20, "OG"]], "source": "gen_natural_sentence"}
-{"text": "접수\t1123-5472-7402-4986", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "계약 담당자 노동현", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-85290,2026-06-06 05:00,전정웅,010-3463-4006,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "이 계약은 이상현님과 유한회사 신라다올은행이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 23, "OG"]], "source": "gen_natural_sentence"}
-{"text": "채용 문의\t이민준\t010-2523-3541", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "2015 - 2016 한서 솔루션. 개발실", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "1. 김상호 (테크노 미디어)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "1. 김지우 (스마트솔루션)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "14. 이명자 (첨단)", "entities": [[4, 7, "PS"], [9, 11, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "(주) 한가람기획은 올해 매출이 크게 늘었습니다.", "entities": [[0, 9, "OG"]], "source": "gen_natural_sentence"}
-{"text": "채용 문의\t김영호\t010-5354-9592", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "7. 박준혁 (넥스젠케미칼)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-80738,2026-03-04,보조배터리 20000mAh,010-1840-8806", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "손해배상\t169-24-56020", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "17. 나주원 (넥스트이노네트워크)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-75976,2026-05-08 18:00,장미정,010-8575-1568,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-22267,2026-11-09 17:00,홍현지,010-1008-5834,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2022 - 2023 (주) 제나푸른엔지니어링. 디자인부", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "한서현  ((유) 한강코어솔루션)\n010-9973-4601    guest97@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2019 - 2022 주식회사 이노네트워크. 인사팀", "entities": [[12, 23, "OG"]], "source": "gen_career_entry"}
-{"text": "계약 변경 | 김민재 | 010-3167-1102", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "11. 이서윤 (다솜바이오)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "서지영  ((주) 월드)\n010-8979-9747    guest89@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "계약 변경\t엄경숙\t010-7632-6246", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "미래에너지은 올해 매출이 크게 늘었습니다.", "entities": [[0, 5, "OG"]], "source": "gen_natural_sentence"}
-{"text": "계약 변경 | 박예은 | 010-6344-6324", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-47402,2026-12-10 10:00,김서현,010-1937-9459,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "(유) 에코상사 소속 김하윤 담당자에게 문의해 주세요.", "entities": [[0, 8, "OG"], [12, 15, "PS"]], "source": "gen_natural_sentence"}
-{"text": "계약 담당자 오유진", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
-{"text": "계약 변경\t이정자\t010-6975-2690", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-23459,2026-05-06,무선 이어폰 세트,010-3375-5714", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "발주 | 010-9148-6766", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "(주) 라온원더개발공사 소속 문영철 담당자에게 문의해 주세요.", "entities": [[0, 12, "OG"], [16, 19, "PS"]], "source": "gen_natural_sentence"}
-{"text": "2017 - 2019 (유) 마루. 전략기획센터", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "10. 이미경 (유한회사 에코)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-58838,2026-08-24 21:00,서승민,010-4685-9952,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-59254,2026-08-15 18:00,김영환,010-5145-7830,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "6. 이정숙 (테크노 머티리얼즈)", "entities": [[3, 6, "PS"], [8, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-86015,2026-09-07 21:00,서민석,010-7681-3770,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-38554,2026-09-04,쿠폰 적용,010-1217-7681", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "발주처: 가온시스템즈", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-82137,2026-06-07,쿠폰 적용,010-5281-7950", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "윤예진  (청담물류)\n010-1637-3430    guest44@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "계약 변경\t윤상호\t010-6355-3280", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "수신인 이준호", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "발주처: 나루네트웍스", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "ORD-2026-90135,2026-11-07 13:00,백숙자,010-3281-7785,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "고순옥  (고려미래플랫폼)\n010-5443-2250    guest64@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "2. 박영길 (마루)", "entities": [[3, 6, "PS"], [8, 10, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "류명숙  (스카이라인케미칼)\n010-4701-4137    guest80@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "접수\t업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2019 - 2022 Bright Path Inc.. 인사팀", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "계약 변경\t박동현\t010-1442-7368", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "2018 - 2020 Union Bay Ltd.. 전략기획센터", "entities": [[12, 26, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-44847,2026-06-21 14:00,박영진,010-5486-9333,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "허정훈  (퓨처파트너스)\n010-1144-3331    guest17@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "15. 이숙자 (제나푸른에이아이)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "납품\t010-5591-6865", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "보안 신고\t김정수\t010-6011-5920", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "ORD-2026-71848,2026-10-05 18:00,황보람,010-5820-1938,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-16821,2026-03-04,당일 배송,010-2847-2225", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "6. 김영식 (이노그룹)", "entities": [[3, 6, "PS"], [8, 12, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "박병철입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
-{"text": "작성자 서재호", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "거래처: 골든게이트물류", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "14. 김영환 (비전에이아이)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "이 계약은 김성현님과 주식회사 하나이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 19, "OG"]], "source": "gen_natural_sentence"}
-{"text": "배송 조건 | 업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2015 - 2018 Argon Digital. 개발부", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "공급사: 실버라인헬스케어", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
-{"text": "2015 - 2018 Liceria & Co.. 마케팅실", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
-{"text": "거래처: 미래로지스틱스", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "(주) 가람랩스은 올해 매출이 크게 늘었습니다.", "entities": [[0, 8, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-20485,2026-01-28 19:00,장명숙,010-9851-6281,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "8. 문유진 (유니온솔루션)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "8. 남영희 (하나로헬스케어)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "공급사: 한빛바이오", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
-{"text": "김영자님이 주식회사 에코에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_natural_sentence"}
+{"text": "계약 변경 | 김상현 | 010-3041-6016", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "이미영님이 베스트 파트너스에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-39313,2026-12-12 07:00,류혜진,010-6483-1800,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "2015 - 2018 동방에너지. 영업부", "entities": [[12, 17, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-71004,2026-08-12,무선 이어폰 세트,010-4686-6698", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "협력사 조치\t추후 안내 예정", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "2018 - 2021 Union Bay Ltd.. 재무실", "entities": [[12, 26, "OG"]], "source": "gen_career_entry"}
+{"text": "협력사: 유한회사 우리", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "거래처: 유니온파트너스", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "거래처: (주) 우리윈드플랫폼", "entities": [[5, 16, "OG"]], "source": "gen_org_only_row"}
+{"text": "김진우  (브라이트컨설팅)\n010-7556-4588    guest45@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "18. 홍순자 (한빛테크)", "entities": [[4, 7, "PS"], [9, 13, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "김영철  (미래 케미칼)\n010-9099-1604    guest59@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "10. 장예준 ((주) 고구려)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "2016 - 2019 에코. 재무실", "entities": [[12, 14, "OG"]], "source": "gen_career_entry"}
+{"text": "법인카드\t010-1001-9549", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "김종수  (블루웨이브 컨설팅)\n010-1380-1924    guest20@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "정산 계좌 | 월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "채용 문의 | 김서연 | 010-2532-5739", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-50714,2026-06-13 18:00,김옥자,010-7874-5066,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "ORD-2026-54411,2026-12-23 04:00,황하윤,010-5772-3098,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "ORD-2026-75437,2026-11-25 13:00,박정호,010-7636-2483,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "6. 강옥자 (유한회사 스타)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "법인카드 | 010-2738-8377", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "**작성자:** 배포 승인 대기", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "2016 - 2018 Union Bay Ltd.. 디자인본부", "entities": [[12, 26, "OG"]], "source": "gen_career_entry"}
+{"text": "발주처: (유) 국민", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "손해배상 | 업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "ORD-2026-23994,2026-08-06 10:00,홍영희,010-4322-6083,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "ORD-2026-78214,2026-05-08 08:00,송정웅,010-7152-1006,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "18. 김성진 (스마트 솔루션)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "유한회사 월드한강유통 소속 박옥순 담당자에게 문의해 주세요.", "entities": [[0, 11, "OG"], [15, 18, "PS"]], "source": "gen_natural_sentence"}
+{"text": "11. 정지아 ((주) 씨앤씨코리아신문)", "entities": [[4, 7, "PS"], [9, 21, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "이서윤입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
+{"text": "수신인 김지아", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "수신인 오민서", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "정보보호\t010-3881-3082", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "김서영  (스마트로지스틱스)\n010-6663-9846    guest16@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "(주) 아름 소속 김미정 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
+{"text": "정산 문의 | 김미영 | 010-6368-1305", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "채용 문의\t오상철\t010-4333-5831", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "18. 강영미 (신성 모빌리티)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "13. 이예준 (하나로시스템즈)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-69815,2026-08-01,쿠폰 적용,010-2238-5733", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "2020 - 2022 고구려. 마케팅센터", "entities": [[12, 15, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-98490,2026-01-12,쿠폰 적용,010-1561-2721", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "김서현입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
+{"text": "13. 김건우 (넥스젠 메가)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-47030,2026-09-17 13:00,김민재,010-4080-7794,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "거래처: 코어솔루션", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "계약 변경\t김지우\t010-1059-4692", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-69309,2026-03-05,쿠폰 적용,010-6913-2606", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "계약기간 | 7589-8337-6193-5895", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "계약 변경 | 고하은 | 010-4529-7501", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-64607,2026-04-04 08:00,김윤서,010-2836-3725,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "보안 신고\t김영희\t010-7712-8460", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "5. 최승현 (주식회사 가야코스메틱)", "entities": [[3, 6, "PS"], [8, 19, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "박영길  (주식회사 조선플랫폼)\n010-3343-8816    guest38@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-99124,2026-03-03 16:00,최건우,010-4505-1328,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "채용 문의 | 이영자 | 010-6087-6210", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "12. 최진호 (청담테크)", "entities": [[4, 7, "PS"], [9, 13, "OG"]], "source": "gen_numbered_list_with_org"}
 {"text": "ORD-2026-66899,2026-08-08,당일 배송,010-2021-4888", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "2019 - 2020 (주) 라온. 디자인본부", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-85366,2026-10-25,보조배터리 20000mAh,010-6845-8695", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "박주원님이 (유) 마루백제신문에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_natural_sentence"}
-{"text": "비밀유지\t월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "2015 - 2017 (주) 스타조선출판. 마케팅팀", "entities": [[12, 22, "OG"]], "source": "gen_career_entry"}
-{"text": "13. 한예진 (코어 로지스틱스)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "엄미숙  (클리어 커머스)\n010-2474-3100    guest19@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "19. 김경숙 (테크노네트웍스)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "ORD-2026-78059,2026-09-27,무선 이어폰 세트,010-3916-2568", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "송민준  (주식회사 한강푸른출판)\n010-8790-6008    guest39@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "공급사: 이노바이오", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
-{"text": "계약기간\t352-62-57798", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "이 계약은 박동현님과 고려이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 14, "OG"]], "source": "gen_natural_sentence"}
-{"text": "2021 - 2022 코어그룹. 인사실", "entities": [[12, 16, "OG"]], "source": "gen_career_entry"}
-{"text": "작성자 이지원", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-53978,2026-06-14 12:00,최도현,010-4279-8143,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "발주처: 주식회사 다올", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
-{"text": "거래처: 테크노 머티리얼즈", "entities": [[5, 14, "OG"]], "source": "gen_org_only_row"}
-{"text": "김승현  (하나로머티리얼즈)\n010-3172-4703    guest1@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-69893,2026-10-25 21:00,송지현,010-5697-5810,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "계약 변경\t박영수\t010-7007-6347", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "11. 김성현 (센트럴 컨설팅)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "거래처: 한강", "entities": [[5, 7, "OG"]], "source": "gen_org_only_row"}
-{"text": "송정숙  (가온 머티리얼즈)\n010-5126-8289    guest61@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-54477,2026-04-11 11:00,신경자,010-7396-9230,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-73933,2026-05-06,무선 이어폰 세트,010-7422-9606", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "2017 - 2020 센트럴 테크. 재무센터", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
-{"text": "장혜진님이 주식회사 라온고려보안에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-29960,2026-02-17,쿠폰 적용,010-1874-5015", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "이 계약은 박은경님과 (주) 월드조선개발이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 22, "OG"]], "source": "gen_natural_sentence"}
-{"text": "김상호  (주식회사 라온미래테크)\n010-3625-8831    guest77@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "6. 박아름 ((주) 한가람)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "김순자  (하나)\n010-1160-9128    guest96@example.com", "entities": [[0, 3, "PS"], [6, 8, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-21927,2026-06-10 06:00,안하은,010-4514-4618,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "9. 박건우 (동방 에너지)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "김성민  (유니온바이오)\n010-6622-8719    guest58@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "김정식입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
-{"text": "성예진  (주식회사 라온플랫폼)\n010-1407-6821    guest89@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-73002,2026-09-22 03:00,나서윤,010-6019-1768,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "작성자 박서연", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "4. 오영일 (프라임로지스틱스)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "양상현  (나루)\n010-7898-5444    guest51@example.com", "entities": [[0, 3, "PS"], [6, 8, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-71471,2026-11-27 13:00,최영환,010-5776-2356,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "성명 정병철", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
-{"text": "6. 김상현 (미래테크)", "entities": [[3, 6, "PS"], [8, 12, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "박정자  (청담 커머스)\n010-8184-6342    guest53@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "20. 박서윤 (주식회사 제나모두시스템즈)", "entities": [[4, 7, "PS"], [9, 22, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "2. 김정자 (그린필드테크)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "발신인 이윤서", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "2016 - 2017 Bright Path Inc.. 영업부", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
-{"text": "ORD-2026-74495,2026-04-14 06:00,진현숙,010-6743-3510,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "2017 - 2018 Crestline Partners. 개발센터", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
-{"text": "이 계약은 장현숙님과 유니온에너지이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 18, "OG"]], "source": "gen_natural_sentence"}
-{"text": "발신인 최영수", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
-{"text": "ORD-2026-54078,2026-08-10,무선 이어폰 세트,010-5316-4449", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "2016 - 2019 Nomad Coders. 마케팅실", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
-{"text": "이 계약은 이유진님과 발해국민네트웍스이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 20, "OG"]], "source": "gen_natural_sentence"}
-{"text": "20. 한민수 ((주) 다올플랫폼)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "이경희  ((주) 보람다올네트웍스)\n010-4393-8189    guest74@example.com", "entities": [[0, 3, "PS"], [6, 18, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-72124,2026-05-07 07:00,안영미,010-2150-8088,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "채용 문의\t김승민\t010-2842-9671", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
-{"text": "15. 이수진 (주식회사 씨앤씨에너지)", "entities": [[4, 7, "PS"], [9, 20, "OG"]], "source": "gen_numbered_list_with_org"}
-{"text": "승인\t2489-5149-9159-8239", "entities": [], "source": "gen_hard_negative_table_label"}
-{"text": "이 계약은 박경수님과 아름시너지기술이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 19, "OG"]], "source": "gen_natural_sentence"}
-{"text": "김준영입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-65035,2026-03-06 16:00,장정남,010-9681-4062,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-98935,2026-10-27 02:00,박정자,010-2075-2700,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "채용 문의 | 백지아 | 010-6801-9182", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
-{"text": "서지원  (한서 에너지)\n010-2244-6830    guest84@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
-{"text": "ORD-2026-46116,2026-10-25 14:00,이현숙,010-5633-1270,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-29894,2026-01-10,당일 배송,010-6215-6257", "entities": [], "source": "gen_hard_negative_csv_row"}
-{"text": "송예준님이 종합유니온기획에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_natural_sentence"}
-{"text": "공급사: 미래 소프트", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
-{"text": "(주) 백제발해자동차은 올해 매출이 크게 늘었습니다.", "entities": [[0, 11, "OG"]], "source": "gen_natural_sentence"}
-{"text": "ORD-2026-52837,2026-03-28 13:00,이상훈,010-2415-7361,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
-{"text": "ORD-2026-29081,2026-12-28 00:00,김정호,010-6338-8593,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "담당자 양상호", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "7. 우재호 (골든게이트전자)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-49401,2026-04-09 02:00,권영자,010-6856-1184,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "주식회사 발해 소속 이지민 담당자에게 문의해 주세요.", "entities": [[0, 7, "OG"], [11, 14, "PS"]], "source": "gen_natural_sentence"}
+{"text": "남경희  (퓨처전자)\n010-3981-6884    guest29@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "인수인계\t952-76-17363", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "13. 손명자 (유니온컨설팅)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-76063,2026-03-07 00:00,배우진,010-6847-3871,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 유니온에너지", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "발주처: 국민제나출판", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "**작성자:** 2026-09-13 20:00 KST", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "4. 최재호 (미래 케미칼)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-89950,2026-08-15 01:00,김광수,010-4662-8727,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "16. 김우진 ((주) 코리아그룹)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "공급사: 주식회사 윈드네트웍스", "entities": [[5, 16, "OG"]], "source": "gen_org_only_row"}
+{"text": "협력사 조치\t협의 후 결정", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "결제 방법 | 010-2333-8194", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "ORD-2026-61083,2026-10-27,무선 이어폰 세트,010-2065-8764", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "ORD-2026-88922,2026-06-02 18:00,한진우,010-4226-2926,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "2022 - 2023 유한회사 에코하나에이아이. 전략기획부", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
+{"text": "담당자 김성훈", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "정보보호 | 9816-8269-8325-6295", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "2016 - 2018 Nomad Coders. 전략기획본부", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
+{"text": "8. 장민재 (퓨처헬스케어)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "인수인계\t4990-6037-5575-6178", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "노재호  ((주) 고구려마루센터)\n010-6042-7576    guest58@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "인수인계 | 512-58-72772", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "10. 박민서 (넥스젠파트너스)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "2023 - 2025 Nova Systems. 디자인그룹", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-99572,2026-11-23 20:00,박현준,010-4464-8086,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "3. 김서영 (이노 헬스케어)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "지급조건\t월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "**대상 환경:** staging", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "이광수  (블루웨이브 소프트)\n010-2203-1899    guest93@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "12. 전영철 (주식회사 아름)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "이 계약은 윤병철님과 원더이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 14, "OG"]], "source": "gen_natural_sentence"}
+{"text": "4. 김영수 ((유) 스타)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "송현지  (골든게이트정보통신)\n010-1841-9335    guest46@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "정산 문의\t김서영\t010-8945-6928", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "담당자 김은지", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "기술 지원\t이서준\t010-4427-6372", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "성명 최준영", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
+{"text": "ORD-2026-54864,2026-10-12 03:00,진채원,010-1957-6961,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "김성호  (이노미디어)\n010-5617-3900    guest65@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-23071,2026-08-02,보조배터리 20000mAh,010-1131-3032", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "기술 지원 | 안시우 | 010-7629-4082", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-60047,2026-12-18 20:00,김서현,010-2167-2799,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "납품\t업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "2021 - 2022 유한회사 중앙. 마케팅부", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
+{"text": "처리 결과\t추가 비용 없음", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "ORD-2026-43161,2026-12-10 00:00,강영환,010-2788-8740,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "보안 신고 | 이채원 | 010-6126-5629", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-26412,2026-03-06 09:00,김하윤,010-5663-9545,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "오서윤님이 넥스트브릿지 모빌리티에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_natural_sentence"}
+{"text": "**검토자:** staging", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "9. 이도현 (다솜 솔루션)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "계약 담당자 김유진", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
+{"text": "2023 - 2025 Bright Path Inc.. 재무본부", "entities": [[12, 28, "OG"]], "source": "gen_career_entry"}
+{"text": "8. 김수빈 (유한회사 고려)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "유니온중앙은행 소속 박성호 담당자에게 문의해 주세요.", "entities": [[0, 7, "OG"], [11, 14, "PS"]], "source": "gen_natural_sentence"}
+{"text": "박승민  (넥스트브릿지네트웍스)\n010-9520-3172    guest29@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "발신인 노영진", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "(주) 시너지기획 소속 홍지은 담당자에게 문의해 주세요.", "entities": [[0, 9, "OG"], [13, 16, "PS"]], "source": "gen_natural_sentence"}
+{"text": "오상현  (국민)\n010-9478-1259    guest31@example.com", "entities": [[0, 3, "PS"], [6, 8, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "분쟁해결 | 1043-4671-8761-2482", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "발신인 김영환", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "보안 신고\t조건우\t010-1584-4639", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "스카이라인테크 소속 강서영 담당자에게 문의해 주세요.", "entities": [[0, 7, "OG"], [11, 14, "PS"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-89526,2026-06-08,보조배터리 20000mAh,010-9046-6014", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "한강은 올해 매출이 크게 늘었습니다.", "entities": [[0, 2, "OG"]], "source": "gen_natural_sentence"}
+{"text": "15. 김현정 (코리아네트워크)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "장윤서입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-16821,2026-03-04,당일 배송,010-2847-2225", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "11. 김진우 (주식회사 고구려테크)", "entities": [[4, 7, "PS"], [9, 19, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-35395,2026-12-06 15:00,김성진,010-5629-8340,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "발주처: 브라이트물류", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "공급사: 유한회사 월드", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-69151,2026-01-06,당일 배송,010-1774-9518", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "담당자 이정남", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "결제 방법 | 010-9955-9753", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "2021 - 2023 센트럴파트너스. 영업팀", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
+{"text": "**배포 대상:** 배포 승인 대기", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "10. 김동현 (다솜케미칼)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "2018 - 2019 Argon Digital. 전략기획실", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
+{"text": "이 계약은 김미경님과 마음이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 14, "OG"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-15028,2026-11-06 06:00,강재호,010-2739-9571,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "8. 오지우 ((주) 네오)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "11. 김예지 (그린필드모빌리티)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "계약 변경 | 허성현 | 010-2859-2825", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "하나발해네트웍스 소속 김미정 담당자에게 문의해 주세요.", "entities": [[0, 8, "OG"], [12, 15, "PS"]], "source": "gen_natural_sentence"}
+{"text": "유한회사 글로벌테크은 올해 매출이 크게 늘었습니다.", "entities": [[0, 10, "OG"]], "source": "gen_natural_sentence"}
+{"text": "2022 - 2025 유니온인더스트리. 영업팀", "entities": [[12, 20, "OG"]], "source": "gen_career_entry"}
+{"text": "유한회사 네오뷰티 소속 이정숙 담당자에게 문의해 주세요.", "entities": [[0, 9, "OG"], [13, 16, "PS"]], "source": "gen_natural_sentence"}
+{"text": "황정식  ((유) 다올가온개발)\n010-1086-5309    guest13@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-98839,2026-11-26 07:00,김예지,010-5872-5175,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "안현정  (코어물류)\n010-1921-2058    guest34@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-34574,2026-04-15 12:00,오성훈,010-5975-2778,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "계약 변경 | 김성현 | 010-9341-9648", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "2022 - 2023 한빛 네트웍스. 마케팅그룹", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
+{"text": "12. 차은지 (유한회사 라온)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "8. 강종수 (동방 커머스)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "정산 | 912-53-95218", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "13. 배영자 ((주) 우리개발)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "작성자 이성수", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "작성자 김미경", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "이 계약은 김정웅님과 한빛이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 14, "OG"]], "source": "gen_natural_sentence"}
+{"text": "이상훈  (씨앤씨월드네트웍스)\n010-4335-5432    guest14@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "2. 임동현 (글로벌마음개발공사)", "entities": [[3, 6, "PS"], [8, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "10. 김은정 (아름금고)", "entities": [[4, 7, "PS"], [9, 13, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "김보람입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
+{"text": "12. 유영길 (주식회사 네오)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "7. 이상훈 (주식회사 발해)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "2022 - 2024 Argon Digital. 재무팀", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-50143,2026-10-27 12:00,김은영,010-3391-6344,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 주식회사 중앙에이아이", "entities": [[5, 16, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-73768,2026-05-27 09:00,장채원,010-4674-6091,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "(유) 한빛 소속 안도윤 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
+{"text": "13. 심성민 ((유) 국민솔루션)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "8. 김시우 (네오정보통신)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "발주처: 우리 물류", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "수신인 성건우", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "정산 문의 | 김현우 | 010-2868-7804", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-51243,2026-03-20 03:00,김현우,010-2558-3894,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "협력사: 조선모두유통", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "거래처: 시너지", "entities": [[5, 8, "OG"]], "source": "gen_org_only_row"}
+{"text": "19. 박상호 (유한회사 푸른)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "납품 | 업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "채용 문의\t권정숙\t010-5163-2529", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-54019,2026-08-25 06:00,김병철,010-6232-5372,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "비고 | 별도 협의사항 없음", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "ORD-2026-17899,2026-01-19 05:00,박재현,010-8395-2946,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "최민재  (주식회사 에코)\n010-6987-7885    guest15@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "비밀유지\t1497-1004-7777-5674", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "**최종 수정일:** 전체 사용자", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "발주처: 미래컨설팅", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "14. 윤성민 (넥스젠전자)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "김혜진입니다. 잘 부탁드립니다.", "entities": [[0, 3, "PS"]], "source": "gen_natural_sentence"}
+{"text": "9. 강지원 (유니온시너지개발)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "채용 문의 | 홍성훈 | 010-4553-1561", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "협력사: 유한회사 한가람인포자동차", "entities": [[5, 18, "OG"]], "source": "gen_org_only_row"}
+{"text": "20. 이도윤 (테크노정보통신)", "entities": [[4, 7, "PS"], [9, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "성명 양영환", "entities": [[3, 6, "PS"]], "source": "gen_bare_label_value"}
+{"text": "1. 장미경 (스마트인더스트리)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-25914,2026-10-06 20:00,박경희,010-3751-6141,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "손해배상\t284-10-24205", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "계약 변경 | 김지우 | 010-8619-2578", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "10. 박영미 ((주) 모두)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "보안 신고 | 김예진 | 010-8484-3424", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "거래처: 마루", "entities": [[5, 7, "OG"]], "source": "gen_org_only_row"}
+{"text": "공급사: 스마트헬스케어", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-13914,2026-10-15 19:00,양미경,010-5580-4879,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "계약 변경 | 백지연 | 010-9891-4821", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "거래처: 주식회사 가온개발", "entities": [[5, 14, "OG"]], "source": "gen_org_only_row"}
+{"text": "2021 - 2023 Nova Systems. 마케팅팀", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-92995,2026-11-03 19:00,김영식,010-4292-2331,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "이승현  ((주) 라온에코개발공사)\n010-4240-9970    guest37@example.com", "entities": [[0, 3, "PS"], [6, 18, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-29137,2026-12-16 16:00,양정수,010-5104-1601,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 골든게이트솔루션", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
+{"text": "김현우  (가온메가)\n010-5950-3176    guest2@example.com", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "납품\t010-2631-6768", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "김병철  (동방 로지스틱스)\n010-9756-3364    guest21@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "2022 - 2024 고려테크. 전략기획부", "entities": [[12, 16, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-61132,2026-01-09 08:00,한상호,010-4439-9852,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "한성현  (주식회사 한빛)\n010-3628-4972    guest24@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "20. 김수빈 (마음솔루션)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-66181,2026-09-02 19:00,심재현,010-2525-7375,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "오영일  (유한회사 글로벌고구려뷰티)\n010-4607-6291    guest89@example.com", "entities": [[0, 3, "PS"], [6, 19, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-23372,2026-01-12,당일 배송,010-2793-6500", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "계약 변경 | 김현숙 | 010-2221-2018", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "공급사: 하나로물류", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-36808,2026-07-07,무선 이어폰 세트,010-1586-3053", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "2018 - 2020 (주) 씨앤씨. 마케팅실", "entities": [[12, 19, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-47400,2026-05-19 07:00,황영희,010-9173-4594,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 스카이라인 헬스케어", "entities": [[5, 15, "OG"]], "source": "gen_org_only_row"}
+{"text": "5. 김민재 (모두기술)", "entities": [[3, 6, "PS"], [8, 12, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "18. 김지연 (한서시스템즈)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-94231,2026-07-16 10:00,최지민,010-9457-5613,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "18. 최지은 (골든게이트머티리얼즈)", "entities": [[4, 7, "PS"], [9, 19, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "20. 이준호 (브라이트 인더스트리)", "entities": [[4, 7, "PS"], [9, 19, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "발주 | 010-9148-6766", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "최선영  (주식회사 글로벌)\n010-8686-6498    guest87@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "7. 양영철 (퓨처컨설팅)", "entities": [[3, 6, "PS"], [8, 13, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "특이사항 | 별지 참조", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "협력사: 코어바이오", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "김보람  (대한 그룹)\n010-5231-3687    guest56@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "거래처: 신성그룹", "entities": [[5, 9, "OG"]], "source": "gen_org_only_row"}
+{"text": "협력사: (유) 한가람", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "2020 - 2023 Nomad Coders. 인사그룹", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
+{"text": "2017 - 2019 인포코어뷰티. 디자인그룹", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
+{"text": "황민지  (퓨처소프트)\n010-4954-8953    guest53@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "승인\t010-9559-2186", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "협력사: 주식회사 첨단", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-47252,2026-04-16 22:00,이경희,010-7199-3557,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "보안 신고 | 이옥순 | 010-6696-8135", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "채용 문의\t권영철\t010-3087-9633", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "공급사: 국민글로벌전자", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "보안서약 | 010-5859-5217", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "2020 - 2021 나루코리아솔루션. 마케팅부", "entities": [[12, 20, "OG"]], "source": "gen_career_entry"}
+{"text": "류혜진  (주식회사 씨앤씨자동차)\n010-1802-5507    guest23@example.com", "entities": [[0, 3, "PS"], [6, 17, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "보안 신고\t박영희\t010-1763-4085", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "**대상 환경:** 검토 완료", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "이 계약은 우숙자님과 원더이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 14, "OG"]], "source": "gen_natural_sentence"}
+{"text": "접수\t010-3120-4193", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "보안 신고 | 최정자 | 010-7164-4521", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-58183,2026-04-24 10:00,장정희,010-8509-6174,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "2021 - 2022 유니온 메가. 영업본부", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
+{"text": "계약 변경 | 서민서 | 010-8604-2244", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "3. 유준영 (백제네트웍스)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-98786,2026-12-02 18:00,박선영,010-2588-5888,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "ORD-2026-17183,2026-06-19,쿠폰 적용,010-1948-6136", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "기술 지원\t박은영\t010-6193-1761", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "최정자  (푸른신라연구소)\n010-6644-6673    guest89@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "2018 - 2019 (주) 백제개발. 전략기획실", "entities": [[12, 20, "OG"]], "source": "gen_career_entry"}
+{"text": "이 계약은 서지연님과 퓨처메가이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 16, "OG"]], "source": "gen_natural_sentence"}
+{"text": "보안 신고\t한영호\t010-4647-4912", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-26209,2026-11-04 04:00,김민서,010-7569-1211,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 브레인비전센터", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "이우진  (유한회사 브레인)\n010-5579-1007    guest90@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "처리 결과 | 추가 비용 없음", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "**적용 범위:** 높음", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "ORD-2026-91140,2026-11-16 17:00,김숙자,010-6903-3584,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "발주처: 가야상사", "entities": [[5, 9, "OG"]], "source": "gen_org_only_row"}
+{"text": "공급사: 스카이라인 정보통신", "entities": [[5, 15, "OG"]], "source": "gen_org_only_row"}
+{"text": "박순자  (윈드)\n010-9917-6769    guest17@example.com", "entities": [[0, 3, "PS"], [6, 8, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "계약기간\t1909-8058-5270-9657", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "5. 이정웅 (우리에너지)", "entities": [[3, 6, "PS"], [8, 13, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "검수 | 010-7578-9731", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "프라임솔루션 소속 최춘자 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
+{"text": "9. 한승민 (가야정보통신)", "entities": [[3, 6, "PS"], [8, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "이 계약은 김영호님과 넥스젠솔루션이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 18, "OG"]], "source": "gen_natural_sentence"}
+{"text": "13. 노하윤 (그린필드시스템즈)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-37026,2026-10-01,당일 배송,010-7504-4780", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "5. 오서윤 (퓨처 테크)", "entities": [[3, 6, "PS"], [8, 13, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "법인카드 | 9563-5512-9000-9421", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "2015 - 2018 골든게이트네트웍스. 영업팀", "entities": [[12, 21, "OG"]], "source": "gen_career_entry"}
+{"text": "ORD-2026-86319,2026-02-14 03:00,김영진,010-5375-7011,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "기술 지원 | 윤우진 | 010-4661-5935", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "10. 김예지 (그린필드메가)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "거래처: 종합코리아신문", "entities": [[5, 12, "OG"]], "source": "gen_org_only_row"}
+{"text": "김진우  (퓨처바이오)\n010-2457-8535    guest17@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "채용 문의 | 김진우 | 010-9766-5084", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "**작업 일시:** production", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "진현주  (미래솔루션)\n010-9444-9348    guest96@example.com", "entities": [[0, 3, "PS"], [6, 11, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "**최종 수정일:** 배포 승인 대기", "entities": [], "source": "gen_hard_negative_markdown_label"}
+{"text": "계약 변경\t황지우\t010-4726-2328", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "공급사: 청담커머스", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "2019 - 2022 블루웨이브 컨설팅. 인사본부", "entities": [[12, 21, "OG"]], "source": "gen_career_entry"}
+{"text": "18. 고정식 (신성네트웍스)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "김병철님이 클리어미디어에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_natural_sentence"}
+{"text": "2023 - 2025 Argon Digital. 디자인센터", "entities": [[12, 25, "OG"]], "source": "gen_career_entry"}
+{"text": "2023 - 2024 골든게이트 모빌리티. 디자인실", "entities": [[12, 22, "OG"]], "source": "gen_career_entry"}
+{"text": "적용 범위\t별지 참조", "entities": [], "source": "gen_hard_negative_table_value_phrase"}
+{"text": "ORD-2026-81661,2026-01-03 23:00,박상호,010-5732-9306,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "ORD-2026-80349,2026-03-20 12:00,김현준,010-9284-7584,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "박준혁  (유한회사 고려테크)\n010-2491-7807    guest47@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-47047,2026-01-23,무선 이어폰 세트,010-3240-7016", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "계약 담당자 이진우", "entities": [[7, 10, "PS"]], "source": "gen_bare_label_value"}
+{"text": "기술 지원\t최예원\t010-6504-4274", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "ORD-2026-38130,2026-02-19 00:00,박도윤,010-1944-5221,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "2. 민준호 (제나)", "entities": [[3, 6, "PS"], [8, 10, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "기술 지원 | 이옥자 | 010-2794-4855", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "수신인 김예진", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "이 계약은 배민재님과 주식회사 코리아유니온전자이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 25, "OG"]], "source": "gen_natural_sentence"}
+{"text": "8. 심미경 (베스트 미디어)", "entities": [[3, 6, "PS"], [8, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-42345,2026-12-05 00:00,허서준,010-1815-6221,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "채용 문의 | 정지현 | 010-4607-7675", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "보안 신고 | 이경수 | 010-6841-4122", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "10. 박지아 (네오가야개발공사)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "2. 이미영 (퓨처 로지스틱스)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "에코기획 소속 황광수 담당자에게 문의해 주세요.", "entities": [[0, 4, "OG"], [8, 11, "PS"]], "source": "gen_natural_sentence"}
+{"text": "거래처: (주) 글로벌아름랩스", "entities": [[5, 16, "OG"]], "source": "gen_org_only_row"}
+{"text": "하자보수\t업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "ORD-2026-34562,2026-12-12,당일 배송,010-3510-2972", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "발주처: 한서 인더스트리", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-78906,2026-07-13,쿠폰 적용,010-6829-4146", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "손해배상\t010-5518-1080", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "14. 박민준 (은하커머스)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "채용 문의 | 김정식 | 010-6713-2682", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "발주처: 이노정보통신", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "이시우  (유한회사 에코센터)\n010-1652-5723    guest80@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "2018 - 2020 Nova Systems. 인사팀", "entities": [[12, 24, "OG"]], "source": "gen_career_entry"}
+{"text": "정산 문의\t양명자\t010-2471-9988", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "2022 - 2024 Crestline Partners. 전략기획실", "entities": [[12, 30, "OG"]], "source": "gen_career_entry"}
+{"text": "10. 김성수 (그린필드 소프트)", "entities": [[4, 7, "PS"], [9, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "거래처: 한서 머티리얼즈", "entities": [[5, 13, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-90157,2026-01-08 22:00,김지원,010-8169-2676,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "발신인 안춘자", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "ORD-2026-72211,2026-02-02,당일 배송,010-6358-1875", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "김수빈  (브라이트시스템즈)\n010-8685-8551    guest78@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-57661,2026-01-22 20:00,박영미,010-2927-9375,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "이 계약은 진건우님과 테크노테크이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 17, "OG"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-53850,2026-04-04,당일 배송,010-9873-8814", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "손성훈  (주식회사 원더테크)\n010-4701-4137    guest80@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-57654,2026-04-07 00:00,정예원,010-5639-8425,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "공급사: 라온", "entities": [[5, 7, "OG"]], "source": "gen_org_only_row"}
+{"text": "채용 문의\t이현정\t010-4741-1078", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "최민석  (주식회사 국민솔루션)\n010-5586-6316    guest91@example.com", "entities": [[0, 3, "PS"], [6, 16, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "김병철  (미래네트웍스)\n010-6133-8611    guest55@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "정산 문의\t류영미\t010-3042-8492", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "이 계약은 김영길님과 스카이라인로지스틱스이 체결했습니다.", "entities": [[6, 9, "PS"], [12, 22, "OG"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-26469,2026-05-11 08:00,이순옥,010-6830-8669,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "계약 변경\t이영환\t010-5657-2959", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "담당자 노준혁", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "한서커머스 소속 이서준 담당자에게 문의해 주세요.", "entities": [[0, 5, "OG"], [9, 12, "PS"]], "source": "gen_natural_sentence"}
+{"text": "문서윤  (제나하나테크)\n010-9269-6474    guest45@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "12. 장예준 ((주) 라온)", "entities": [[4, 7, "PS"], [9, 15, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "윤종수님이 은하테크에서 근무 중입니다.", "entities": [[0, 3, "PS"], [6, 10, "OG"]], "source": "gen_natural_sentence"}
+{"text": "ORD-2026-15859,2026-03-12 03:00,손서연,010-3155-4112,무선 이어폰", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "협력사: 한서정보통신", "entities": [[5, 11, "OG"]], "source": "gen_org_only_row"}
+{"text": "보안 신고 | 김정수 | 010-7437-3611", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "강상현  (블루웨이브정보통신)\n010-1335-1589    guest94@example.com", "entities": [[0, 3, "PS"], [6, 15, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-13856,2026-12-12 00:00,남보람,010-8011-9463,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "15. 윤광수 (유한회사 코어한가람반도체)", "entities": [[4, 7, "PS"], [9, 22, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "이재현  (한강한빛센터)\n010-7006-2104    guest15@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-35173,2026-02-13,무선 이어폰 세트,010-8247-7201", "entities": [], "source": "gen_hard_negative_csv_row"}
+{"text": "2022 - 2023 은하파트너스. 마케팅센터", "entities": [[12, 18, "OG"]], "source": "gen_career_entry"}
+{"text": "배영식  (이노시스템즈)\n010-4234-3026    guest39@example.com", "entities": [[0, 3, "PS"], [6, 12, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "19. 송준영 (스마트그룹)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-94829,2026-03-17 07:00,김상철,010-6165-8305,텀블러", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "계약 변경 | 남경희 | 010-9700-8716", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "코어파트너스 소속 박승민 담당자에게 문의해 주세요.", "entities": [[0, 6, "OG"], [10, 13, "PS"]], "source": "gen_natural_sentence"}
+{"text": "12. 임정숙 (한서소프트)", "entities": [[4, 7, "PS"], [9, 14, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "정산 문의 | 이현숙 | 010-1829-4342", "entities": [[8, 11, "PS"]], "source": "gen_table_row"}
+{"text": "고은영  (유한회사 가온시너지은행)\n010-4373-5073    guest60@example.com", "entities": [[0, 3, "PS"], [6, 18, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "거래처: 퓨처바이오", "entities": [[5, 10, "OG"]], "source": "gen_org_only_row"}
+{"text": "ORD-2026-53466,2026-11-01 02:00,김선영,010-1854-7847,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "보안서약\t업무 중 취득한 고객정보와 인증정보를 제3자에게 제공하지 않는다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "ORD-2026-49476,2026-09-28 11:00,박성민,010-2289-6427,블루투스 스피커", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "배송 조건\t월간 결과보고서 제출 후 5영업일 안에 검토한다", "entities": [], "source": "gen_hard_negative_table_label"}
+{"text": "계약 변경\t김성민\t010-3356-8236", "entities": [[6, 9, "PS"]], "source": "gen_table_row"}
+{"text": "윤광수  (주식회사 미래)\n010-7873-3527    guest75@example.com", "entities": [[0, 3, "PS"], [6, 13, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "ORD-2026-72618,2026-01-03 19:00,윤광수,010-4372-2411,보조배터리", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "작성자 윤중수", "entities": [[4, 7, "PS"]], "source": "gen_bare_label_value"}
+{"text": "최정웅  ((유) 모두기술)\n010-1704-1500    guest57@example.com", "entities": [[0, 3, "PS"], [6, 14, "OG"]], "source": "gen_attendee_two_lines"}
+{"text": "5. 김성훈 ((유) 한빛보안)", "entities": [[3, 6, "PS"], [8, 16, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "5. 이지아 (주식회사 발해전자)", "entities": [[3, 6, "PS"], [8, 17, "OG"]], "source": "gen_numbered_list_with_org"}
+{"text": "ORD-2026-89570,2026-10-14 10:00,남순옥,010-8830-7858,노트북 파우치", "entities": [[32, 35, "PS"]], "source": "gen_csv_row"}
+{"text": "12. 최도현 (주식회사 모두은행)", "entities": [[4, 7, "PS"], [9, 18, "OG"]], "source": "gen_numbered_list_with_org"}

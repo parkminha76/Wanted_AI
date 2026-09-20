@@ -1444,16 +1444,41 @@
   padding: 0 2px;
   border-radius: 3px;
   background: var(--color-hit-bg);
-  color: var(--color-hit-text);
+  /* 실측(2026-09-20): 이메일 등 일반 하이라이트도 "숨은 명령"과 같은 문제를
+     겪고 있었다 — DOCX 원본 글자의 인라인 color(예: 본문 짙은 남색 #202B33)가
+     이 class보다 우선 적용되면, 어두운 배경(--color-hit-bg) 위에 어두운
+     글씨가 겹쳐 사실상 안 보이는 상자가 된다(예: "finance@example.com"이
+     읽을 수 없는 빈 상자처럼 보임). font-size도 같은 이유로 원본이 작게
+     지정해 둔 문서에서 깨질 수 있어 같이 지킨다. */
+  color: var(--color-hit-text) !important;
+  font-size: var(--font-size-md) !important;
 }
 
 .hit--hidden {
-  background: var(--color-hit-hidden-bg);
+  /* 실측(2026-09-20): 숨겨진 글자는 원본에서 0pt 크기·투명색 같은 방식으로
+     숨겨져 있어서, 그 인라인 스타일이 우리 스타일보다 우선 적용되면 글자가
+     안 보인다(예: font-size 0.02rem으로 남음). !important로 원본 숨김
+     스타일을 덮어써 실제로 읽을 수 있게 만든다 — "여기 뭔가 있다"가 아니라
+     "이게 그 내용이다"를 보여주는 게 목적이다.
+     채워진 배경 대신 테두리만 쓴다(2026-09-20 피드백) — 꽉 찬 어두운 상자는
+     "내용을 또 가려놓은 것"처럼 보여서, 굳이 클릭해야 뭔지 알 수 있었다.
+     테두리로 "여기 위험한 게 있다"는 경고만 주고, 글자는 원래 색으로
+     바로 읽히게 한다. */
+  background: transparent;
+  border: 1.5px solid var(--color-risk-high);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-size: var(--font-size-md) !important;
+  color: var(--color-risk-high) !important;
+  opacity: 1 !important;
+  letter-spacing: normal !important;
 }
 
 .hit--other {
   background: var(--color-hit-other-bg);
-  color: var(--color-text);
+  /* 기본 .hit의 color !important를 다시 덮어써야 이 카테고리 고유 색이 나온다
+     (동시에 원본 문서의 인라인 color도 계속 막는다) — .hit--hidden과 같은 이유. */
+  color: var(--color-text) !important;
 }
 
 .hit.is-selected {
@@ -1749,7 +1774,7 @@
 /* 부분 마스킹 예정 — 실제로 어디까지 가려지는지는 서버 규칙이 정하므로 원래 값에 표시만 한다 */
 .hit--standard {
   background: var(--color-risk-medium-soft);
-  color: var(--color-risk-medium);
+  color: var(--color-risk-medium) !important;
 }
 
 /* 선택에서 뺀 항목 — 가리지 않는다는 표시 */
