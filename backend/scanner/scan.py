@@ -431,8 +431,18 @@ def _has_explicit_negative_cue(finding: Finding, raw_text: str) -> bool:
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
-<<<<<<< HEAD
-    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다."""
+    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다.
+
+    1차로 각 finding을 훑으며 모델 판정이 필요 없는 것(injection, 구조화된 값,
+    명시적 부정/긍정 단서, 학습 안 한 타입)은 바로 정리하고, 모델이 실제로
+    판단해야 하는 것만 "보류" 표시로 모아둔다. 2차에서 그 보류 목록을 한 번에
+    배치 호출한다.
+
+    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 건마다
+    models.filter_false_positive를 따로 불렀더니 249.87초가 걸렸다(모델
+    벡터화 오버헤드가 건수만큼 반복). models.filter_false_positive_many로
+    한 번에 넘기면 이 반복이 사라진다.
+    """
     # _find_structured_xlsx_values가 만든 값은 rules.find_all의 자유-문맥 규칙(계좌번호
     # 등)이 같은 셀을 한 번 더 후보로 내놓은 것과 구간·타입이 완전히 같을 수 있다. 아래
     # 루프가 구조화된 쪽은 그대로 통과시키면서 이 중복은 분류기로 그대로 보내면, 같은
@@ -443,20 +453,6 @@ def _apply_classifier_filters(
     structured_spans = {
         (f.start, f.end, f.type) for f in findings if f.evidence.get("structured_header")
     }
-    kept: list[Finding] = []
-    filtered_out: list[Finding] = []
-=======
-    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다.
-
-    1차로 각 finding을 훑으며 모델 판정이 필요 없는 것(injection, 명시적 부정/긍정
-    단서, 학습 안 한 타입)은 바로 정리하고, 모델이 실제로 판단해야 하는 것만
-    "보류" 표시로 모아둔다. 2차에서 그 보류 목록을 한 번에 배치 호출한다.
-
-    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 건마다
-    models.filter_false_positive를 따로 불렀더니 249.87초가 걸렸다(모델
-    벡터화 오버헤드가 건수만큼 반복). models.filter_false_positive_many로
-    한 번에 넘기면 이 반복이 사라진다.
-    """
     # (kind, finding, context_start) — kind: "keep" | "drop" | "pending".
     # pending은 모델 배치 호출이 끝난 뒤 2차에서 kept/filtered_out으로 갈라진다.
     decisions: list[tuple[str, Finding, int]] = []
@@ -467,7 +463,6 @@ def _apply_classifier_filters(
     # 한 타입뿐인 문서라면 아예 안 만든다.
     sentence_index: tuple[list[tuple[str, int, int]], list[int]] | None = None
 
->>>>>>> main
     for f in findings:
         if f.type == "injection":
             decisions.append(("keep", f, 0))
@@ -487,7 +482,7 @@ def _apply_classifier_filters(
         # 잡히다 말다 했다(실측 2026-09-20: 계좌번호 5건 중 1건만 통과). 열 제목 자체가 이미
         # 분류기의 문맥 판단보다 훨씬 강한 근거이므로 여기서도 그대로 신뢰한다.
         if f.evidence.get("structured_header"):
-            kept.append(f)
+            decisions.append(("keep", f, 0))
             continue
         # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
         # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만
