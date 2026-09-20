@@ -47,7 +47,7 @@ import uuid
 import zipfile
 from collections import Counter
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Literal
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
@@ -320,8 +320,124 @@ class _MaskedFile:
     batch_id: str | None = None
 
 
-_masked_files: dict[str, _MaskedFile] = {}
-_batches: dict[str, list[str]] = {}
+_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")  # uuid4().hex의 모양
+
+
+def _atomic_write_json(path: str, payload: dict | list) -> None:
+    """쓰다 만 JSON을 다른 워커가 읽지 않도록 임시 파일에 쓰고 rename한다.
+
+    os.replace는 같은 파일시스템 안에서 원자적이다. 단 Windows는 대상 파일을 다른
+    스레드가 마침 읽는 중이면 잠깐 rename을 거부한다(POSIX에서는 문제없다).
+    그 순간은 아주 짧으므로 몇 번만 재시도한다.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = f"{path}.tmp{os.getpid()}"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    for attempt in range(5):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.05)
+
+
+class _SharedDict:
+    """워커들이 같이 보는 dict. 값은 컨테이너 공용 디스크에 JSON으로 둔다.
+
+    프로세스 메모리(dict)에 두면 안 되는 이유는 비동기 검사 job과 똑같다 —
+    Dockerfile이 uvicorn을 --workers 4로 띄우므로 워커마다 별도 프로세스·별도
+    메모리다. 사본을 만든 워커와 다운로드 요청을 받은 워커가 다르면(로드밸런서가
+    고른다) 방금 만든 사본을 상대 워커는 전혀 모른다. 실측 2026-09-20: 검사는
+    성공했는데 곧바로 누른 '사본 다운받기'가 404("사본이 없거나 보관 기간이
+    지났습니다")로 떨어지고, 다시 만들면 될 때도 있고 안 될 때도 있었다.
+    워커가 4개니 우연히 같은 워커에 걸리는 1/4만 성공한 것이다.
+
+    키가 그대로 파일 이름이 된다. /download/{file_id}로 사용자 입력이 그대로
+    들어오므로("../../etc/passwd" 등) 글자·숫자·`_`·`-`만 받는다. 실제로 쓰는
+    키는 언제나 uuid4().hex다.
+    """
+
+    _KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+    def __init__(self, dirname: str, load, dump):
+        self._dir = os.path.join(tempfile.gettempdir(), dirname)
+        self._load = load
+        self._dump = dump
+
+    def _path(self, key) -> str:
+        if not isinstance(key, str) or not self._KEY_PATTERN.match(key):
+            raise KeyError(key)
+        return os.path.join(self._dir, f"{key}.json")
+
+    def get(self, key, default=None):
+        try:
+            path = self._path(key)
+        except KeyError:
+            return default
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return self._load(json.load(fh))
+        except (FileNotFoundError, json.JSONDecodeError, TypeError, KeyError):
+            return default
+
+    def __getitem__(self, key):
+        value = self.get(key)
+        if value is None:
+            raise KeyError(key)
+        return value
+
+    def __setitem__(self, key, value) -> None:
+        _atomic_write_json(self._path(key), self._dump(value))
+
+    def __contains__(self, key) -> bool:
+        return self.get(key) is not None
+
+    def pop(self, key, default=None):
+        value = self.get(key, default)
+        try:
+            os.remove(self._path(key))
+        except (OSError, KeyError):
+            pass
+        return value
+
+    def items(self):
+        try:
+            names = sorted(os.listdir(self._dir))
+        except OSError:
+            return
+        for name in names:
+            if not name.endswith(".json"):
+                continue
+            key = name[: -len(".json")]
+            value = self.get(key)
+            if value is not None:
+                yield key, value
+
+    # dict 자리에 그대로 들어가므로 나머지 dict 인터페이스도 맞춰 둔다.
+    def keys(self):
+        return [key for key, _ in self.items()]
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def clear(self) -> None:
+        for key in self.keys():
+            self.pop(key, None)
+
+    def update(self, other) -> None:
+        for key, value in dict(other).items():
+            self[key] = value
+
+
+_masked_files = _SharedDict(
+    "infoguard_masked",
+    lambda raw: _MaskedFile(**raw),
+    lambda entry: asdict(entry),
+)
+_batches = _SharedDict("infoguard_batches", list, list)
 
 
 def _sweep_expired() -> None:
@@ -357,7 +473,7 @@ def _sweep_expired() -> None:
 _SCAN_JOB_DIR = os.path.join(tempfile.gettempdir(), "infoguard_scan_jobs")
 
 
-_SCAN_JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")  # uuid4().hex의 모양
+_SCAN_JOB_ID_PATTERN = _ID_PATTERN
 
 
 def _scan_job_path(job_id: str) -> str:
@@ -369,23 +485,8 @@ def _scan_job_path(job_id: str) -> str:
 
 
 def _write_scan_job(job_id: str, status: str, result: dict | None = None, detail: str | None = None) -> None:
-    os.makedirs(_SCAN_JOB_DIR, exist_ok=True)
     payload = {"status": status, "created_at": time.time(), "result": result, "detail": detail}
-    # 임시 파일에 먼저 쓰고 rename한다 — 다른 워커가 상태 조회 중에 쓰다 만 JSON을
-    # 읽지 않게 한다(os.replace는 같은 파일시스템 안에서 원자적이다).
-    tmp_path = _scan_job_path(job_id) + f".tmp{os.getpid()}"
-    with open(tmp_path, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, ensure_ascii=False)
-    # Windows는 대상 파일을 다른 스레드가 마침 읽는 중이면 잠깐 rename을 거부한다
-    # (POSIX에서는 문제없이 원자적이다). 그 순간은 아주 짧으므로 몇 번만 재시도한다.
-    for attempt in range(5):
-        try:
-            os.replace(tmp_path, _scan_job_path(job_id))
-            return
-        except PermissionError:
-            if attempt == 4:
-                raise
-            time.sleep(0.05)
+    _atomic_write_json(_scan_job_path(job_id), payload)
 
 
 def _read_scan_job(job_id: str) -> dict | None:
@@ -1122,6 +1223,8 @@ def _sample_subset(names: str | None) -> dict:
         entry = _masked_files.get(file_id)
         if entry is not None:
             entry.batch_id = subset.batch_id
+            # 레지스트리는 디스크에 있다. 꺼내 온 객체를 고치는 것만으로는 남지 않는다.
+            _masked_files[file_id] = entry
     return subset.to_dict()
 
 
