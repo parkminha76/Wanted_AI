@@ -21,6 +21,17 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 // 부모가 렌더될 때마다 다시 돈다. 빈 배열은 하나만 만들어 돌려쓴다.
 const NO_FINDINGS = []
 
+// injection/hidden_text — 공격자가 사람 눈에 안 띄게 일부러 작게(0.8pt 등) 심어 둔 경우가
+// 흔한 유형이다(backend/scanner/detectors/hidden.py). PDF/이미지 마스킹 라벨은 원본 상자
+// 크기와 무관하게 쪽 폭 기준으로 크기를 잡지만(.image-hit__label), 그래도 작게 나오는
+// 경우가 실측됐다(2026-09-21) — 가장 위험한 유형(injection, RISK_WEIGHTS 최고점)을 놓치면
+// 안 되므로 이 둘만 고정 크기로 강조한다. groupOf가 이미 이 둘을 'hidden' 그룹으로 묶어
+// 두고 있어(findings.js) 그 판정을 그대로 가져다 쓴다 — 목록을 여기서 따로 들면 나중에
+// 한쪽만 바뀌었을 때 조용히 어긋난다.
+function isHiddenCommand(finding) {
+  return groupOf(finding.type) === 'hidden'
+}
+
 export default function DocumentPreview({
   title,
   text = '',
@@ -547,17 +558,30 @@ function PdfPreview({ title, file, findings, filteredOut = [], selectedId, maske
                     {boxes.map((finding) => {
                       const [x0, y0, x1, y1] = finding.bbox
                       const boxStyle = clampedBoxStyle(x0, y0, x1, y1, page.width, page.height)
-                      // masked일 때는 DOCX/XLSX와 같은 파란 태그 배색으로 자리를 칠하고
-                      // "[유형]" 글자를 그 위에 올린다 — 유형별 색·선택 강조는 원문 보기에서만
-                      // 의미가 있어 그대로 두지 않는다(값 자체를 다시 드러내지는 않는다).
+                      // masked일 때는 DOCX/XLSX와 같은 파란 태그 배색으로 자리를 칠한다 —
+                      // 유형별 색·선택 강조는 원문 보기에서만 의미가 있어 그대로 두지 않는다.
+                      // 여기서 그리는 것은 서버가 만든 마스킹 사본이 아니라 원본 파일이다
+                      // (masked=false일 때와 같은 file을 그대로 쓴다) — 이 상자가 불투명해야
+                      // 원본 글자가 실제로 가려진다(scanner.css의 .image-hit--redacted 참고).
                       return masked ? (
+                        // DOCX의 "[유형]" 자리표시자와 같은 라벨을 올린다(scanner.css의
+                        // .image-hit__label 참고 — 상자 폭에 안 맞아도 안 잘리게 만들었다).
+                        // 숨은 명령(injection/hidden_text)은 원본 자체가 사람 눈에 안 띄게
+                        // 아주 작은 글씨로 심어 놓은 경우가 많다 — 쪽 폭 기준 cqw로만 재면
+                        // 그 작은 상자를 기준으로 라벨도 같이 작게 나올 수 있어(실측
+                        // 2026-09-21), 이 유형만 고정 크기로 강조한다(.image-hit__label--emphasis).
                         <span
                           key={finding.id}
                           className="image-hit image-hit--redacted"
                           style={boxStyle}
                           aria-label={`${finding.label} 가려짐`}
                         >
-                          [{finding.label}]
+                          <span
+                            className={`image-hit__label${isHiddenCommand(finding) ? ' image-hit__label--emphasis' : ''}`}
+                            aria-hidden="true"
+                          >
+                            {`[${finding.label}]`}
+                          </span>
                         </span>
                       ) : (
                         <mark
@@ -735,12 +759,35 @@ function fitDocxToContainer(container) {
   const wrapper = container.querySelector('.docx-preview-wrapper')
   const page = container.querySelector('.docx-preview')
   if (!wrapper || !page) return
+  // 다시 재기 전에 지난번에 건 축소를 모두 푼다 — 안 그러면 이미 줄어든 크기를 기준으로
+  // 또 줄여서 갈수록 작아진다.
   wrapper.style.zoom = ''
+  wrapper.style.transform = ''
+  wrapper.style.transformOrigin = ''
+  wrapper.style.width = ''
+  wrapper.style.height = ''
+
   const availableWidth = container.clientWidth
   const pageWidth = page.offsetWidth
   if (!availableWidth || !pageWidth) return
   const scale = Math.min(1, (availableWidth - 4) / pageWidth)
+  if (scale >= 1) return
+
+  const naturalHeight = wrapper.offsetHeight
   wrapper.style.zoom = String(scale)
+
+  // zoom이 실제로 먹었는지 재서 확인한다. 안 먹는 브라우저에서는 A4 폭(약 794px)짜리
+  // 문서가 그대로 좁은 상자 안에 들어가, 표의 칸이 한 글자씩 세로로 쪼개지고 문서 끝의
+  // 숨은 명령이 서로 겹쳐 읽을 수 없었다(실측 2026-09-20, 아이폰 숨은명령.docx).
+  if (page.getBoundingClientRect().width <= availableWidth) return
+
+  // transform은 그려지는 크기만 줄이고 레이아웃 크기는 원래대로 남긴다 — 스크롤 영역이
+  // 원본 크기로 잡히지 않도록 줄어든 크기를 직접 적어 준다.
+  wrapper.style.zoom = ''
+  wrapper.style.transformOrigin = 'top left'
+  wrapper.style.transform = `scale(${scale})`
+  wrapper.style.width = `${pageWidth * scale}px`
+  if (naturalHeight) wrapper.style.height = `${naturalHeight * scale}px`
 }
 
 // 렌더된 문서 텍스트 안에서 각 finding이 실제로 나온 자리를 찾는다. finding.start(raw_text
@@ -864,7 +911,14 @@ function maskDocxFindings(container, findings) {
         // "[이름][이름]"처럼 중복돼 보인다.
         if (!placed) {
           const placeholder = window.document.createElement('mark')
-          placeholder.className = 'mask-token'
+          // 숨은 명령(injection/hidden_text)은 원본 런이 0pt 등 아주 작은 font-size로
+          // 심어져 있던 자리다. clearConflictingRunStyle은 배경·글자색·밑줄만 지우고
+          // font-size는 그대로 둬서, 자리표시자가 그 작은 크기를 그대로 물려받아 실측
+          // (2026-09-21, 숨은명령.docx)으로 안 보일 만큼 작게 나왔다. highlightDocxFindings가
+          // 원문 보기에서 .hit--hidden으로 이미 겪은 문제와 같아서(scanner.css 주석 참고),
+          // 같은 해법(고정 크기 !important)을 마스킹 보기에도 준다.
+          placeholder.className =
+            groupOf(finding.type) === 'hidden' ? 'mask-token mask-token--hidden' : 'mask-token'
           placeholder.textContent = `[${finding.label}]`
           range.insertNode(placeholder)
           clearConflictingRunStyle(placeholder)
@@ -920,7 +974,12 @@ function ImagePreview({ title, file, findings, filteredOut = [], selectedId, mas
                 style={boxStyle}
                 aria-label={`${finding.label} 가려짐`}
               >
-                [{finding.label}]
+                <span
+                  className={`image-hit__label${isHiddenCommand(finding) ? ' image-hit__label--emphasis' : ''}`}
+                  aria-hidden="true"
+                >
+                  {`[${finding.label}]`}
+                </span>
               </span>
             ) : (
               <mark

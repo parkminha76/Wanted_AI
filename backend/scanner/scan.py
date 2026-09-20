@@ -861,12 +861,15 @@ def scan_text(
     # 2. NER — ner 모듈을 불러오지 못한 환경이면 건너뛴다. 텍스트가 너무 크면
     # (로그·CSV 등) 사람·회사명 탐지를 포기하고 규칙 기반 탐지만 돈다 —
     # _NER_MAX_TEXT_LENGTH 주석 참고.
+    ner_skipped_for_size = False
     if ner is not None and hasattr(ner, "detect"):
         ner_text = text
         if meta.get("file_type") == "xlsx" and meta.get("spans"):
             ner_text = _xlsx_ner_input(text, meta["spans"], findings)
         if len(ner_text) <= _NER_MAX_TEXT_LENGTH:
             findings += [_raw_to_finding(d, "ner") for d in ner.detect(ner_text)]
+        else:
+            ner_skipped_for_size = True
 
     # 3. 숨은 텍스트. 파서가 준 서식 정보(spans)가 있으면 흰 글씨·0pt·숨김 속성까지
     # 보고, 없으면(훈련 모드의 실시간 답장 스캔) 문자열만으로 제로폭·Bidi·태그
@@ -912,6 +915,15 @@ def scan_text(
         findings=findings,
         filtered_out=filtered_out,
     )
+    # 검사 자체는 정상적으로 끝났으니 error가 아니라 notice — action_guide를 지우지
+    # 않는다. 정규식 기반 탐지(전화번호·이메일·주민등록번호 등)는 그대로 다 돌았고,
+    # 사람·회사명·비정형 주소처럼 문맥으로 판단하는 항목만 못 봤다는 사실만 알린다.
+    if ner_skipped_for_size:
+        result.notice = (
+            "텍스트가 커서(100KB 초과) 정규식으로 찾는 개인정보(전화번호·이메일·"
+            "주민등록번호 등)는 그대로 검사했지만, 문맥으로 판단하는 사람·회사명 "
+            "탐지는 생략했습니다."
+        )
 
     # 마스킹 사본 — masking 모듈이 아직 없으면 원문 그대로 둔다.
     if mask is not None and hasattr(mask, "build"):
@@ -966,6 +978,36 @@ def _scan_image(doc) -> ScanResult:
     # 비어 있으므로 doc.path로 떨어진다.
     image_paths = getattr(doc, "image_paths", None) or [doc.path]
 
+    # 스캔본 PDF가 페이지 상한(parse.py의 _PDF_SCANNED_MAX_PAGES)을 넘으면 parse.py가
+    # 뒤쪽 쪽을 아예 안 굽는다(렌더링·OCR 비용을 안 들이려고). 검사 안 한 쪽을
+    # 조용히 "안전"으로 보이면 안 되므로 결과에 남긴다. error가 아니라 notice로
+    # 남기는 이유: 앞쪽 쪽의 검사 자체는 정상적으로 끝났고 그 결과도 믿을 수
+    # 있으므로(quality_errors의 "여러 얼굴"과 달리 검사 품질 문제가 아니다),
+    # action_guide(우선 조치 카드)를 지울 이유가 없다.
+    skipped_pages = getattr(doc, "skipped_page_count", 0)
+    if skipped_pages:
+        result.notice = f"OCR이 필요한 PDF는 처음 {len(image_paths)}쪽까지만 분석합니다(뒤 {skipped_pages}쪽 제외)."
+
+    # 사용자가 올린 사진이 해상도 상한을 넘어 축소한 뒤 검사됐으면(parse.py의
+    # _downscale_image_if_oversized), CNN/OCR이 돌려주는 bbox는 축소본 픽셀
+    # 좌표다. 마스킹(mask.build_file)은 화질 손실 없이 **원본 파일**을 그대로
+    # 칠하므로, 좌표를 원본 해상도 기준으로 되돌려 두지 않으면 엉뚱한(더 작고
+    # 왼쪽 위로 치우친) 자리를 지운다 — 스캔본 PDF는 반대로 mask.py가 CNN이 본
+    # 그림을 그대로 칠하므로("좌표 환산이 없다") 이 되돌림이 필요 없다(그쪽은
+    # image_downscale_ratio가 1.0으로 남는다).
+    downscale_ratio = getattr(doc, "image_downscale_ratio", 1.0)
+    if downscale_ratio != 1.0:
+        result.notice = (
+            "고해상도 이미지는 빠르고 안정적인 검사를 위해 장변 1,400px 기준으로 "
+            "축소해 분석했습니다."
+        )
+
+    def _rescale(raw: dict) -> dict:
+        bbox = raw.get("bbox")
+        if downscale_ratio != 1.0 and bbox:
+            raw = {**raw, "bbox": tuple(coord * downscale_ratio for coord in bbox)}
+        return raw
+
     if id_detector is not None and hasattr(id_detector, "detect"):
         have_detector = True
         id_checked = True
@@ -988,6 +1030,7 @@ def _scan_image(doc) -> ScanResult:
                 # page를 1로 고정해 돌려주므로 여기서 실제 쪽 번호로 덮어쓴다 —
                 # 안 그러면 3쪽의 주민번호가 화면에서 1쪽으로 표시되고, 마스킹도
                 # 엉뚱한 페이지를 지운다.
+                raw = _rescale(raw)
                 raw["page"] = page_number
                 findings.append(_raw_to_finding(raw, "cnn"))
 
@@ -1016,6 +1059,7 @@ def _scan_image(doc) -> ScanResult:
         have_detector = True
         for page_number, image_path in enumerate(image_paths, start=1):
             for raw in text_ocr.detect(image_path):
+                raw = _rescale(raw)
                 raw["page"] = page_number
                 # text_ocr이 실제 판정 단계("rule"/"ner"/"classifier")를 함께 돌려준다
                 # (scan_text를 그대로 태운 결과이기 때문이다). 없으면 "rule"로 둔다.
