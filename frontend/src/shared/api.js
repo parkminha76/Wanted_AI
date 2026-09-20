@@ -80,11 +80,18 @@ async function request(path, { method = 'GET', json, body, timeoutMs = TIMEOUT_M
 }
 
 // POST /scan/async가 돌려준 job_id를 완료될 때까지 물어본다.
-// 대용량 로그·CSV(수만 줄)는 NER이 줄마다 돌아 몇 분씩 걸릴 수 있다(실측
-// 2026-09-20: 5MB·25,146줄 로그 약 17분) — 동기 fetch 하나로는 브라우저
-// 타임아웃과 Railway 프록시 타임아웃을 둘 다 넘긴다. job_id 발급은 즉시
-// 끝나고, 실제 검사는 서버 백그라운드에서 돌며 이 폴링이 결과를 받아온다.
-async function pollScanJob(jobId, { intervalMs = 2000, maxWaitMs = 20 * 60 * 1000 } = {}) {
+// 동기 fetch 하나로 다 기다리면 브라우저 타임아웃·Railway 프록시 타임아웃을
+// 넘길 수 있어(대용량 로그·CSV) 접수와 대기를 분리했다.
+//
+// maxWaitMs는 180초다(기존 동기 /scan이 쓰던 상한과 같다) — NER을 100KB
+// 넘는 텍스트에서 건너뛰고(scan.py _NER_MAX_TEXT_LENGTH), 오탐 제거 분류기를
+// 배치 호출로 바꾸고(models.filter_false_positive_many), 문장 문맥 탐색과
+// 겹침 정리(_dedupe)를 이진 탐색으로 바꾼 뒤 실측(2026-09-20,
+// DocXray_합성데이터_5MB.log — 4,442,184자·25,146줄, findings 37,931건):
+// 475.57초 -> 135.73초로 180초 안에 들어왔다. 이 상한을 넘기면 화면에
+// 타임아웃을 보여준다 — 그보다 오래 걸리는 파일은 사용자가 기다릴 만한
+// 크기가 아니라는 판단이다.
+async function pollScanJob(jobId, { intervalMs = 2000, maxWaitMs = 180_000 } = {}) {
   const deadline = Date.now() + maxWaitMs
   while (Date.now() < deadline) {
     const status = await request(`/scan/async/${jobId}`)

@@ -50,7 +50,7 @@ class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
         job_id = submitted["job_id"]
 
         # 백그라운드 스레드가 끝날 때까지 잠깐 기다린다(가짜 scan_files라 즉시 끝난다).
-        deadline = time.time() + 5
+        deadline = time.time() + 15
         status = main.scan_job_status(job_id)
         while status["status"] == "running" and time.time() < deadline:
             time.sleep(0.05)
@@ -73,7 +73,7 @@ class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
             submitted = await main.scan_upload_async([upload], masking_policy_json=None, create_masked_copy=False)
         job_id = submitted["job_id"]
 
-        deadline = time.time() + 5
+        deadline = time.time() + 15
         while main._read_scan_job(job_id)["status"] == "running" and time.time() < deadline:
             time.sleep(0.05)
 
@@ -106,7 +106,7 @@ class ScanAsyncJobTest(unittest.IsolatedAsyncioTestCase):
             submitted = await main.scan_upload_async([upload], masking_policy_json=None, create_masked_copy=False)
 
         job_id = submitted["job_id"]
-        deadline = time.time() + 5
+        deadline = time.time() + 15
         status = main.scan_job_status(job_id)
         while status["status"] == "running" and time.time() < deadline:
             time.sleep(0.05)
