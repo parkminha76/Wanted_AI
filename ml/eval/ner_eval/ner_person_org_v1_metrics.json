@@ -1,0 +1,47 @@
+{
+  "overall": {
+    "eval_loss": 0.003562358906492591,
+    "eval_precision": 1.0,
+    "eval_recall": 1.0,
+    "eval_f1": 1.0,
+    "eval_runtime": 0.1369,
+    "eval_samples_per_second": 2922.371,
+    "eval_steps_per_second": 51.141,
+    "epoch": 6.0
+  },
+  "by_label": {
+    "OG": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 198
+    },
+    "PS": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 324
+    },
+    "micro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 522
+    },
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 522
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 522
+    }
+  },
+  "train_size": 3600,
+  "val_size": 400,
+  "base_model": "Leo97/KoELECTRA-small-v3-modu-ner"
+}
