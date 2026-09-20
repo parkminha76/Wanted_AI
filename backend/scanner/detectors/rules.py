@@ -28,6 +28,7 @@ field 값은 backend/shared/schema.py의 RiskType 문자열을 그대로 쓴다 
 받는 타입과 위험점수표(RISK_WEIGHTS)가 어긋난다.
 """
 
+import bisect
 import datetime
 import re
 
@@ -979,11 +980,37 @@ def find_all(text: str) -> list[dict]:
         + find_person_names_after_label(text)
     )
     def not_overlapping(candidates: list[dict], claimed: list[tuple[int, int]]) -> list[dict]:
-        return [
-            m
-            for m in candidates
-            if not any(m["start"] < end and start < m["end"] for start, end in claimed)
-        ]
+        """claimed(다른 탐지기가 이미 잡은 구간)와 하나도 안 겹치는 후보만 남긴다.
+
+        실측(2026-09-20, DocXray_합성데이터_5MB.log 2MB 슬라이스): 후보(계좌번호
+        9,941건)마다 claimed 전체(16,723건)를 선형으로 훑어(O(후보 수 × claimed
+        수)) 19.00초가 걸렸다 — 전체 파일(4.4MB) 기준으로는 이게 rules.find_all
+        105초 중 대부분을 차지했다. claimed를 시작 위치로 한 번만 정렬하고, 각
+        위치까지의 "가장 먼 끝"(prefix_max_end)을 함께 누적해 두면, 후보마다
+        이진 탐색 한 번으로 "겹치는 게 있는지"만 확인할 수 있다(어느 것과
+        겹쳤는지는 이 함수가 필요로 하지 않는다) — O((후보 수 + claimed 수)
+        log claimed 수)로 줄어든다.
+        """
+        if not claimed:
+            return list(candidates)
+        ordered = sorted(claimed)
+        starts = [s for s, _ in ordered]
+        prefix_max_end = []
+        running_max = float("-inf")
+        for _, e in ordered:
+            running_max = max(running_max, e)
+            prefix_max_end.append(running_max)
+
+        kept = []
+        for m in candidates:
+            # claimed_start < m["end"]인 것들은 정렬된 목록의 앞쪽 [0, upper)에
+            # 몰려 있다. 그중 claimed_end > m["start"]인 게 하나라도 있으면 겹친다
+            # — prefix_max_end가 그 구간의 최댓값을 이미 들고 있어 하나씩 볼 필요가 없다.
+            upper = bisect.bisect_left(starts, m["end"])
+            if upper > 0 and prefix_max_end[upper - 1] > m["start"]:
+                continue
+            kept.append(m)
+        return kept
 
     claimed = [(m["start"], m["end"]) for m in findings]
 

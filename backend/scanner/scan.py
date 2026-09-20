@@ -431,8 +431,18 @@ def _has_explicit_negative_cue(finding: Finding, raw_text: str) -> bool:
 def _apply_classifier_filters(
     findings: list[Finding], raw_text: str
 ) -> tuple[list[Finding], list[Finding]]:
-<<<<<<< HEAD
-    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다."""
+    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다.
+
+    1차로 각 finding을 훑으며 모델 판정이 필요 없는 것(injection, 구조화된 값,
+    명시적 부정/긍정 단서, 학습 안 한 타입)은 바로 정리하고, 모델이 실제로
+    판단해야 하는 것만 "보류" 표시로 모아둔다. 2차에서 그 보류 목록을 한 번에
+    배치 호출한다.
+
+    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 건마다
+    models.filter_false_positive를 따로 불렀더니 249.87초가 걸렸다(모델
+    벡터화 오버헤드가 건수만큼 반복). models.filter_false_positive_many로
+    한 번에 넘기면 이 반복이 사라진다.
+    """
     # _find_structured_xlsx_values가 만든 값은 rules.find_all의 자유-문맥 규칙(계좌번호
     # 등)이 같은 셀을 한 번 더 후보로 내놓은 것과 구간·타입이 완전히 같을 수 있다. 아래
     # 루프가 구조화된 쪽은 그대로 통과시키면서 이 중복은 분류기로 그대로 보내면, 같은
@@ -443,20 +453,6 @@ def _apply_classifier_filters(
     structured_spans = {
         (f.start, f.end, f.type) for f in findings if f.evidence.get("structured_header")
     }
-    kept: list[Finding] = []
-    filtered_out: list[Finding] = []
-=======
-    """오탐 제거 분류기로 걸러낸다. injection은 이미 분류기 결과라 그대로 통과시킨다.
-
-    1차로 각 finding을 훑으며 모델 판정이 필요 없는 것(injection, 명시적 부정/긍정
-    단서, 학습 안 한 타입)은 바로 정리하고, 모델이 실제로 판단해야 하는 것만
-    "보류" 표시로 모아둔다. 2차에서 그 보류 목록을 한 번에 배치 호출한다.
-
-    실측(2026-09-20, 4,442,184자짜리 로그 — 계좌번호 3,593건): 건마다
-    models.filter_false_positive를 따로 불렀더니 249.87초가 걸렸다(모델
-    벡터화 오버헤드가 건수만큼 반복). models.filter_false_positive_many로
-    한 번에 넘기면 이 반복이 사라진다.
-    """
     # (kind, finding, context_start) — kind: "keep" | "drop" | "pending".
     # pending은 모델 배치 호출이 끝난 뒤 2차에서 kept/filtered_out으로 갈라진다.
     decisions: list[tuple[str, Finding, int]] = []
@@ -467,7 +463,6 @@ def _apply_classifier_filters(
     # 한 타입뿐인 문서라면 아예 안 만든다.
     sentence_index: tuple[list[tuple[str, int, int]], list[int]] | None = None
 
->>>>>>> main
     for f in findings:
         if f.type == "injection":
             decisions.append(("keep", f, 0))
@@ -487,7 +482,7 @@ def _apply_classifier_filters(
         # 잡히다 말다 했다(실측 2026-09-20: 계좌번호 5건 중 1건만 통과). 열 제목 자체가 이미
         # 분류기의 문맥 판단보다 훨씬 강한 근거이므로 여기서도 그대로 신뢰한다.
         if f.evidence.get("structured_header"):
-            kept.append(f)
+            decisions.append(("keep", f, 0))
             continue
         # 체크섬만으로 무조건 통과시키지는 않는다. 쿠폰번호·접수번호 같은 hard
         # negative는 계속 모델이 판단하고, 값 바로 앞에 실제 유형 라벨이 있을 때만
@@ -753,13 +748,33 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
             )
         )
 
-    occupied = {(sheet, column, row) for sheet, column, row, _ in cells}
     headers: dict[tuple[str, str], list[tuple[int, str]]] = {}
     for sheet, column, row, span in cells:
         risk_type = _XLSX_SENSITIVE_HEADERS.get(span.text.strip())
         if risk_type is None:
             continue
         headers.setdefault((sheet, column), []).append((row, risk_type))
+
+    # 열 안에 빈 줄(구멍)이 있으면 헤더가 그 뒤 셀까지 이어진다고 보지 않는다
+    # (아래 range 검사). 실측(2026-09-20, 5만 셀짜리 XLSX): 행마다 "헤더 다음 줄부터
+    # 지금 줄까지 전부 채워져 있는지"를 매번 range()로 다시 훑어(occupied 집합
+    # 조회 자체는 O(1)이지만 훑는 길이가 헤더로부터의 거리만큼 늘어나) 10,000행에서
+    # 330초가 걸렸다(누적하면 O(행 수²)). 열별로 채워진 행 번호를 한 번만 정렬해
+    # 두면, "그 구간 안에 채워진 행이 몇 개인지"를 이진 탐색 두 번으로 세서
+    # (구간 길이와 같은지 비교) 같은 결과를 O(log n)에 낸다.
+    occupied_rows_by_col: dict[tuple[str, str], list[int]] = {}
+    for sheet, column, row, _ in cells:
+        occupied_rows_by_col.setdefault((sheet, column), []).append(row)
+    for rows in occupied_rows_by_col.values():
+        rows.sort()
+
+    def _column_fully_occupied(sheet: str, column: str, after_row: int, through_row: int) -> bool:
+        if through_row <= after_row:
+            return True
+        rows = occupied_rows_by_col.get((sheet, column), [])
+        lo = bisect.bisect_right(rows, after_row)
+        hi = bisect.bisect_right(rows, through_row)
+        return (hi - lo) == (through_row - after_row)
 
     findings = []
     for sheet, column, row, span in cells:
@@ -768,7 +783,7 @@ def _find_structured_xlsx_values(spans) -> list[dict]:
         value = span.text.strip()
         if header is None or not value:
             continue
-        if not all((sheet, column, current) in occupied for current in range(header[0] + 1, row + 1)):
+        if not _column_fully_occupied(sheet, column, header[0], row):
             continue
         if header[1] == "person" and not _PLAUSIBLE_PERSON_NAME.match(value):
             continue
@@ -794,11 +809,30 @@ def _xlsx_ner_input(text: str, spans, findings: list[Finding]) -> str:
     사람명·회사명·장소가 자유 문장에 들어 있을 수 있으므로 그대로 둔다. 문자열
     길이와 줄/탭 위치는 바꾸지 않아 NER offset은 원문 기준으로 유지된다.
     """
-    covered = [(item.start, item.end) for item in findings]
+    # 실측(2026-09-20, 셀 5만 개짜리 XLSX): span마다 covered(이미 확정된 findings)
+    # 전체를 선형으로 훑어(O(span 수 × findings 수)) 10,000행에서 330초가 걸렸다
+    # (rules.find_all의 not_overlapping과 같은 패턴 — 그쪽 수정과 동일하게 고친다).
+    # covered를 시작 위치로 정렬하고 접두사 최댓값을 이진 탐색하면 span마다
+    # O(log n)으로 줄어든다.
+    covered = sorted((item.start, item.end) for item in findings)
+    covered_starts = [s for s, _ in covered]
+    covered_prefix_max_end = []
+    running_max = float("-inf")
+    for _, e in covered:
+        running_max = max(running_max, e)
+        covered_prefix_max_end.append(running_max)
+
+    def _fully_covered(span_start: int, span_end: int) -> bool:
+        # covered 중 start <= span_start인 것들 안에서 end >= span_end인 게 있는지
+        # 찾는다. start <= span_start인 항목은 정렬된 목록의 앞쪽 [0, upper)에
+        # 몰려 있고, 그 구간의 가장 먼 end는 이미 접두사 최댓값으로 갖고 있다.
+        upper = bisect.bisect_right(covered_starts, span_start)
+        return upper > 0 and covered_prefix_max_end[upper - 1] >= span_end
+
     masked = list(text)
     for span in spans:
         value = span.text
-        already_found = any(start <= span.start and span.end <= end for start, end in covered)
+        already_found = _fully_covered(span.start, span.end)
         needs_ner = not already_found and bool(re.search(r"[가-힣]", value))
         if needs_ner:
             continue
@@ -931,6 +965,16 @@ def _scan_image(doc) -> ScanResult:
     # (3쪽짜리 실측: 20건 중 6건만 잡혔다). 사진 한 장짜리는 image_paths가
     # 비어 있으므로 doc.path로 떨어진다.
     image_paths = getattr(doc, "image_paths", None) or [doc.path]
+
+    # 스캔본 PDF가 페이지 상한(parse.py의 _PDF_SCANNED_MAX_PAGES)을 넘으면 parse.py가
+    # 뒤쪽 쪽을 아예 안 굽는다(렌더링·OCR 비용을 안 들이려고). 검사 안 한 쪽을
+    # 조용히 "안전"으로 보이면 안 되므로 결과에 남긴다 — id_detector 판정
+    # 이전에 넣어야 아래 "여러 얼굴" 안내와 합쳐질 때도 순서가 자연스럽다.
+    skipped_pages = getattr(doc, "skipped_page_count", 0)
+    if skipped_pages:
+        quality_errors.append(
+            f"페이지가 많아 앞 {len(image_paths)}쪽만 검사했습니다(뒤 {skipped_pages}쪽 제외)."
+        )
 
     if id_detector is not None and hasattr(id_detector, "detect"):
         have_detector = True
